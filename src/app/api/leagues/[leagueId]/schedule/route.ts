@@ -1,0 +1,65 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { generateRoundRobin } from "@/lib/scheduler";
+
+export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string }> }) {
+  const { leagueId } = await ctx.params;
+
+  const matches = await prisma.match.findMany({
+    where: { leagueId },
+    orderBy: [{ round: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      leagueId: true,
+      round: true,
+      date: true,
+      homeGoals: true,
+      awayGoals: true,
+      homeTeam: { select: { id: true, name: true } },
+      awayTeam: { select: { id: true, name: true } },
+    },
+  });
+
+  return NextResponse.json(matches);
+}
+
+export async function POST(req: Request, ctx: { params: Promise<{ leagueId: string }> }) {
+  const { leagueId } = await ctx.params;
+
+  const body = await req.json().catch(() => ({}));
+  const random = body?.random !== false;
+  const seed =
+    body?.seed === undefined || body?.seed === null || String(body.seed).trim() === ""
+      ? undefined
+      : Number(body.seed);
+
+  if (seed !== undefined && !Number.isFinite(seed)) {
+    return NextResponse.json({ error: "Seed non valido" }, { status: 400 });
+  }
+
+  const teams = await prisma.team.findMany({
+    where: { leagueId },
+    select: { id: true },
+  });
+
+  const teamIds = teams.map(t => t.id);
+  if (teamIds.length < 2) {
+    return NextResponse.json({ error: "Servono almeno 2 squadre" }, { status: 400 });
+  }
+
+  await prisma.match.deleteMany({ where: { leagueId } });
+
+  const pairings = generateRoundRobin(teamIds, { random, seed });
+
+  await prisma.match.createMany({
+    data: pairings.map(p => ({
+      leagueId,
+      round: p.round,
+      homeTeamId: p.homeTeamId,
+      awayTeamId: p.awayTeamId,
+    })),
+  });
+
+  const rounds = pairings.length ? Math.max(...pairings.map(p => p.round)) : 0;
+  return NextResponse.json({ created: pairings.length, rounds });
+}

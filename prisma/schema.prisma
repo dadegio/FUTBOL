@@ -1,0 +1,88 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model League {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  teams     Team[]
+  matches   Match[]
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  badgeUrl  String?  // stemma opzionale (url o path)
+  createdAt DateTime @default(now())
+
+  leagueId  String
+  league    League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  players   Player[]
+  homeMatches Match[] @relation("HomeTeam")
+  awayMatches Match[] @relation("AwayTeam")
+
+  @@unique([leagueId, name])
+}
+
+model Player {
+  id        String   @id @default(cuid())
+
+  firstName String
+  lastName  String
+  number    Int
+
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  stats     MatchPlayerStat[]
+
+  @@index([teamId])
+  @@unique([teamId, number]) // numero maglia unico nella squadra
+}
+
+model Match {
+  id         String   @id @default(cuid())
+  leagueId   String
+  round      Int
+  date       DateTime?
+
+  homeTeamId String
+  awayTeamId String
+
+  homeGoals  Int?
+  awayGoals  Int?
+
+  createdAt  DateTime @default(now())
+
+  league     League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  homeTeam   Team   @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam   Team   @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  stats      MatchPlayerStat[]
+
+  @@index([leagueId, round])
+  @@unique([leagueId, round, homeTeamId, awayTeamId])
+}
+
+model MatchPlayerStat {
+  id        String @id @default(cuid())
+
+  matchId   String
+  playerId  String
+
+  goals     Int    @default(0)
+  assists   Int    @default(0)
+
+  match     Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player    Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId]) // una riga per giocatore per partita
+  @@index([playerId])
+}
