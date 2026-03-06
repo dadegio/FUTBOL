@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import DashboardShell from "src/app/_components/dashboard-shell";
+import HeroBanner from "src/app/_components//hero-banner";
+import HomeLeagueCard from "src/app/_components/home-league-card";
 
 type League = { id: string; name: string };
 
@@ -27,6 +29,7 @@ export default function HomePage() {
   const [leagues, setLeagues] = useState<League[]>([]);
   const [name, setName] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function load() {
     const ls = await getJSON<League[]>("/api/leagues");
@@ -40,11 +43,35 @@ export default function HomePage() {
   async function create() {
     setErr(null);
     const n = name.trim();
-    if (!n) return setErr("Inserisci un nome torneo");
+    if (!n) {
+      setErr("Inserisci un nome torneo");
+      return;
+    }
 
     try {
+      setLoading(true);
       await postJSON("/api/leagues", { name: n });
       setName("");
+      await load();
+    } catch (e: any) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function removeLeague(id: string, leagueName: string) {
+    setErr(null);
+
+    const ok = window.confirm(
+      `Eliminare il torneo "${leagueName}"?\n\nVerranno cancellati anche squadre, giocatori, partite e statistiche.`
+    );
+    if (!ok) return;
+
+    try {
+      const res = await fetch(`/api/leagues/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as any)?.error ?? "Errore eliminazione");
       await load();
     } catch (e: any) {
       setErr(e.message);
@@ -52,93 +79,84 @@ export default function HomePage() {
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16, fontFamily: "system-ui" }}>
-      <h1 style={{ marginTop: 0 }}>Gestione Campionati</h1>
-      <p style={{ opacity: 0.75 }}>
-        Crea un torneo oppure selezionane uno: verrai portato direttamente al calendario.
-      </p>
+    <DashboardShell active="home">
+      <div className="space-y-6">
+        <HeroBanner />
 
-      <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
-        <div style={{ fontWeight: 900, marginBottom: 8 }}>Crea nuovo torneo</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="Nome torneo"
-            style={{ flex: "1 1 280px", padding: 10, borderRadius: 10, border: "1px solid #ccc" }}
-          />
-          <button onClick={create} style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #ccc", cursor: "pointer" }}>
-            Crea
-          </button>
-        </div>
-        {err ? <div style={{ marginTop: 8, color: "#b00020" }}>{err}</div> : null}
-      </div>
+        <section className="rounded-[28px] border border-white/8 bg-[#121214]/95 p-5 shadow-2xl shadow-black/20">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-medium uppercase tracking-[0.2em] text-[var(--accent)]">
+                Dashboard
+              </div>
+              <h2 className="mt-1 text-2xl font-extrabold text-white">
+                Crea e gestisci i tuoi tornei
+              </h2>
+            </div>
 
-      <div style={{ marginTop: 12, border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
-        <div style={{ fontWeight: 900, marginBottom: 8 }}>Tornei salvati</div>
-        {leagues.length === 0 ? (
-          <div style={{ opacity: 0.7 }}>Nessun torneo.</div>
-        ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {leagues.map(l => (
-  <div
-    key={l.id}
-    style={{
-      display: "flex",
-      gap: 8,
-      alignItems: "stretch",
-    }}
-  >
-    <Link
-      href={`/leagues/${l.id}/calendar`}
-      style={{
-        flex: 1,
-        textDecoration: "none",
-        color: "inherit",
-        border: "1px solid #f0f0f0",
-        borderRadius: 10,
-        padding: 10,
-      }}
-    >
-      <div style={{ fontWeight: 900 }}>{l.name}</div>
-      <div style={{ fontSize: 12, opacity: 0.65 }}>{l.id}</div>
-    </Link>
-
-    <button
-      onClick={async () => {
-        setErr(null);
-        const ok = window.confirm(
-          `Eliminare il torneo "${l.name}"?\n\nVerranno cancellati anche squadre, giocatori, partite e statistiche.`
-        );
-        if (!ok) return;
-
-        try {
-          const res = await fetch(`/api/leagues/${l.id}`, { method: "DELETE" });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error((data as any)?.error ?? "Errore eliminazione");
-
-          await load();
-        } catch (e: any) {
-          setErr(e.message);
-        }
-      }}
-      style={{
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: "1px solid #f0f0f0",
-        background: "white",
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-      }}
-    >
-      Elimina
-    </button>
-  </div>
-))}
+            <div className="rounded-full bg-white/6 px-4 py-2 text-sm text-white/60">
+              {leagues.length} tornei salvati
+            </div>
           </div>
-        )}
-      </div>
 
-    </div>
+          <div className="rounded-[24px] border border-white/8 bg-[#17171a] p-4">
+            <div className="mb-3 text-lg font-bold text-white">Nuovo torneo</div>
+
+            <div className="flex flex-col gap-3 md:flex-row">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nome torneo"
+                className="h-14 flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 text-white outline-none placeholder:text-white/35 focus:border-[var(--accent)]/40"
+              />
+
+              <button
+                onClick={create}
+                disabled={loading}
+                className="h-14 rounded-2xl bg-[var(--accent)] px-6 font-bold text-black transition hover:bg-[var(--accent-2)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loading ? "Creazione..." : "Crea torneo"}
+              </button>
+            </div>
+
+            {err ? (
+              <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {err}
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="rounded-[28px] border border-white/8 bg-[#121214]/95 p-5 shadow-2xl shadow-black/20">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-medium uppercase tracking-[0.2em] text-[var(--accent)]">
+                Saved Leagues
+              </div>
+              <h2 className="mt-1 text-2xl font-extrabold text-white">
+                Tornei disponibili
+              </h2>
+            </div>
+          </div>
+
+          {leagues.length === 0 ? (
+            <div className="rounded-[24px] border border-dashed border-white/10 bg-white/[0.03] px-5 py-12 text-center text-white/55">
+              Nessun torneo salvato. Crea il primo per iniziare.
+            </div>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {leagues.map((league) => (
+                <HomeLeagueCard
+                  key={league.id}
+                  id={league.id}
+                  name={league.name}
+                  onDelete={() => removeLeague(league.id, league.name)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </DashboardShell>
   );
 }

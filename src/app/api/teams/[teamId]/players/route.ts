@@ -10,12 +10,14 @@ function toNonNegInt(value: any) {
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ teamId: string }> }) {
-  const { teamId } = await ctx.params; // <-- FIX Next 16: params è Promise
+  const { teamId } = await ctx.params;
 
   const body = await req.json().catch(() => ({}));
   const firstName = String(body?.firstName ?? "").trim();
   const lastName = String(body?.lastName ?? "").trim();
   const number = toNonNegInt(body?.number);
+  const position = body?.position ? String(body.position).trim() : null;
+  const photoUrl = body?.photoUrl ? String(body.photoUrl).trim() : null;
 
   if (!teamId) {
     return NextResponse.json({ error: "teamId mancante nella route" }, { status: 400 });
@@ -48,9 +50,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ teamId: string
         firstName,
         lastName,
         number,
+        position: position || null,
+        photoUrl: photoUrl || null,
         team: { connect: { id: teamId } },
       },
     });
+
     return NextResponse.json(player);
   } catch {
     return NextResponse.json(

@@ -20,13 +20,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
   const name = String(body?.name ?? "").trim();
   const badgeUrl = body?.badgeUrl ? String(body.badgeUrl).trim() : null;
 
-  if (!name) return NextResponse.json({ error: "Nome squadra mancante" }, { status: 400 });
+  if (!name) {
+    return NextResponse.json({ error: "Nome squadra mancante" }, { status: 400 });
+  }
 
   const league = await prisma.league.findUnique({
     where: { id: leagueId },
     select: { id: true },
   });
-  if (!league) return NextResponse.json({ error: "Lega non valida" }, { status: 400 });
+
+  if (!league) {
+    return NextResponse.json({ error: "Lega non valida" }, { status: 400 });
+  }
 
   try {
     const team = await prisma.team.create({
@@ -36,8 +41,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
         league: { connect: { id: leagueId } },
       },
     });
+
     return NextResponse.json(team);
   } catch {
-    return NextResponse.json({ error: "Squadra già esistente (stessa lega) o errore dati" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Squadra già esistente (stessa lega) o errore dati" },
+      { status: 400 }
+    );
   }
 }

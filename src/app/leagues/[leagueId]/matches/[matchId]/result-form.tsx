@@ -1,12 +1,32 @@
-'use client'
+"use client";
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import DashboardShell from "src/app/_components/dashboard-shell";
 
-type Player = { id: string; firstName: string; lastName: string; number: number; teamId: string };
-type Team = { id: string; name: string; players: Player[] };
-type StatRow = { id: string; matchId: string; playerId: string; goals: number; assists: number };
+type Player = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  number: number;
+  teamId: string;
+};
+
+type Team = {
+  id: string;
+  name: string;
+  players: Player[];
+};
+
+type StatRow = {
+  id: string;
+  matchId: string;
+  playerId: string;
+  goals: number;
+  assists: number;
+};
+
 type Match = {
   id: string;
   round: number;
@@ -20,29 +40,36 @@ type Match = {
 
 export default function MatchResultForm({ match }: { match: Match }) {
   const router = useRouter();
-  const [homeGoals, setHomeGoals] = useState<string>(match.homeGoals === null ? "" : String(match.homeGoals));
-  const [awayGoals, setAwayGoals] = useState<string>(match.awayGoals === null ? "" : String(match.awayGoals));
+  const [homeGoals, setHomeGoals] = useState<string>(
+    match.homeGoals === null ? "" : String(match.homeGoals)
+  );
+  const [awayGoals, setAwayGoals] = useState<string>(
+    match.awayGoals === null ? "" : String(match.awayGoals)
+  );
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  // inizializza mappa stats per giocatore dai dati DB
   const initial = useMemo(() => {
     const m = new Map<string, { goals: number; assists: number }>();
-    for (const s of match.stats) m.set(s.playerId, { goals: s.goals, assists: s.assists });
+    for (const s of match.stats) {
+      m.set(s.playerId, { goals: s.goals, assists: s.assists });
+    }
     return m;
   }, [match.stats]);
 
   const [stats, setStats] = useState<Record<string, { goals: string; assists: string }>>(() => {
     const out: Record<string, { goals: string; assists: string }> = {};
     const allPlayers = [...match.homeTeam.players, ...match.awayTeam.players];
+
     for (const p of allPlayers) {
       const s = initial.get(p.id);
       out[p.id] = {
-        goals: s ? String(s.goals) : "0",
-        assists: s ? String(s.assists) : "0",
+        goals: s ? String(s.goals) : "",
+        assists: s ? String(s.assists) : "",
       };
     }
+
     return out;
   });
 
@@ -50,6 +77,7 @@ export default function MatchResultForm({ match }: { match: Match }) {
     () => match.homeTeam.players.slice().sort((a, b) => a.number - b.number),
     [match.homeTeam.players]
   );
+
   const awayPlayers = useMemo(
     () => match.awayTeam.players.slice().sort((a, b) => a.number - b.number),
     [match.awayTeam.players]
@@ -59,19 +87,26 @@ export default function MatchResultForm({ match }: { match: Match }) {
     const allPlayers = [...homePlayers, ...awayPlayers];
     let goalsSum = 0;
     let assistsSum = 0;
+
     for (const p of allPlayers) {
-      const g = Number(stats[p.id]?.goals ?? "0") || 0;
-      const a = Number(stats[p.id]?.assists ?? "0") || 0;
+      const g = Number(stats[p.id]?.goals || 0);
+      const a = Number(stats[p.id]?.assists || 0);
       goalsSum += g;
       assistsSum += a;
     }
+
     return { goalsSum, assistsSum };
   }, [stats, homePlayers, awayPlayers]);
 
   function setPlayerStat(playerId: string, key: "goals" | "assists", value: string) {
-    // permette vuoto? No: teniamolo semplice => numeri >=0
     const cleaned = value.replace(/[^\d]/g, "");
-    setStats(prev => ({ ...prev, [playerId]: { ...prev[playerId], [key]: cleaned === "" ? "0" : cleaned } }));
+    setStats((prev) => ({
+      ...prev,
+      [playerId]: {
+        ...prev[playerId],
+        [key]: cleaned === "" ? "0" : cleaned,
+      },
+    }));
   }
 
   async function save() {
@@ -81,20 +116,27 @@ export default function MatchResultForm({ match }: { match: Match }) {
     const hg = homeGoals.trim() === "" ? null : Number(homeGoals);
     const ag = awayGoals.trim() === "" ? null : Number(awayGoals);
 
-    if (hg !== null && (!Number.isFinite(hg) || hg < 0)) return setErr("Home goals non valido");
-    if (ag !== null && (!Number.isFinite(ag) || ag < 0)) return setErr("Away goals non valido");
+    if (hg !== null && (!Number.isFinite(hg) || hg < 0)) {
+      setErr("Gol squadra casa non valido");
+      return;
+    }
 
-    // inviamo solo chi ha almeno un goal o un assist > 0
+    if (ag !== null && (!Number.isFinite(ag) || ag < 0)) {
+      setErr("Gol squadra ospite non valido");
+      return;
+    }
+
     const allPlayers = [...homePlayers, ...awayPlayers];
     const playerStats = allPlayers
-      .map(p => {
-        const g = Number(stats[p.id]?.goals ?? "0") || 0;
-        const a = Number(stats[p.id]?.assists ?? "0") || 0;
+      .map((p) => {
+        const g = Number(stats[p.id]?.goals || 0);
+        const a = Number(stats[p.id]?.assists || 0);
         return { playerId: p.id, goals: g, assists: a };
       })
-      .filter(s => s.goals > 0 || s.assists > 0);
+      .filter((s) => s.goals > 0 || s.assists > 0);
 
     setSaving(true);
+
     try {
       const res = await fetch(`/api/matches/${match.id}/result`, {
         method: "POST",
@@ -105,11 +147,13 @@ export default function MatchResultForm({ match }: { match: Match }) {
           playerStats,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Errore salvataggio");
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as any)?.error ?? "Errore salvataggio");
+      }
 
       setMsg("Salvato ✅");
-      // ricarica dati server per vedere conferma e stats aggiornate
       router.refresh();
     } catch (e: any) {
       setErr(e.message);
@@ -119,85 +163,125 @@ export default function MatchResultForm({ match }: { match: Match }) {
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }}>
-      <div style={{ marginBottom: 12 }}>
-        <Link href={`/leagues/${match.leagueId}/calendar`}>← Torna al calendario</Link>
-      </div>
-      <div style={{ border: "1px solid #ddd", borderRadius: 16, padding: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 22 }}>
-              {match.homeTeam.name} - {match.awayTeam.name}
-            </h1>
-            <div style={{ opacity: 0.75, marginTop: 6 }}>Giornata {match.round}</div>
+    <DashboardShell leagueId={match.leagueId}>
+      <div className="space-y-6">
+        <section className="rounded-[28px] border border-white/8 bg-[#121214]/95 p-6 shadow-2xl shadow-black/20">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="text-sm font-medium uppercase tracking-[0.2em] text-[var(--accent)]">
+                Match Detail
+              </div>
+              <h1 className="mt-2 text-3xl font-black text-white">
+                {match.homeTeam.name} <span className="text-white/35">vs</span> {match.awayTeam.name}
+              </h1>
+              <p className="mt-2 text-sm text-white/60">Giornata {match.round}</p>
+            </div>
+
+            <Link
+              href={`/leagues/${match.leagueId}/calendar`}
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white/80 hover:bg-white/10"
+            >
+              ← Torna al calendario
+            </Link>
           </div>
+        </section>
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              value={homeGoals}
-              onChange={e => setHomeGoals(e.target.value.replace(/[^\d]/g, ""))}
-              placeholder="-"
-              inputMode="numeric"
-              style={{ width: 70, padding: 10, borderRadius: 10, border: "1px solid #ccc", textAlign: "center", fontSize: 18, fontWeight: 800 }}
-            />
-            <span style={{ fontWeight: 900, fontSize: 18 }}>:</span>
-            <input
-              value={awayGoals}
-              onChange={e => setAwayGoals(e.target.value.replace(/[^\d]/g, ""))}
-              placeholder="-"
-              inputMode="numeric"
-              style={{ width: 70, padding: 10, borderRadius: 10, border: "1px solid #ccc", textAlign: "center", fontSize: 18, fontWeight: 800 }}
-            />
+        {msg ? (
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            {msg}
           </div>
-        </div>
+        ) : null}
 
-        <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <button
-            onClick={save}
-            disabled={saving}
-            style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #ccc", cursor: "pointer" }}
-          >
-            {saving ? "Salvataggio..." : "Salva risultato + stats"}
-          </button>
-
-          <div style={{ opacity: 0.75, fontSize: 13 }}>
-            Totale gol inseriti: <b>{totals.goalsSum}</b> • Totale assist inseriti: <b>{totals.assistsSum}</b>
+        {err ? (
+          <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {err}
           </div>
-        </div>
+        ) : null}
 
-        {msg && <div style={{ marginTop: 10, color: "green" }}>{msg}</div>}
-        {err && <div style={{ marginTop: 10, color: "#b00020" }}>{err}</div>}
-      </div>
+        <section className="rounded-[28px] border border-white/8 bg-[#121214]/95 p-6 shadow-2xl shadow-black/20">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+            <div className="grid gap-4 md:grid-cols-2">
+              <ScoreBox
+                label={match.homeTeam.name}
+                value={homeGoals}
+                onChange={(v) => setHomeGoals(v.replace(/[^\d]/g, ""))}
+              />
+              <ScoreBox
+                label={match.awayTeam.name}
+                value={awayGoals}
+                onChange={(v) => setAwayGoals(v.replace(/[^\d]/g, ""))}
+              />
+            </div>
 
-      <div
-        style={{
-          marginTop: 12,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          gap: 12,
-        }}
-      >
-        <TeamStatsCard
-          title={match.homeTeam.name}
-          players={homePlayers}
-          stats={stats}
-          setPlayerStat={setPlayerStat}
-        />
-        <TeamStatsCard
-          title={match.awayTeam.name}
-          players={awayPlayers}
-          stats={stats}
-          setPlayerStat={setPlayerStat}
-        />
-      </div>
+            <div className="flex flex-col gap-3 xl:items-end">
+              <button
+                onClick={save}
+                disabled={saving}
+                className="rounded-2xl bg-[var(--accent)] px-5 py-3 font-bold text-black disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving ? "Salvataggio..." : "Salva risultato + stats"}
+              </button>
 
-      <div style={{ marginTop: 12, border: "1px solid #eee", borderRadius: 16, padding: 16 }}>
-        <h2 style={{ marginTop: 0, fontSize: 18 }}>Note rapide</h2>
-        <ul style={{ margin: 0, paddingLeft: 18, opacity: 0.85 }}>
-          <li>Inserisci gol/assist solo per chi serve: gli altri restano 0.</li>
-          <li>Puoi riaprire la partita e correggere: il salvataggio sovrascrive i dati della partita.</li>
-        </ul>
+              <div className="flex flex-wrap gap-3 text-sm text-white/65">
+                <div className="rounded-2xl bg-white/5 px-4 py-2">
+                  Gol inseriti: <b className="text-white">{totals.goalsSum}</b>
+                </div>
+                <div className="rounded-2xl bg-white/5 px-4 py-2">
+                  Assist inseriti: <b className="text-white">{totals.assistsSum}</b>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-2">
+          <TeamStatsCard
+            title={match.homeTeam.name}
+            players={homePlayers}
+            stats={stats}
+            setPlayerStat={setPlayerStat}
+          />
+
+          <TeamStatsCard
+            title={match.awayTeam.name}
+            players={awayPlayers}
+            stats={stats}
+            setPlayerStat={setPlayerStat}
+          />
+        </section>
+
+        <section className="rounded-[28px] border border-white/8 bg-[#121214]/95 p-5 shadow-2xl shadow-black/20">
+          <div className="mb-3 text-xl font-black text-white">Note rapide</div>
+          <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-white/60">
+            <li>Inserisci gol e assist solo per i giocatori che ne hanno fatti.</li>
+            <li>Il salvataggio sovrascrive completamente le statistiche della partita.</li>
+            <li>Puoi rientrare nella partita in qualsiasi momento e correggere i dati.</li>
+          </ul>
+        </section>
       </div>
+    </DashboardShell>
+  );
+}
+
+function ScoreBox({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="rounded-[24px] border border-white/8 bg-[#17171a] p-5">
+      <div className="text-sm uppercase tracking-[0.18em] text-white/40">{label}</div>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="0"
+        inputMode="numeric"
+        className="mt-4 h-16 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-center text-3xl font-black text-white outline-none placeholder:text-white/20 focus:border-[var(--accent)]/40"
+      />
     </div>
   );
 }
@@ -214,49 +298,54 @@ function TeamStatsCard({
   setPlayerStat: (playerId: string, key: "goals" | "assists", value: string) => void;
 }) {
   return (
-    <div style={{ border: "1px solid #ddd", borderRadius: 16, padding: 16 }}>
-      <h2 style={{ marginTop: 0, fontSize: 18 }}>{title}</h2>
+    <section className="rounded-[28px] border border-white/8 bg-[#121214]/95 p-5 shadow-2xl shadow-black/20">
+      <div className="mb-4 text-xl font-black text-white">{title}</div>
 
-      <div style={{ display: "grid", gap: 8 }}>
-        {players.map(p => (
-          <div
-            key={p.id}
-            style={{
-              border: "1px solid #f0f0f0",
-              borderRadius: 12,
-              padding: 10,
-              display: "grid",
-              gridTemplateColumns: "1fr 90px 90px",
-              gap: 8,
-              alignItems: "center",
-            }}
-          >
-            <div style={{ fontWeight: 650 }}>
-              #{p.number} {p.firstName} {p.lastName}
-            </div>
+      {players.length === 0 ? (
+        <div className="rounded-2xl bg-white/[0.04] px-4 py-4 text-white/55">
+          Nessun giocatore disponibile.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {players.map((p) => (
+            <div
+              key={p.id}
+                className="grid gap-3 rounded-2xl border border-white/8 bg-[#17171a] p-4 md:grid-cols-[minmax(200px,1fr)_80px_80px] md:items-center"            >
+              <div className="min-w-0 pr-2">
+                <div className="text-lg font-bold text-white">
+                  #{p.number} {p.firstName} {p.lastName}
+                </div>
+              </div>
 
-            <div>
-              <div style={{ fontSize: 12, opacity: 0.7 }}>Gol</div>
-              <input
-                value={stats[p.id]?.goals ?? "0"}
-                onChange={e => setPlayerStat(p.id, "goals", e.target.value)}
-                inputMode="numeric"
-                style={{ width: "100%", padding: 8, borderRadius: 10, border: "1px solid #ccc", textAlign: "center" }}
-              />
-            </div>
+              <div>
+                <div className="mb-1 text-xs uppercase tracking-[0.16em] text-white/40">
+                  Gol
+                </div>
+                <input
+                  value={stats[p.id]?.goals ?? ""}
+                  placeholder="0"
+                  onChange={(e) => setPlayerStat(p.id, "goals", e.target.value)}
+                  inputMode="numeric"
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-3 text-center font-bold text-white outline-none focus:border-[var(--accent)]/40"
+                />
+              </div>
 
-            <div>
-              <div style={{ fontSize: 12, opacity: 0.7 }}>Assist</div>
-              <input
-                value={stats[p.id]?.assists ?? "0"}
-                onChange={e => setPlayerStat(p.id, "assists", e.target.value)}
-                inputMode="numeric"
-                style={{ width: "100%", padding: 8, borderRadius: 10, border: "1px solid #ccc", textAlign: "center" }}
-              />
+              <div>
+                <div className="mb-1 text-xs uppercase tracking-[0.16em] text-white/40">
+                  Assist
+                </div>
+                <input
+                  value={stats[p.id]?.assists ?? ""}
+                  placeholder="0"
+                  onChange={(e) => setPlayerStat(p.id, "assists", e.target.value)}
+                  inputMode="numeric"
+                  className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-3 text-center font-bold text-white outline-none focus:border-[var(--accent)]/40"
+                />
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

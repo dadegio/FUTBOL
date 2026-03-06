@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import DashboardShell from "src/app/_components/dashboard-shell";
+import LeagueTopbar from "src/app/_components/Topbar";
 
 type Row = {
   teamId: string;
@@ -23,11 +25,15 @@ export default function TablePage() {
 
   useEffect(() => {
     if (!leagueId) return;
+
     (async () => {
       setErr(null);
       const res = await fetch(`/api/leagues/${leagueId}/table`, { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return setErr(data?.error ?? "Errore classifica");
+      if (!res.ok) {
+        setErr(data?.error ?? "Errore classifica");
+        return;
+      }
       setRows(data);
     })();
   }, [leagueId]);
@@ -35,41 +41,57 @@ export default function TablePage() {
   if (!leagueId) return <div>Caricamento…</div>;
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Classifica</h1>
-      {err ? <div style={{ color: "#b00020" }}>{err}</div> : null}
+    <DashboardShell leagueId={leagueId}>
+      <div className="space-y-6">
 
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-          <thead>
-            <tr>
-              {["#", "Squadra", "Pt", "G", "V", "N", "P", "GF", "GS", "DR"].map(h => (
-                <th key={h} style={{ textAlign: h === "Squadra" ? "left" : "center", borderBottom: "1px solid #eee", padding: 8 }}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.teamId}>
-                <td style={{ textAlign: "center", padding: 8, borderBottom: "1px solid #f5f5f5" }}>{i + 1}</td>
-                <td style={{ textAlign: "left", padding: 8, borderBottom: "1px solid #f5f5f5" }}>{r.teamName}</td>
-                <td style={{ textAlign: "center", padding: 8, borderBottom: "1px solid #f5f5f5", fontWeight: 800 }}>{r.points}</td>
-                <td style={{ textAlign: "center", padding: 8, borderBottom: "1px solid #f5f5f5" }}>{r.played}</td>
-                <td style={{ textAlign: "center", padding: 8, borderBottom: "1px solid #f5f5f5" }}>{r.wins}</td>
-                <td style={{ textAlign: "center", padding: 8, borderBottom: "1px solid #f5f5f5" }}>{r.draws}</td>
-                <td style={{ textAlign: "center", padding: 8, borderBottom: "1px solid #f5f5f5" }}>{r.losses}</td>
-                <td style={{ textAlign: "center", padding: 8, borderBottom: "1px solid #f5f5f5" }}>{r.gf}</td>
-                <td style={{ textAlign: "center", padding: 8, borderBottom: "1px solid #f5f5f5" }}>{r.ga}</td>
-                <td style={{ textAlign: "center", padding: 8, borderBottom: "1px solid #f5f5f5" }}>{r.gd}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <section className="rounded-[28px] border border-white/8 bg-[#121214]/95 p-5 shadow-2xl shadow-black/20">
+          {err ? (
+            <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {err}
+            </div>
+          ) : null}
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-separate border-spacing-y-2 text-sm">
+              <thead>
+                <tr className="text-white/45">
+                  {["#", "Squadra", "Pt", "G", "V", "N", "P", "GF", "GS", "DR"].map((h) => (
+                    <th
+                      key={h}
+                      className={`px-4 py-3 ${h === "Squadra" ? "text-left" : "text-center"}`}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={r.teamId} className="rounded-2xl bg-white/[0.04] text-white">
+                    <td className="rounded-l-2xl px-4 py-4 text-center text-white/70">{i + 1}</td>
+                    <td className="px-4 py-4 font-semibold">{r.teamName}</td>
+                    <td className="px-4 py-4 text-center font-black text-[var(--accent)]">{r.points}</td>
+                    <td className="px-4 py-4 text-center">{r.played}</td>
+                    <td className="px-4 py-4 text-center">{r.wins}</td>
+                    <td className="px-4 py-4 text-center">{r.draws}</td>
+                    <td className="px-4 py-4 text-center">{r.losses}</td>
+                    <td className="px-4 py-4 text-center">{r.gf}</td>
+                    <td className="px-4 py-4 text-center">{r.ga}</td>
+                    <td className="rounded-r-2xl px-4 py-4 text-center">{r.gd}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {rows.length === 0 ? (
+            <div className="mt-4 rounded-2xl bg-white/[0.04] px-4 py-4 text-white/55">
+              Nessuna partita con risultato inserito.
+            </div>
+          ) : null}
+        </section>
       </div>
-
-      {rows.length === 0 ? <div style={{ marginTop: 10, opacity: 0.7 }}>Nessuna partita con risultato inserito.</div> : null}
-    </div>
+    </DashboardShell>
   );
 }

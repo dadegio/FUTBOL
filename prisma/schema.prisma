@@ -34,9 +34,12 @@ model Team {
 
 model Player {
   id        String   @id @default(cuid())
+
   firstName String
   lastName  String
   number    Int
+  position  String?
+  photoUrl  String?
 
   teamId    String
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)

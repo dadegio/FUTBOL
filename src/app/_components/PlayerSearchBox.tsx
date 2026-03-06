@@ -111,8 +111,10 @@ export default function PlayerSearchBox({ leagueId }: { leagueId: string }) {
                 borderBottom: idx === items.length - 1 ? "none" : "1px solid #f3f3f3",
               }}
             >
-              <div style={{ fontWeight: 800 }}>
-                #{p.number} {p.firstName} {p.lastName}
+              <div className="min-w-0 pr-2">
+                <div className="text-lg font-bold text-white">
+                  #{p.number} {p.firstName} {p.lastName}
+                </div>
               </div>
               <div style={{ fontSize: 12, opacity: 0.75 }}>{p.team.name}</div>
             </button>

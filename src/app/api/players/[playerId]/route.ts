@@ -21,6 +21,8 @@ export async function GET(_: Request, ctx: { params: Promise<{ playerId: string 
       firstName: true,
       lastName: true,
       number: true,
+      position: true,
+      photoUrl: true,
       team: {
         select: {
           id: true,
@@ -45,6 +47,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ playerId: str
   const firstName = String(body?.firstName ?? "").trim();
   const lastName = String(body?.lastName ?? "").trim();
   const number = toPositiveInt(body?.number);
+  const position =
+    body?.position === undefined ? undefined : String(body.position ?? "").trim() || null;
+  const photoUrl =
+    body?.photoUrl === undefined ? undefined : String(body.photoUrl ?? "").trim() || null;
 
   if (!firstName || !lastName) {
     return NextResponse.json({ error: "Nome e cognome sono obbligatori" }, { status: 400 });
@@ -70,6 +76,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ playerId: str
         firstName,
         lastName,
         number,
+        ...(position !== undefined ? { position } : {}),
+        ...(photoUrl !== undefined ? { photoUrl } : {}),
       },
     });
 

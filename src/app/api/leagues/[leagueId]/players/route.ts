@@ -9,30 +9,34 @@ export async function GET(req: Request, ctx: { params: Promise<{ leagueId: strin
   const url = new URL(req.url);
   const qRaw = (url.searchParams.get("q") ?? "").trim();
 
-  if (!qRaw) {
-    return NextResponse.json([]);
-  }
-
   const qNum = Number(qRaw);
   const isNum = Number.isInteger(qNum) && qNum > 0;
 
   const players = await prisma.player.findMany({
     where: {
       team: { leagueId },
-      OR: [
-        { firstName: { contains: qRaw } },
-        { lastName: { contains: qRaw } },
-        { team: { name: { contains: qRaw } } },
-        ...(isNum ? [{ number: qNum }] : []),
-      ],
+
+      ...(qRaw
+        ? {
+            OR: [
+              { firstName: { contains: qRaw, mode: "insensitive" } },
+              { lastName: { contains: qRaw, mode: "insensitive" } },
+              { team: { name: { contains: qRaw, mode: "insensitive" } } },
+              ...(isNum ? [{ number: qNum }] : []),
+            ],
+          }
+        : {}),
     },
+
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    take: 20,
+
     select: {
       id: true,
       firstName: true,
       lastName: true,
       number: true,
+      position: true,
+      photoUrl: true,
       team: {
         select: {
           id: true,

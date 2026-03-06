@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import DashboardShell from "src/app/_components/dashboard-shell";
 
 type TeamRow = {
   id: string;
   name: string;
   badgeUrl?: string | null;
+  players?: Array<{ id: string }>;
   _count?: { players: number };
 };
 
@@ -20,6 +22,7 @@ export default function TeamsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showCreateTeam, setShowCreateTeam] = useState(false);
 
   async function load() {
     setErr(null);
@@ -68,6 +71,7 @@ export default function TeamsPage() {
       setName("");
       setBadgeUrl("");
       setMsg("Squadra creata ✅");
+      setShowCreateTeam(false);
       await load();
     } catch (e: any) {
       setErr(e.message);
@@ -77,95 +81,114 @@ export default function TeamsPage() {
   if (!leagueId) return <div>Caricamento…</div>;
 
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Squadre</h1>
-
-      <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 12, marginBottom: 12 }}>
-        <h2 style={{ marginTop: 0, fontSize: 18 }}>Crea nuova squadra</h2>
-
-        <div
-          style={{
-            display: "grid",
-            gap: 8,
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          }}
-        >
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Nome squadra"
-            style={{ padding: 10, borderRadius: 10, border: "1px solid #ccc" }}
-          />
-
-          <input
-            value={badgeUrl}
-            onChange={(e) => setBadgeUrl(e.target.value)}
-            placeholder="Stemma (URL) opzionale"
-            style={{ padding: 10, borderRadius: 10, border: "1px solid #ccc" }}
-          />
-        </div>
-
-        <button
-          onClick={createTeam}
-          style={{
-            marginTop: 10,
-            padding: "10px 14px",
-            borderRadius: 10,
-            border: "1px solid #ccc",
-            cursor: "pointer",
-            background: "white",
-          }}
-        >
-          Crea squadra
-        </button>
-
-        {msg ? <div style={{ marginTop: 8, color: "green" }}>{msg}</div> : null}
-        {err ? <div style={{ marginTop: 8, color: "#b00020" }}>{err}</div> : null}
-      </div>
-
-      <div style={{ display: "grid", gap: 8 }}>
-        {loading ? <div style={{ opacity: 0.75 }}>Caricamento…</div> : null}
-
-        {!loading && teams.length === 0 ? (
-          <div style={{ opacity: 0.75 }}>Nessuna squadra presente.</div>
-        ) : null}
-
-        {teams.map((t) => (
-          <Link
-            key={t.id}
-            href={`/leagues/${leagueId}/teams/${t.id}`}
-            style={{
-              textDecoration: "none",
-              border: "1px solid #eee",
-              borderRadius: 10,
-              padding: 10,
-              color: "inherit",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
+    <DashboardShell leagueId={leagueId}>
+      <div className="space-y-6">
+        <section className="rounded-[28px] border border-white/8 bg-[#121214]/95 p-6 shadow-2xl shadow-black/20">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div style={{ fontWeight: 800 }}>{t.name}</div>
-              <div style={{ fontSize: 12, opacity: 0.7 }}>
-                Rosa: {t._count?.players ?? 0}/16
+              <div className="text-sm font-medium uppercase tracking-[0.2em] text-[var(--accent)]">
+                Teams
               </div>
+              <h1 className="mt-2 text-3xl font-black text-white">Squadre</h1>
+              <p className="mt-2 text-sm text-white/60">
+                Visualizza e gestisci le squadre del torneo.
+              </p>
             </div>
 
-            {t.badgeUrl ? (
-              <img
-                src={t.badgeUrl}
-                alt=""
-                style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", border: "1px solid #eee" }}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
+            <button
+              onClick={() => setShowCreateTeam((v) => !v)}
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white/80 hover:bg-white/10"
+            >
+              {showCreateTeam ? "Nascondi creazione squadra" : "Crea nuova squadra"}
+            </button>
+          </div>
+        </section>
+
+        {msg ? (
+          <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            {msg}
+          </div>
+        ) : null}
+
+        {err ? (
+          <div className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {err}
+          </div>
+        ) : null}
+
+        {showCreateTeam ? (
+          <section className="rounded-[28px] border border-white/8 bg-[#121214]/95 p-5 shadow-2xl shadow-black/20">
+            <div className="mb-4 text-xl font-black text-white">Crea nuova squadra</div>
+
+            <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nome squadra"
+                className="h-14 rounded-2xl border border-white/10 bg-white/5 px-4 text-white outline-none placeholder:text-white/35 focus:border-[var(--accent)]/40"
               />
-            ) : null}
-          </Link>
-        ))}
+
+              <input
+                value={badgeUrl}
+                onChange={(e) => setBadgeUrl(e.target.value)}
+                placeholder="Stemma (URL) opzionale"
+                className="h-14 rounded-2xl border border-white/10 bg-white/5 px-4 text-white outline-none placeholder:text-white/35 focus:border-[var(--accent)]/40"
+              />
+
+              <button
+                onClick={createTeam}
+                className="h-14 rounded-2xl bg-[var(--accent)] px-6 font-bold text-black transition hover:bg-[var(--accent-2)]"
+              >
+                Crea squadra
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        <section className="rounded-[28px] border border-white/8 bg-[#121214]/95 p-5 shadow-2xl shadow-black/20">
+          <div className="mb-5 text-xl font-black text-white">Elenco squadre</div>
+
+          {loading ? <div className="text-white/60">Caricamento…</div> : null}
+
+          {!loading && teams.length === 0 ? (
+            <div className="rounded-2xl bg-white/[0.04] px-4 py-4 text-white/55">
+              Nessuna squadra presente.
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            {teams.map((t) => (
+              <Link
+                key={t.id}
+                href={`/leagues/${leagueId}/teams/${t.id}`}
+                className="flex items-center justify-between gap-4 rounded-[24px] border border-white/8 bg-[#17171a] p-5 transition hover:-translate-y-0.5 hover:border-[var(--accent)]/30"
+              >
+                <div className="min-w-0">
+                  <div className="text-xl font-bold text-white">{t.name}</div>
+                  <div className="mt-2 text-sm text-white/50">
+                    Rosa: {t.players?.length ?? t._count?.players ?? 0}/16
+                  </div>
+                </div>
+
+                {t.badgeUrl ? (
+                  <img
+                    src={t.badgeUrl}
+                    alt=""
+                    className="h-14 w-14 rounded-2xl border border-white/10 object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-xs font-bold text-white/35">
+                    N/A
+                  </div>
+                )}
+              </Link>
+            ))}
+          </div>
+        </section>
       </div>
-    </div>
+    </DashboardShell>
   );
 }
