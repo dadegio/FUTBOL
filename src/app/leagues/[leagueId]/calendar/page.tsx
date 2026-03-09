@@ -428,43 +428,47 @@ export default function CalendarPage() {
         key={m.id}
         className="rounded-2xl border border-white/8 bg-white/[0.03] p-4"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="text-lg font-bold text-[var(--foreground)]">
-              {m.homeTeam.name} <span className="text-[var(--foreground)]/35">vs</span> {m.awayTeam.name}
-            </div>
 
-            {!played ? (
-              <div className="mt-1 text-sm text-[var(--foreground)]/55">
-                Risultato non inserito
-              </div>
-            ) : (
-              <div className="mt-4">
-                <Link
-                  href={`/leagues/${leagueId}/matches/${m.id}`}
-                  className="inline-flex rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[var(--foreground)]/80 hover:bg-white/10"
-                >
-                  Modifica risultato
-                </Link>
-              </div>
-            )}
-          </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+  <div className="min-w-0 flex-1">
+    <div className="break-words text-base font-bold text-[var(--foreground)] sm:text-lg">
+      {m.homeTeam.name}{" "}
+      <span className="text-[var(--foreground)]/35">vs</span>{" "}
+      {m.awayTeam.name}
+    </div>
 
-          <div className="shrink-0">
-            {played ? (
-              <div className="rounded-2xl bg-[var(--accent)] px-4 py-2 text-lg font-black text-black">
-                {m.homeGoals} - {m.awayGoals}
-              </div>
-            ) : (
-              <Link
-                href={`/leagues/${leagueId}/matches/${m.id}`}
-                className="inline-flex rounded-2xl bg-[var(--accent)] px-4 py-3 font-semibold text-black"
-              >
-                Inserisci risultato
-              </Link>
-            )}
-          </div>
-        </div>
+    {!played ? (
+      <div className="mt-1 text-sm text-[var(--foreground)]/55">
+        Risultato non inserito
+      </div>
+    ) : (
+      <div className="mt-3">
+        <Link
+          href={`/leagues/${leagueId}/matches/${m.id}`}
+          className="inline-flex rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-[var(--foreground)]/80 hover:bg-white/10"
+        >
+          Modifica risultato
+        </Link>
+      </div>
+    )}
+  </div>
+
+  <div className="w-full shrink-0 sm:w-auto">
+    {played ? (
+      <div className="inline-flex rounded-2xl bg-[var(--accent)] px-4 py-2 text-lg font-black text-black">
+        {m.homeGoals} - {m.awayGoals}
+      </div>
+    ) : (
+      <Link
+        href={`/leagues/${leagueId}/matches/${m.id}`}
+        className="inline-flex w-full justify-center rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-black sm:w-auto"
+      >
+        Inserisci risultato
+      </Link>
+    )}
+  </div>
+</div>
+
       </div>
     );
   })}
