@@ -73,18 +73,13 @@ export default function PlayerPage() {
         throw new Error((playerData as any)?.error ?? "Errore caricamento giocatore");
       }
 
-      const statsRes = await fetch(`/api/leagues/${leagueId}/stats`, { cache: "no-store" });
+      const statsRes = await fetch(`/api/players/${playerId}/stats`, {
+        cache: "no-store",
+      });
       const statsData = await statsRes.json().catch(() => ({}));
 
-      let g = 0;
-      let a = 0;
-
-      if (statsRes.ok) {
-        const scorer = (statsData.scorers ?? []).find((x: any) => x.playerId === playerId);
-        const assistman = (statsData.assists ?? []).find((x: any) => x.playerId === playerId);
-        g = scorer?.value ?? 0;
-        a = assistman?.value ?? 0;
-      }
+      const g = statsRes.ok ? (statsData.goals ?? 0) : 0;
+      const a = statsRes.ok ? (statsData.assists ?? 0) : 0;
 
       setPlayer(playerData);
       setGoals(g);
