@@ -18,15 +18,10 @@ type Player = {
   number: number;
   position?: string | null;
   photoUrl?: string | null;
-  fiscalCode?: string | null;
   birthDate?: string | null;
   documentSigned?: boolean;
   signedAt?: string | null;
-  privacyConsent?: boolean;
-  internalPhotoConsent?: boolean;
-  publicPhotoConsent?: boolean;
   mediaConsent?: boolean;
-  healthDeclaration?: boolean;
   wildcardUsed?: boolean;
   status?: string;
   statusNote?: string | null;
@@ -60,6 +55,7 @@ type PlayerStatsResponse = {
 };
 
 const POSITIONS = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
+
 const PLAYER_STATUS_OPTIONS = [
   ["PENDING", "Da completare"],
   ["IN_REVIEW", "In verifica"],
@@ -70,16 +66,17 @@ const PLAYER_STATUS_OPTIONS = [
 ] as const;
 
 function formatEuro(cents: number) {
-  return (cents / 100).toLocaleString("it-IT", { style: "currency", currency: "EUR" });
+  return (cents / 100).toLocaleString("it-IT", {
+    style: "currency",
+    currency: "EUR",
+  });
 }
 
 function isPlayerEligible(player: Player | null) {
   return Boolean(
     player?.status === "AUTHORIZED" &&
       player.documentSigned &&
-      player.privacyConsent &&
-      player.internalPhotoConsent &&
-      player.healthDeclaration
+      player.mediaConsent
   );
 }
 
@@ -122,7 +119,6 @@ async function uploadImage(file: File): Promise<string> {
   return (data as any).url as string;
 }
 
-
 export default function PlayerPage() {
   const { leagueId, playerId } = useParams<{ leagueId: string; playerId: string }>();
 
@@ -150,15 +146,10 @@ export default function PlayerPage() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
-  const [fiscalCode, setFiscalCode] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [documentSigned, setDocumentSigned] = useState(false);
   const [signedAt, setSignedAt] = useState("");
-  const [privacyConsent, setPrivacyConsent] = useState(false);
-  const [internalPhotoConsent, setInternalPhotoConsent] = useState(false);
-  const [publicPhotoConsent, setPublicPhotoConsent] = useState(false);
   const [mediaConsent, setMediaConsent] = useState(false);
-  const [healthDeclaration, setHealthDeclaration] = useState(false);
   const [wildcardUsed, setWildcardUsed] = useState(false);
   const [status, setStatus] = useState("PENDING");
   const [statusNote, setStatusNote] = useState("");
@@ -189,6 +180,7 @@ export default function PlayerPage() {
         cache: "no-store",
         headers: getAuthHeaders(),
       });
+
       const statsData: PlayerStatsResponse = await statsRes.json().catch(() => ({}));
 
       setPlayer(playerData);
@@ -196,6 +188,7 @@ export default function PlayerPage() {
       setAssists(statsRes.ok ? (statsData.assists ?? 0) : 0);
       setAppearances(statsRes.ok ? (statsData.appearances ?? 0) : 0);
       setRecentMatches(statsRes.ok ? (statsData.recentMatches ?? []) : []);
+
       setFirstName(playerData.firstName ?? "");
       setLastName(playerData.lastName ?? "");
       setNumber(String(playerData.number ?? ""));
@@ -203,15 +196,11 @@ export default function PlayerPage() {
       setPhotoUrl(playerData.photoUrl ?? "");
       setPhotoFile(null);
       setRemovePhoto(false);
-      setFiscalCode(playerData.fiscalCode ?? "");
+
       setBirthDate(playerData.birthDate ? String(playerData.birthDate).slice(0, 10) : "");
       setDocumentSigned(Boolean(playerData.documentSigned));
       setSignedAt(playerData.signedAt ? String(playerData.signedAt).slice(0, 10) : "");
-      setPrivacyConsent(Boolean(playerData.privacyConsent));
-      setInternalPhotoConsent(Boolean(playerData.internalPhotoConsent));
-      setPublicPhotoConsent(Boolean(playerData.publicPhotoConsent));
       setMediaConsent(Boolean(playerData.mediaConsent));
-      setHealthDeclaration(Boolean(playerData.healthDeclaration));
       setWildcardUsed(Boolean(playerData.wildcardUsed));
       setStatus(playerData.status ?? "PENDING");
       setStatusNote(playerData.statusNote ?? "");
@@ -258,9 +247,11 @@ export default function PlayerPage() {
         if (!photoFile.type.startsWith("image/")) {
           throw new Error("Seleziona un'immagine valida");
         }
+
         if (photoFile.size > 5 * 1024 * 1024) {
           throw new Error("La foto deve essere massimo 5 MB");
         }
+
         finalPhotoUrl = await uploadImage(photoFile);
       }
 
@@ -276,15 +267,10 @@ export default function PlayerPage() {
           number: n,
           position: position || null,
           photoUrl: finalPhotoUrl,
-          fiscalCode: fiscalCode.trim() || null,
           birthDate: birthDate || null,
           documentSigned,
           signedAt: signedAt || null,
-          privacyConsent,
-          internalPhotoConsent,
-          publicPhotoConsent,
           mediaConsent,
-          healthDeclaration,
           wildcardUsed,
           status,
           statusNote: statusNote.trim() || null,
@@ -382,7 +368,11 @@ export default function PlayerPage() {
             { label: "Quota", value: formatEuro(appearances * 50), icon: <Euro size={16} /> },
             { label: "Gol", value: goals, icon: <Goal size={16} /> },
             { label: "Assist", value: assists, icon: <Handshake size={16} /> },
-            { label: "Admin", value: isPlayerEligible(player) ? "OK" : statusLabel(player.status), icon: <Pencil size={16} /> },
+            {
+              label: "Admin",
+              value: isPlayerEligible(player) ? "OK" : statusLabel(player.status),
+              icon: <Pencil size={16} />,
+            },
           ].map((s) => (
             <Card key={s.label} variant="inner">
               <div className="flex items-center gap-2 text-[var(--foreground)]/50">
@@ -483,14 +473,30 @@ export default function PlayerPage() {
               </div>
 
               <div className="rounded-2xl border border-[var(--border)] bg-white/[0.03] p-4">
-                <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-[var(--foreground)]/70">Documenti e autorizzazioni FUTPOLI</h3>
+                <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-[var(--foreground)]/70">
+                  Documenti e autorizzazioni FUTPOLI
+                </h3>
+
                 <div className="grid gap-3 lg:grid-cols-2">
-                  <Input aria-label="Codice fiscale" value={fiscalCode} onChange={(e) => setFiscalCode(e.target.value.toUpperCase())} placeholder="Codice fiscale" />
-                  <Input aria-label="Data di nascita" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
-                  <Input aria-label="Data firma" type="date" value={signedAt} onChange={(e) => setSignedAt(e.target.value)} />
+                  <Input
+                    aria-label="Data di nascita"
+                    type="date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                  />
+
+                  <Input
+                    aria-label="Data firma"
+                    type="date"
+                    value={signedAt}
+                    onChange={(e) => setSignedAt(e.target.value)}
+                  />
+
                   <Select aria-label="Stato admin" value={status} onChange={(e) => setStatus(e.target.value)}>
                     {PLAYER_STATUS_OPTIONS.map(([value, label]) => (
-                      <option key={value} value={value} className="text-black">{label}</option>
+                      <option key={value} value={value} className="text-black">
+                        {label}
+                      </option>
                     ))}
                   </Select>
                 </div>
@@ -498,21 +504,30 @@ export default function PlayerPage() {
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {[
                     ["Modulo firmato", documentSigned, setDocumentSigned],
-                    ["Privacy", privacyConsent, setPrivacyConsent],
-                    ["Foto interna", internalPhotoConsent, setInternalPhotoConsent],
-                    ["Foto pubblica", publicPhotoConsent, setPublicPhotoConsent],
                     ["Liberatoria video/foto", mediaConsent, setMediaConsent],
-                    ["Dichiarazione salute", healthDeclaration, setHealthDeclaration],
                     ["Wildcard", wildcardUsed, setWildcardUsed],
                   ].map(([label, value, setter]) => (
-                    <label key={label as string} className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--foreground)]/80">
-                      <input type="checkbox" checked={value as boolean} onChange={(e) => (setter as (v: boolean) => void)(e.target.checked)} />
+                    <label
+                      key={label as string}
+                      className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--foreground)]/80"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={value as boolean}
+                        onChange={(e) => (setter as (v: boolean) => void)(e.target.checked)}
+                      />
                       {label as string}
                     </label>
                   ))}
                 </div>
 
-                <Input aria-label="Note stato" value={statusNote} onChange={(e) => setStatusNote(e.target.value)} placeholder="Note admin opzionali" className="mt-3" />
+                <Input
+                  aria-label="Note stato"
+                  value={statusNote}
+                  onChange={(e) => setStatusNote(e.target.value)}
+                  placeholder="Note admin opzionali"
+                  className="mt-3"
+                />
               </div>
             </div>
 
@@ -520,6 +535,7 @@ export default function PlayerPage() {
               <Button onClick={savePlayer} disabled={saving}>
                 {saving ? "Salvataggio…" : "Salva modifiche"}
               </Button>
+
               <Button variant="secondary" onClick={() => setEditing(false)}>
                 Annulla
               </Button>
@@ -585,7 +601,6 @@ function PlayerAvatar({
   photoUrl?: string | null;
 }) {
   const fullName = `${firstName} ${lastName}`;
-
   const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
 
   if (photoUrl) {
