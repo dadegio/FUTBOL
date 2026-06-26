@@ -17,6 +17,15 @@ enum Role {
   CAPTAIN
 }
 
+enum PlayerStatus {
+  PENDING
+  IN_REVIEW
+  AUTHORIZED
+  BLOCKED
+  SUSPENDED
+  RETIRED
+}
+
 model User {
   id           String   @id @default(cuid())
   username     String   @unique
@@ -51,6 +60,7 @@ model Team {
   league      League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
 
   players     Player[]
+  sheetPlayers MatchSheetPlayer[]
   homeMatches Match[]  @relation("HomeTeam")
   awayMatches Match[]  @relation("AwayTeam")
 
@@ -72,10 +82,26 @@ model Player {
   position  String?
   photoUrl  String?
 
+  fiscalCode String?
+  birthDate  DateTime?
+  documentSigned Boolean @default(false)
+  signedAt DateTime?
+  privacyConsent Boolean @default(false)
+  internalPhotoConsent Boolean @default(false)
+  publicPhotoConsent Boolean @default(false)
+  mediaConsent Boolean @default(false)
+  healthDeclaration Boolean @default(false)
+  wildcardUsed Boolean @default(false)
+  status PlayerStatus @default(PENDING)
+  statusNote String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   teamId    String
   team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   stats     MatchPlayerStat[]
+  sheetEntries MatchSheetPlayer[]
 
   @@index([teamId])
   @@unique([teamId, number])
@@ -96,6 +122,8 @@ model Match {
   seriesId   String?
   leg        Int?
 
+  refereeCostCents Int @default(2000)
+
   createdAt  DateTime @default(now())
 
   league     League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
@@ -104,6 +132,7 @@ model Match {
   series     PlayoffSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
 
   stats      MatchPlayerStat[]
+  sheetPlayers MatchSheetPlayer[]
 
   @@index([leagueId, round])
   @@index([seriesId])
@@ -124,6 +153,25 @@ model MatchPlayerStat {
 
   @@unique([matchId, playerId])
   @@index([playerId])
+}
+
+
+model MatchSheetPlayer {
+  id       String @id @default(cuid())
+
+  matchId  String
+  playerId String
+  teamId   String
+
+  createdAt DateTime @default(now())
+
+  match    Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  team     Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+  @@index([playerId])
+  @@index([teamId])
 }
 
 model PlayoffSeries {
