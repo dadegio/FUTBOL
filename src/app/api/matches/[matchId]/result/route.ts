@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrCaptainOfMatch } from "@/lib/server-auth";
 import { syncPlayoffSeriesWinner } from "@/lib/playoff-progress";
+import { AUTHORIZED_PLAYER_STATUS, FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 type Body = {
   homeGoals?: number;
   awayGoals?: number;
   playerStats?: Array<{ playerId: string; goals: number; assists: number }>;
+  sheetPlayerIds?: string[];
 };
 
 function asNonNegInt(n: any) {
@@ -15,6 +17,22 @@ function asNonNegInt(n: any) {
   const i = Math.floor(x);
   if (i < 0) return null;
   return i;
+}
+
+function isEligiblePlayer(p: {
+  status: string;
+  documentSigned: boolean;
+  privacyConsent: boolean;
+  internalPhotoConsent: boolean;
+  healthDeclaration: boolean;
+}) {
+  return (
+    p.status === AUTHORIZED_PLAYER_STATUS &&
+    p.documentSigned &&
+    p.privacyConsent &&
+    p.internalPhotoConsent &&
+    p.healthDeclaration
+  );
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ matchId: string }> }) {
@@ -70,29 +88,90 @@ export async function POST(req: Request, ctx: { params: Promise<{ matchId: strin
     }
   }
 
-  const playerIds = [...new Set(rows.map((r) => r.playerId))];
-  const players = playerIds.length
+  const requestedSheetIds = Array.isArray(body.sheetPlayerIds)
+    ? [...new Set(body.sheetPlayerIds.map((id) => String(id).trim()).filter(Boolean))]
+    : [];
+
+  if (requestedSheetIds.length === 0) {
+    return NextResponse.json(
+      { error: "Distinta gara mancante: seleziona i giocatori presenti" },
+      { status: 400 }
+    );
+  }
+
+  type EligiblePlayer = {
+    id: string;
+    teamId: string;
+    status: string;
+    documentSigned: boolean;
+    privacyConsent: boolean;
+    internalPhotoConsent: boolean;
+    healthDeclaration: boolean;
+    firstName: string;
+    lastName: string;
+  };
+
+  const playerIds = [...new Set([...rows.map((r) => r.playerId), ...requestedSheetIds])];
+  const players: EligiblePlayer[] = playerIds.length
     ? await prisma.player.findMany({
         where: { id: { in: playerIds } },
-        select: { id: true, teamId: true },
+        select: {
+          id: true,
+          teamId: true,
+          status: true,
+          documentSigned: true,
+          privacyConsent: true,
+          internalPhotoConsent: true,
+          healthDeclaration: true,
+          firstName: true,
+          lastName: true,
+        },
       })
     : [];
 
-  const playerTeam = new Map(players.map((p) => [p.id, p.teamId]));
+  const playerById = new Map<string, EligiblePlayer>(players.map((p) => [p.id, p]));
 
   for (const pid of playerIds) {
-    const tid = playerTeam.get(pid);
+    const p = playerById.get(pid);
 
-    if (!tid) {
+    if (!p) {
       return NextResponse.json({ error: "Giocatore non valido" }, { status: 400 });
     }
 
-    if (tid !== match.homeTeamId && tid !== match.awayTeamId) {
+    if (p.teamId !== match.homeTeamId && p.teamId !== match.awayTeamId) {
       return NextResponse.json(
         { error: "Un giocatore non appartiene alle squadre della partita" },
         { status: 400 }
       );
     }
+  }
+
+  const sheetPlayers = requestedSheetIds.map((pid) => playerById.get(pid)!);
+  const homeSheet = sheetPlayers.filter((p) => p.teamId === match.homeTeamId);
+  const awaySheet = sheetPlayers.filter((p) => p.teamId === match.awayTeamId);
+
+  if (homeSheet.length < FUTPOLI_RULES.minPlayersInMatchSheet || awaySheet.length < FUTPOLI_RULES.minPlayersInMatchSheet) {
+    return NextResponse.json(
+      { error: `Ogni squadra deve avere almeno ${FUTPOLI_RULES.minPlayersInMatchSheet} giocatori autorizzati in distinta` },
+      { status: 400 }
+    );
+  }
+
+  const ineligible = sheetPlayers.find((p) => !isEligiblePlayer(p));
+  if (ineligible) {
+    return NextResponse.json(
+      { error: `${ineligible.firstName} ${ineligible.lastName} non è autorizzato per la distinta` },
+      { status: 400 }
+    );
+  }
+
+  const sheetSet = new Set(requestedSheetIds);
+  const statOutsideSheet = rows.find((r) => !sheetSet.has(r.playerId));
+  if (statOutsideSheet) {
+    return NextResponse.json(
+      { error: "Gol e assist possono essere assegnati solo a giocatori presenti in distinta" },
+      { status: 400 }
+    );
   }
 
   let winnerId: string | null = null;
@@ -101,9 +180,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ matchId: strin
     await tx.match.update({
       where: { id: matchId },
       data: {
+        refereeCostCents: FUTPOLI_RULES.refereeCostCentsPerMatch,
         ...(homeGoals !== undefined ? { homeGoals } : {}),
         ...(awayGoals !== undefined ? { awayGoals } : {}),
       },
+    });
+
+    await tx.matchSheetPlayer.deleteMany({ where: { matchId } });
+    await tx.matchSheetPlayer.createMany({
+      data: sheetPlayers.map((p) => ({
+        matchId,
+        playerId: p.id,
+        teamId: p.teamId,
+      })),
     });
 
     await tx.matchPlayerStat.deleteMany({ where: { matchId } });
@@ -120,21 +209,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ matchId: strin
     }
 
     if (match.seriesId && match.league.playoffFormat) {
-    await tx.playoffSeries.update({
-      where: { id: match.seriesId },
-      data: {
-        winnerId: null,
-        penaltiesHome: null,
-        penaltiesAway: null,
-      },
-    });
+      await tx.playoffSeries.update({
+        where: { id: match.seriesId },
+        data: {
+          winnerId: null,
+          penaltiesHome: null,
+          penaltiesAway: null,
+        },
+      });
 
-    winnerId = await syncPlayoffSeriesWinner(tx, {
-      leagueId: match.leagueId,
-      seriesId: match.seriesId,
-      format: match.league.playoffFormat,
-    });
-  }
+      winnerId = await syncPlayoffSeriesWinner(tx, {
+        leagueId: match.leagueId,
+        seriesId: match.seriesId,
+        format: match.league.playoffFormat,
+      });
+    }
   });
 
   return NextResponse.json({ ok: true, winnerId });

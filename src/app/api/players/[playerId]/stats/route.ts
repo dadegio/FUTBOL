@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 export async function GET(
   _: Request,
@@ -24,7 +25,7 @@ export async function GET(
     );
   }
 
-  const [agg, appearances, recentMatches, recentStats] = await Promise.all([
+  const [agg, sheetEntries, recentStats] = await Promise.all([
     prisma.matchPlayerStat.aggregate({
       where: { playerId },
       _sum: {
@@ -33,35 +34,22 @@ export async function GET(
       },
     }),
 
-    prisma.match.count({
-      where: {
-        homeGoals: { not: null },
-        awayGoals: { not: null },
-        OR: [
-          { homeTeamId: player.teamId },
-          { awayTeamId: player.teamId },
-        ],
-      },
-    }),
-
-    prisma.match.findMany({
-      where: {
-        homeGoals: { not: null },
-        awayGoals: { not: null },
-        OR: [
-          { homeTeamId: player.teamId },
-          { awayTeamId: player.teamId },
-        ],
-      },
-      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    prisma.matchSheetPlayer.findMany({
+      where: { playerId },
+      orderBy: [{ match: { date: "desc" } }, { createdAt: "desc" }],
       take: 8,
       select: {
-        id: true,
-        date: true,
-        homeGoals: true,
-        awayGoals: true,
-        homeTeam: { select: { name: true } },
-        awayTeam: { select: { name: true } },
+        matchId: true,
+        match: {
+          select: {
+            id: true,
+            date: true,
+            homeGoals: true,
+            awayGoals: true,
+            homeTeam: { select: { name: true } },
+            awayTeam: { select: { name: true } },
+          },
+        },
       },
     }),
 
@@ -75,19 +63,23 @@ export async function GET(
     }),
   ]);
 
-  const statsByMatch = new Map(
+  const statsByMatch = new Map<string, { goals: number; assists: number }>(
     recentStats.map((row) => [
       row.matchId,
       { goals: row.goals, assists: row.assists },
     ])
   );
 
+  const appearances = await prisma.matchSheetPlayer.count({ where: { playerId } });
+
   return NextResponse.json({
     goals: agg._sum.goals ?? 0,
     assists: agg._sum.assists ?? 0,
     appearances,
-    recentMatches: recentMatches.map((match) => {
-      const stat = statsByMatch.get(match.id);
+    feeCents: appearances * FUTPOLI_RULES.playerFeeCentsPerAppearance,
+    recentMatches: sheetEntries.map((entry) => {
+      const stat = statsByMatch.get(entry.matchId);
+      const match = entry.match;
 
       return {
         matchId: match.id,

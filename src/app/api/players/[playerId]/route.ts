@@ -4,6 +4,19 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrCaptainOfTeam } from "@/lib/server-auth";
 
+const PLAYER_STATUSES = new Set(["PENDING", "IN_REVIEW", "AUTHORIZED", "BLOCKED", "SUSPENDED", "RETIRED"]);
+
+function asNullableDate(value: unknown) {
+  if (value === undefined) return undefined;
+  if (value === null || String(value).trim() === "") return null;
+  const d = new Date(String(value));
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+function asBool(value: unknown) {
+  return value === true;
+}
+
 export async function GET(
   _: Request,
   ctx: { params: Promise<{ playerId: string }> }
@@ -19,6 +32,18 @@ export async function GET(
       number: true,
       position: true,
       photoUrl: true,
+      fiscalCode: true,
+      birthDate: true,
+      documentSigned: true,
+      signedAt: true,
+      privacyConsent: true,
+      internalPhotoConsent: true,
+      publicPhotoConsent: true,
+      mediaConsent: true,
+      healthDeclaration: true,
+      wildcardUsed: true,
+      status: true,
+      statusNote: true,
       teamId: true,
       team: {
         select: {
@@ -96,6 +121,30 @@ export async function PATCH(
         ? null
         : String(body.photoUrl).trim() || null;
 
+  const fiscalCode =
+    body?.fiscalCode === undefined
+      ? undefined
+      : String(body.fiscalCode).trim() || null;
+
+  const birthDate = asNullableDate(body?.birthDate);
+  const signedAt = asNullableDate(body?.signedAt);
+
+  const documentSigned = body?.documentSigned === undefined ? undefined : asBool(body.documentSigned);
+  const privacyConsent = body?.privacyConsent === undefined ? undefined : asBool(body.privacyConsent);
+  const internalPhotoConsent = body?.internalPhotoConsent === undefined ? undefined : asBool(body.internalPhotoConsent);
+  const publicPhotoConsent = body?.publicPhotoConsent === undefined ? undefined : asBool(body.publicPhotoConsent);
+  const mediaConsent = body?.mediaConsent === undefined ? undefined : asBool(body.mediaConsent);
+  const healthDeclaration = body?.healthDeclaration === undefined ? undefined : asBool(body.healthDeclaration);
+  const wildcardUsed = body?.wildcardUsed === undefined ? undefined : asBool(body.wildcardUsed);
+
+  const status =
+    body?.status === undefined ? undefined : String(body.status).trim().toUpperCase();
+
+  const statusNote =
+    body?.statusNote === undefined
+      ? undefined
+      : String(body.statusNote).trim() || null;
+
   if (firstName !== undefined && !firstName) {
     return NextResponse.json(
       { error: "Nome non valido" },
@@ -120,6 +169,18 @@ export async function PATCH(
     );
   }
 
+  if (body?.birthDate !== undefined && birthDate === undefined) {
+    return NextResponse.json({ error: "Data di nascita non valida" }, { status: 400 });
+  }
+
+  if (body?.signedAt !== undefined && signedAt === undefined) {
+    return NextResponse.json({ error: "Data firma non valida" }, { status: 400 });
+  }
+
+  if (status !== undefined && !PLAYER_STATUSES.has(status)) {
+    return NextResponse.json({ error: "Stato giocatore non valido" }, { status: 400 });
+  }
+
   const updated = await prisma.player.update({
     where: { id: playerId },
     data: {
@@ -128,6 +189,18 @@ export async function PATCH(
       ...(number !== undefined ? { number } : {}),
       ...(position !== undefined ? { position } : {}),
       ...(photoUrl !== undefined ? { photoUrl } : {}),
+      ...(fiscalCode !== undefined ? { fiscalCode } : {}),
+      ...(birthDate !== undefined ? { birthDate } : {}),
+      ...(signedAt !== undefined ? { signedAt } : {}),
+      ...(documentSigned !== undefined ? { documentSigned } : {}),
+      ...(privacyConsent !== undefined ? { privacyConsent } : {}),
+      ...(internalPhotoConsent !== undefined ? { internalPhotoConsent } : {}),
+      ...(publicPhotoConsent !== undefined ? { publicPhotoConsent } : {}),
+      ...(mediaConsent !== undefined ? { mediaConsent } : {}),
+      ...(healthDeclaration !== undefined ? { healthDeclaration } : {}),
+      ...(wildcardUsed !== undefined ? { wildcardUsed } : {}),
+      ...(status !== undefined ? { status: status as any } : {}),
+      ...(statusNote !== undefined ? { statusNote } : {}),
     },
     select: {
       id: true,
@@ -136,6 +209,18 @@ export async function PATCH(
       number: true,
       position: true,
       photoUrl: true,
+      fiscalCode: true,
+      birthDate: true,
+      documentSigned: true,
+      signedAt: true,
+      privacyConsent: true,
+      internalPhotoConsent: true,
+      publicPhotoConsent: true,
+      mediaConsent: true,
+      healthDeclaration: true,
+      wildcardUsed: true,
+      status: true,
+      statusNote: true,
       teamId: true,
       team: {
         select: {
