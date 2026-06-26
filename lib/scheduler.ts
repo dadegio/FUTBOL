@@ -13,14 +13,17 @@ function shuffle<T>(arr: T[], seed?: number): T[] {
 }
 
 /**
- * Round-robin (solo andata).
+ * Round-robin con girone di andata e ritorno.
  * Se numero squadre dispari -> una riposa (BYE).
+ *
+ * Il ritorno viene generato invertendo casa/trasferta e spostando
+ * le giornate dopo quelle dell'andata.
  */
 export function generateRoundRobin(
   teamIds: string[],
-  opts?: { random?: boolean; seed?: number; alternateHomeAway?: boolean }
+  opts?: { random?: boolean; seed?: number; alternateHomeAway?: boolean; doubleRound?: boolean }
 ): Pairing[] {
-  const { random = true, seed, alternateHomeAway = true } = opts ?? {};
+  const { random = true, seed, alternateHomeAway = true, doubleRound = true } = opts ?? {};
   let teams = random ? shuffle(teamIds, seed) : [...teamIds];
 
   const BYE = "__BYE__";
@@ -56,5 +59,13 @@ export function generateRoundRobin(
     arr = [fixed, ...rest];
   }
 
-  return pairings;
+  if (!doubleRound) return pairings;
+
+  const returnLeg = pairings.map((p) => ({
+    round: p.round + rounds,
+    homeTeamId: p.awayTeamId,
+    awayTeamId: p.homeTeamId,
+  }));
+
+  return [...pairings, ...returnLeg];
 }
