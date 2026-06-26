@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Pencil, Shield, Goal, Handshake, CalendarDays } from "lucide-react";
+import { ArrowLeft, Pencil, Shield, Goal, Handshake, CalendarDays, Euro } from "lucide-react";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
@@ -18,6 +18,18 @@ type Player = {
   number: number;
   position?: string | null;
   photoUrl?: string | null;
+  fiscalCode?: string | null;
+  birthDate?: string | null;
+  documentSigned?: boolean;
+  signedAt?: string | null;
+  privacyConsent?: boolean;
+  internalPhotoConsent?: boolean;
+  publicPhotoConsent?: boolean;
+  mediaConsent?: boolean;
+  healthDeclaration?: boolean;
+  wildcardUsed?: boolean;
+  status?: string;
+  statusNote?: string | null;
   team?: {
     id: string;
     name: string;
@@ -34,6 +46,7 @@ type PlayerStatsResponse = {
   goals?: number;
   assists?: number;
   appearances?: number;
+  feeCents?: number;
   recentMatches?: Array<{
     matchId: string;
     date: string | null;
@@ -47,6 +60,32 @@ type PlayerStatsResponse = {
 };
 
 const POSITIONS = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
+const PLAYER_STATUS_OPTIONS = [
+  ["PENDING", "Da completare"],
+  ["IN_REVIEW", "In verifica"],
+  ["AUTHORIZED", "Autorizzato"],
+  ["BLOCKED", "Bloccato"],
+  ["SUSPENDED", "Squalificato"],
+  ["RETIRED", "Ritirato"],
+] as const;
+
+function formatEuro(cents: number) {
+  return (cents / 100).toLocaleString("it-IT", { style: "currency", currency: "EUR" });
+}
+
+function isPlayerEligible(player: Player | null) {
+  return Boolean(
+    player?.status === "AUTHORIZED" &&
+      player.documentSigned &&
+      player.privacyConsent &&
+      player.internalPhotoConsent &&
+      player.healthDeclaration
+  );
+}
+
+function statusLabel(status?: string) {
+  return PLAYER_STATUS_OPTIONS.find(([value]) => value === status)?.[1] ?? "Da completare";
+}
 
 function getAuthHeaders(): HeadersInit {
   if (typeof window === "undefined") return {};
@@ -111,6 +150,18 @@ export default function PlayerPage() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
+  const [fiscalCode, setFiscalCode] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [documentSigned, setDocumentSigned] = useState(false);
+  const [signedAt, setSignedAt] = useState("");
+  const [privacyConsent, setPrivacyConsent] = useState(false);
+  const [internalPhotoConsent, setInternalPhotoConsent] = useState(false);
+  const [publicPhotoConsent, setPublicPhotoConsent] = useState(false);
+  const [mediaConsent, setMediaConsent] = useState(false);
+  const [healthDeclaration, setHealthDeclaration] = useState(false);
+  const [wildcardUsed, setWildcardUsed] = useState(false);
+  const [status, setStatus] = useState("PENDING");
+  const [statusNote, setStatusNote] = useState("");
 
   const [editing, setEditing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -152,6 +203,18 @@ export default function PlayerPage() {
       setPhotoUrl(playerData.photoUrl ?? "");
       setPhotoFile(null);
       setRemovePhoto(false);
+      setFiscalCode(playerData.fiscalCode ?? "");
+      setBirthDate(playerData.birthDate ? String(playerData.birthDate).slice(0, 10) : "");
+      setDocumentSigned(Boolean(playerData.documentSigned));
+      setSignedAt(playerData.signedAt ? String(playerData.signedAt).slice(0, 10) : "");
+      setPrivacyConsent(Boolean(playerData.privacyConsent));
+      setInternalPhotoConsent(Boolean(playerData.internalPhotoConsent));
+      setPublicPhotoConsent(Boolean(playerData.publicPhotoConsent));
+      setMediaConsent(Boolean(playerData.mediaConsent));
+      setHealthDeclaration(Boolean(playerData.healthDeclaration));
+      setWildcardUsed(Boolean(playerData.wildcardUsed));
+      setStatus(playerData.status ?? "PENDING");
+      setStatusNote(playerData.statusNote ?? "");
     } catch (e: any) {
       setErr(e.message ?? "Errore");
     } finally {
@@ -213,6 +276,18 @@ export default function PlayerPage() {
           number: n,
           position: position || null,
           photoUrl: finalPhotoUrl,
+          fiscalCode: fiscalCode.trim() || null,
+          birthDate: birthDate || null,
+          documentSigned,
+          signedAt: signedAt || null,
+          privacyConsent,
+          internalPhotoConsent,
+          publicPhotoConsent,
+          mediaConsent,
+          healthDeclaration,
+          wildcardUsed,
+          status,
+          statusNote: statusNote.trim() || null,
         }),
       });
 
@@ -304,9 +379,10 @@ export default function PlayerPage() {
           {[
             { label: "Squadra", value: player.team?.name ?? "—", icon: <Shield size={16} /> },
             { label: "Presenze", value: appearances, icon: <CalendarDays size={16} /> },
+            { label: "Quota", value: formatEuro(appearances * 50), icon: <Euro size={16} /> },
             { label: "Gol", value: goals, icon: <Goal size={16} /> },
             { label: "Assist", value: assists, icon: <Handshake size={16} /> },
-            { label: "Ruolo", value: player.position || "—", icon: <Pencil size={16} /> },
+            { label: "Admin", value: isPlayerEligible(player) ? "OK" : statusLabel(player.status), icon: <Pencil size={16} /> },
           ].map((s) => (
             <Card key={s.label} variant="inner">
               <div className="flex items-center gap-2 text-[var(--foreground)]/50">
@@ -404,6 +480,39 @@ export default function PlayerPage() {
                     </option>
                   ))}
                 </Select>
+              </div>
+
+              <div className="rounded-2xl border border-[var(--border)] bg-white/[0.03] p-4">
+                <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-[var(--foreground)]/70">Documenti e autorizzazioni FUTPOLI</h3>
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <Input aria-label="Codice fiscale" value={fiscalCode} onChange={(e) => setFiscalCode(e.target.value.toUpperCase())} placeholder="Codice fiscale" />
+                  <Input aria-label="Data di nascita" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                  <Input aria-label="Data firma" type="date" value={signedAt} onChange={(e) => setSignedAt(e.target.value)} />
+                  <Select aria-label="Stato admin" value={status} onChange={(e) => setStatus(e.target.value)}>
+                    {PLAYER_STATUS_OPTIONS.map(([value, label]) => (
+                      <option key={value} value={value} className="text-black">{label}</option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {[
+                    ["Modulo firmato", documentSigned, setDocumentSigned],
+                    ["Privacy", privacyConsent, setPrivacyConsent],
+                    ["Foto interna", internalPhotoConsent, setInternalPhotoConsent],
+                    ["Foto pubblica", publicPhotoConsent, setPublicPhotoConsent],
+                    ["Liberatoria video/foto", mediaConsent, setMediaConsent],
+                    ["Dichiarazione salute", healthDeclaration, setHealthDeclaration],
+                    ["Wildcard", wildcardUsed, setWildcardUsed],
+                  ].map(([label, value, setter]) => (
+                    <label key={label as string} className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--foreground)]/80">
+                      <input type="checkbox" checked={value as boolean} onChange={(e) => (setter as (v: boolean) => void)(e.target.checked)} />
+                      {label as string}
+                    </label>
+                  ))}
+                </div>
+
+                <Input aria-label="Note stato" value={statusNote} onChange={(e) => setStatusNote(e.target.value)} placeholder="Note admin opzionali" className="mt-3" />
               </div>
             </div>
 

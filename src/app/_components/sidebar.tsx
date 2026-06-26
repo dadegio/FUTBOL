@@ -12,6 +12,7 @@ import {
   Search,
   Swords,
   ShieldCheck,
+  Banknote,
 } from "lucide-react";
 import AuthButton from "./auth-button";
 import { useIsAdmin } from "@/lib/client-auth";
@@ -148,6 +149,14 @@ export default function Sidebar({ leagueId }: SidebarProps) {
           <p className="mb-1 px-3 text-[10px] font-medium uppercase tracking-widest text-[var(--foreground)]/30">
             Admin
           </p>
+          {leagueId && (
+            <NavItem
+              href={`/leagues/${leagueId}/admin`}
+              icon={<Banknote size={17} />}
+              label="Admin torneo"
+              active={pathname === `/leagues/${leagueId}/admin`}
+            />
+          )}
           <NavItem
             href="/admin/users"
             icon={<ShieldCheck size={17} />}

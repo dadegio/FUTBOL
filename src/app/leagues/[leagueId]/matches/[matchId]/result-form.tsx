@@ -16,6 +16,11 @@ type Player = {
   lastName: string;
   number: number;
   teamId: string;
+  status?: string;
+  documentSigned?: boolean;
+  privacyConsent?: boolean;
+  internalPhotoConsent?: boolean;
+  healthDeclaration?: boolean;
 };
 
 type Team = {
@@ -42,6 +47,7 @@ type Match = {
   homeTeam: Team;
   awayTeam: Team;
   stats: StatRow[];
+  sheetPlayers?: Array<{ playerId: string; teamId: string }>;
   leagueId: string;
 };
 
@@ -96,6 +102,27 @@ function TeamCrest({
   );
 }
 
+
+function isPlayerEligible(player: Player) {
+  return (
+    player.status === "AUTHORIZED" &&
+    player.documentSigned === true &&
+    player.privacyConsent === true &&
+    player.internalPhotoConsent === true &&
+    player.healthDeclaration === true
+  );
+}
+
+function playerEligibilityLabel(player: Player) {
+  if (isPlayerEligible(player)) return "Autorizzato";
+  if (player.status !== "AUTHORIZED") return "Stato non autorizzato";
+  if (!player.documentSigned) return "Modulo non firmato";
+  if (!player.privacyConsent) return "Privacy mancante";
+  if (!player.internalPhotoConsent) return "Foto interna mancante";
+  if (!player.healthDeclaration) return "Dichiarazione salute mancante";
+  return "Non autorizzato";
+}
+
 export default function MatchResultForm({ match }: { match: Match }) {
   const { user, loading: authLoading } = useAuth();
   const canEdit =
@@ -146,6 +173,15 @@ export default function MatchResultForm({ match }: { match: Match }) {
     return out;
   });
 
+  const [sheet, setSheet] = useState<Record<string, boolean>>(() => {
+    const selected = new Set(match.sheetPlayers?.map((row) => row.playerId) ?? []);
+    const out: Record<string, boolean> = {};
+    for (const p of [...match.homeTeam.players, ...match.awayTeam.players]) {
+      out[p.id] = selected.has(p.id);
+    }
+    return out;
+  });
+
   const homePlayers = useMemo(
     () => match.homeTeam.players.slice().sort((a, b) => a.number - b.number),
     [match.homeTeam.players]
@@ -157,12 +193,19 @@ export default function MatchResultForm({ match }: { match: Match }) {
 
   const totals = useMemo(() => {
     let goalsSum = 0, assistsSum = 0;
-    for (const p of [...homePlayers, ...awayPlayers]) {
+    let homeSheetCount = 0, awaySheetCount = 0;
+    for (const p of homePlayers) {
       goalsSum += Number(stats[p.id]?.goals || 0);
       assistsSum += Number(stats[p.id]?.assists || 0);
+      if (sheet[p.id]) homeSheetCount += 1;
     }
-    return { goalsSum, assistsSum };
-  }, [stats, homePlayers, awayPlayers]);
+    for (const p of awayPlayers) {
+      goalsSum += Number(stats[p.id]?.goals || 0);
+      assistsSum += Number(stats[p.id]?.assists || 0);
+      if (sheet[p.id]) awaySheetCount += 1;
+    }
+    return { goalsSum, assistsSum, homeSheetCount, awaySheetCount };
+  }, [stats, sheet, homePlayers, awayPlayers]);
 
   function setPlayerStat(playerId: string, key: "goals" | "assists", value: string) {
     const cleaned = value.replace(/[^\d]/g, "");
@@ -170,6 +213,10 @@ export default function MatchResultForm({ match }: { match: Match }) {
       ...prev,
       [playerId]: { ...prev[playerId], [key]: cleaned === "" ? "0" : cleaned },
     }));
+  }
+
+  function toggleSheet(playerId: string, checked: boolean) {
+    setSheet((prev) => ({ ...prev, [playerId]: checked }));
   }
 
   async function saveDate(clear = false) {
@@ -201,6 +248,9 @@ export default function MatchResultForm({ match }: { match: Match }) {
     const ag = awayGoals.trim() === "" ? null : Number(awayGoals);
     if (hg !== null && (!Number.isFinite(hg) || hg < 0)) { setErr("Gol squadra casa non valido"); return; }
     if (ag !== null && (!Number.isFinite(ag) || ag < 0)) { setErr("Gol squadra ospite non valido"); return; }
+    const sheetPlayerIds = [...homePlayers, ...awayPlayers]
+      .filter((p) => sheet[p.id])
+      .map((p) => p.id);
     const playerStats = [...homePlayers, ...awayPlayers]
       .map((p) => ({ playerId: p.id, goals: Number(stats[p.id]?.goals || 0), assists: Number(stats[p.id]?.assists || 0) }))
       .filter((s) => s.goals > 0 || s.assists > 0);
@@ -209,7 +259,7 @@ export default function MatchResultForm({ match }: { match: Match }) {
       const res = await authFetch(`/api/matches/${match.id}/result`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ homeGoals: hg === null ? undefined : hg, awayGoals: ag === null ? undefined : ag, playerStats }),
+        body: JSON.stringify({ homeGoals: hg === null ? undefined : hg, awayGoals: ag === null ? undefined : ag, playerStats, sheetPlayerIds }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data as any)?.error ?? "Errore salvataggio");
@@ -387,6 +437,8 @@ export default function MatchResultForm({ match }: { match: Match }) {
             title={match.homeTeam.name}
             players={homePlayers}
             stats={stats}
+            sheet={sheet}
+            toggleSheet={toggleSheet}
             setPlayerStat={setPlayerStat}
             readOnly={!canEdit}
           />
@@ -394,6 +446,8 @@ export default function MatchResultForm({ match }: { match: Match }) {
             title={match.awayTeam.name}
             players={awayPlayers}
             stats={stats}
+            sheet={sheet}
+            toggleSheet={toggleSheet}
             setPlayerStat={setPlayerStat}
             readOnly={!canEdit}
           />
@@ -414,6 +468,14 @@ export default function MatchResultForm({ match }: { match: Match }) {
                 <span className="text-[var(--foreground)] font-semibold">{totals.assistsSum}</span>
                 {" "}assist
               </span>
+              <span>
+                <span className="text-[var(--foreground)] font-semibold">{totals.homeSheetCount}</span>
+                /8 {match.homeTeam.name.slice(0, 8)}
+              </span>
+              <span>
+                <span className="text-[var(--foreground)] font-semibold">{totals.awaySheetCount}</span>
+                /8 {match.awayTeam.name.slice(0, 8)}
+              </span>
             </div>
             <Button onClick={save} disabled={saving}>
               {saving ? "Salvataggio…" : "Salva"}
@@ -427,11 +489,13 @@ export default function MatchResultForm({ match }: { match: Match }) {
 }
 
 function TeamStatsCard({
-  title, players, stats, setPlayerStat, readOnly,
+  title, players, stats, sheet, toggleSheet, setPlayerStat, readOnly,
 }: {
   title: string;
   players: Player[];
   stats: Record<string, { goals: string; assists: string }>;
+  sheet: Record<string, boolean>;
+  toggleSheet: (playerId: string, checked: boolean) => void;
   setPlayerStat: (playerId: string, key: "goals" | "assists", value: string) => void;
   readOnly?: boolean;
 }) {
@@ -456,7 +520,7 @@ function TeamStatsCard({
                   i < players.length - 1 ? "border-b border-[var(--border)]" : "",
                   hasStats ? "bg-[oklch(0.97_0.01_258)]" : "",
                 ].join(" ")}
-                style={{ gridTemplateColumns: "28px 1fr auto" }}
+                style={{ gridTemplateColumns: "28px 1fr auto auto" }}
               >
                 {/* Jersey number */}
                 <div
@@ -467,9 +531,25 @@ function TeamStatsCard({
                 </div>
 
                 {/* Name */}
-                <span className="min-w-0 truncate text-[13px] font-medium text-[var(--foreground)]">
-                  {p.firstName} {p.lastName}
-                </span>
+                <div className="min-w-0">
+                  <span className="block truncate text-[13px] font-medium text-[var(--foreground)]">
+                    {p.firstName} {p.lastName}
+                  </span>
+                  <span className={[
+                    "mt-0.5 block truncate text-[10px] font-medium",
+                    isPlayerEligible(p) ? "text-emerald-700" : "text-red-600",
+                  ].join(" ")}>{playerEligibilityLabel(p)}</span>
+                </div>
+
+                <label className="flex items-center gap-1 text-[10px] font-semibold text-[var(--muted)]">
+                  <input
+                    type="checkbox"
+                    checked={sheet[p.id] ?? false}
+                    disabled={readOnly || !isPlayerEligible(p)}
+                    onChange={(event) => toggleSheet(p.id, event.target.checked)}
+                  />
+                  Distinta
+                </label>
 
                 {/* Inputs */}
                 <div className="flex items-center gap-1.5">

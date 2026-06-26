@@ -21,6 +21,13 @@ type Player = {
   photoUrl?: string | null;
   goals?: number;
   assists?: number;
+  appearances?: number;
+  feeCents?: number;
+  status?: string;
+  documentSigned?: boolean;
+  privacyConsent?: boolean;
+  internalPhotoConsent?: boolean;
+  healthDeclaration?: boolean;
 };
 
 type Team = {
@@ -32,7 +39,26 @@ type Team = {
 };
 
 const POSITIONS = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
+const MAX_PLAYERS_PER_TEAM = 14;
+
 const ROLE_ORDER = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
+
+function formatEuro(cents: number) {
+  return (cents / 100).toLocaleString("it-IT", { style: "currency", currency: "EUR" });
+}
+
+function isAdminOk(player: Player) {
+  return player.status === "AUTHORIZED" && player.documentSigned && player.privacyConsent && player.internalPhotoConsent && player.healthDeclaration;
+}
+
+function playerStatusLabel(player: Player) {
+  if (isAdminOk(player)) return "Autorizzato";
+  if (player.status === "SUSPENDED") return "Squalificato";
+  if (player.status === "BLOCKED") return "Bloccato";
+  if (player.status === "IN_REVIEW") return "In verifica";
+  if (player.status === "RETIRED") return "Ritirato";
+  return "Da completare";
+}
 
 const SHORT_ROLE: Record<string, string> = {
   Portiere: "POR",
@@ -306,7 +332,7 @@ export default function TeamPage() {
               <div className="text-2xl font-black tracking-[-0.06em] text-[var(--foreground)]">
                 {team.players.length}
               </div>
-              <div className="text-sm text-[var(--muted)]">giocatori</div>
+              <div className="text-sm text-[var(--muted)]">giocatori / {MAX_PLAYERS_PER_TEAM}</div>
             </div>
           </div>
 
@@ -335,7 +361,7 @@ export default function TeamPage() {
                   setShowAddPlayer((value) => !value);
                   setEditingTeam(false);
                 }}
-                disabled={team.players.length >= 16}
+                disabled={team.players.length >= MAX_PLAYERS_PER_TEAM}
                 className={[
                   "flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition disabled:opacity-40",
                   showAddPlayer
@@ -580,7 +606,10 @@ function PlayerRow({
   const fullName = `${player.firstName} ${player.lastName}`;
 
   return (
-    <div className="grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0">
+    <div className={[
+      "grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0",
+      isAdminOk(player) ? "" : "bg-red-50/40",
+    ].join(" ")}>
       <PlayerPhoto
         name={fullName}
         photoUrl={player.photoUrl ?? null}
@@ -599,6 +628,11 @@ function PlayerRow({
           <span>#{player.number}</span>
           <span>·</span>
           <span>{shortRole}</span>
+          <span>·</span>
+          <span>{playerStatusLabel(player)}</span>
+        </div>
+        <div className="mt-1 text-xs text-[var(--muted)]">
+          {player.appearances ?? 0} presenze · {formatEuro(player.feeCents ?? 0)} quota
         </div>
       </Link>
 
