@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrCaptainOfTeam } from "@/lib/server-auth";
+import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 export async function GET(_: Request, ctx: { params: Promise<{ teamId: string }> }) {
   const { teamId } = await ctx.params;
@@ -17,6 +18,9 @@ export async function GET(_: Request, ctx: { params: Promise<{ teamId: string }>
           stats: {
             select: { goals: true, assists: true },
           },
+          sheetEntries: {
+            select: { id: true },
+          },
         },
       },
     },
@@ -25,11 +29,17 @@ export async function GET(_: Request, ctx: { params: Promise<{ teamId: string }>
   if (!team) return NextResponse.json({ error: "Squadra non trovata" }, { status: 404 });
 
   // Aggregate stats per player
-  const players = team.players.map(({ stats, ...p }) => ({
-    ...p,
-    goals: stats.reduce((s, r) => s + r.goals, 0),
-    assists: stats.reduce((s, r) => s + r.assists, 0),
-  }));
+  const players = team.players.map(({ stats, sheetEntries, ...p }) => {
+    const appearances = sheetEntries.length;
+
+    return {
+      ...p,
+      goals: stats.reduce((s, r) => s + r.goals, 0),
+      assists: stats.reduce((s, r) => s + r.assists, 0),
+      appearances,
+      feeCents: appearances * FUTPOLI_RULES.playerFeeCentsPerAppearance,
+    };
+  });
 
   return NextResponse.json({ ...team, players });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrCaptainOfTeam } from "@/lib/server-auth";
+import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 function toNonNegInt(value: any) {
   const n = Number(value);
@@ -44,8 +45,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ teamId: string
     return NextResponse.json({ error: "Squadra non valida" }, { status: 400 });
   }
 
-  if (team.players.length >= 16) {
-    return NextResponse.json({ error: "Rosa completa: massimo 16 giocatori" }, { status: 400 });
+  if (team.players.length >= FUTPOLI_RULES.maxPlayersPerTeam) {
+    return NextResponse.json({ error: `Rosa completa: massimo ${FUTPOLI_RULES.maxPlayersPerTeam} giocatori` }, { status: 400 });
   }
 
   try {

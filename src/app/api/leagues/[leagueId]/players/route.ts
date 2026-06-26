@@ -37,6 +37,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ leagueId: strin
       number: true,
       position: true,
       photoUrl: true,
+      documentSigned: true,
+      privacyConsent: true,
+      internalPhotoConsent: true,
+      mediaConsent: true,
+      healthDeclaration: true,
+      wildcardUsed: true,
+      status: true,
       team: {
         select: {
           id: true,
