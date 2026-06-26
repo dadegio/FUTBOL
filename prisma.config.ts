@@ -1,7 +1,11 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-const datasourceUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+const datasourceUrl =
+  process.env.DIRECT_URL &&
+  !process.env.DIRECT_URL.includes("USER:PASSWORD@HOST")
+    ? process.env.DIRECT_URL
+    : process.env.DATABASE_URL;
 
 if (!datasourceUrl) {
   throw new Error("Imposta DIRECT_URL o DATABASE_URL per Prisma CLI");
