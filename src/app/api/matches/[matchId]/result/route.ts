@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdminOrCaptainOfMatch } from "@/lib/server-auth";
 import { syncPlayoffSeriesWinner } from "@/lib/playoff-progress";
-import { AUTHORIZED_PLAYER_STATUS, FUTPOLI_RULES } from "@/lib/tournament-rules";
+import {
+  FUTPOLI_RULES,
+  isPlayerEligibleForMatchSheet,
+} from "@/lib/tournament-rules";
 
 type Body = {
   homeGoals?: number;
@@ -11,39 +14,45 @@ type Body = {
   sheetPlayerIds?: string[];
 };
 
+type EligiblePlayer = {
+  id: string;
+  teamId: string;
+  status: string | null;
+  documentSigned: boolean;
+  mediaConsent: boolean;
+  firstName: string;
+  lastName: string;
+};
+
 function asNonNegInt(n: any) {
   const x = Number(n);
   if (!Number.isFinite(x)) return null;
+
   const i = Math.floor(x);
   if (i < 0) return null;
+
   return i;
 }
 
-function isEligiblePlayer(p: {
-  status: string;
-  documentSigned: boolean;
-  privacyConsent: boolean;
-  internalPhotoConsent: boolean;
-  healthDeclaration: boolean;
-}) {
-  return (
-    p.status === AUTHORIZED_PLAYER_STATUS &&
-    p.documentSigned &&
-    p.privacyConsent &&
-    p.internalPhotoConsent &&
-    p.healthDeclaration
-  );
+function isEligiblePlayer(player: EligiblePlayer) {
+  return isPlayerEligibleForMatchSheet(player);
 }
 
-export async function POST(req: Request, ctx: { params: Promise<{ matchId: string }> }) {
+export async function POST(
+  req: Request,
+  ctx: { params: Promise<{ matchId: string }> }
+) {
   const { matchId } = await ctx.params;
+
   const authErr = await requireAdminOrCaptainOfMatch(matchId);
   if (authErr) return authErr;
 
   const body = (await req.json().catch(() => ({}))) as Body;
 
-  const homeGoals = body.homeGoals === undefined ? undefined : asNonNegInt(body.homeGoals);
-  const awayGoals = body.awayGoals === undefined ? undefined : asNonNegInt(body.awayGoals);
+  const homeGoals =
+    body.homeGoals === undefined ? undefined : asNonNegInt(body.homeGoals);
+  const awayGoals =
+    body.awayGoals === undefined ? undefined : asNonNegInt(body.awayGoals);
 
   if (homeGoals === null) {
     return NextResponse.json({ error: "homeGoals non valido" }, { status: 400 });
@@ -84,7 +93,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ matchId: strin
     const a = asNonNegInt(r.assists);
 
     if (g === null || a === null) {
-      return NextResponse.json({ error: "goals/assists non validi" }, { status: 400 });
+      return NextResponse.json(
+        { error: "goals/assists non validi" },
+        { status: 400 }
+      );
     }
   }
 
@@ -99,19 +111,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ matchId: strin
     );
   }
 
-  type EligiblePlayer = {
-    id: string;
-    teamId: string;
-    status: string;
-    documentSigned: boolean;
-    privacyConsent: boolean;
-    internalPhotoConsent: boolean;
-    healthDeclaration: boolean;
-    firstName: string;
-    lastName: string;
-  };
-
   const playerIds = [...new Set([...rows.map((r) => r.playerId), ...requestedSheetIds])];
+
   const players: EligiblePlayer[] = playerIds.length
     ? await prisma.player.findMany({
         where: { id: { in: playerIds } },
@@ -120,9 +121,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ matchId: strin
           teamId: true,
           status: true,
           documentSigned: true,
-          privacyConsent: true,
-          internalPhotoConsent: true,
-          healthDeclaration: true,
+          mediaConsent: true,
           firstName: true,
           lastName: true,
         },
@@ -147,26 +146,35 @@ export async function POST(req: Request, ctx: { params: Promise<{ matchId: strin
   }
 
   const sheetPlayers = requestedSheetIds.map((pid) => playerById.get(pid)!);
-  const homeSheet = sheetPlayers.filter((p) => p.teamId === match.homeTeamId);
-  const awaySheet = sheetPlayers.filter((p) => p.teamId === match.awayTeamId);
-
-  if (homeSheet.length < FUTPOLI_RULES.minPlayersInMatchSheet || awaySheet.length < FUTPOLI_RULES.minPlayersInMatchSheet) {
-    return NextResponse.json(
-      { error: `Ogni squadra deve avere almeno ${FUTPOLI_RULES.minPlayersInMatchSheet} giocatori autorizzati in distinta` },
-      { status: 400 }
-    );
-  }
 
   const ineligible = sheetPlayers.find((p) => !isEligiblePlayer(p));
   if (ineligible) {
     return NextResponse.json(
-      { error: `${ineligible.firstName} ${ineligible.lastName} non è autorizzato per la distinta` },
+      {
+        error: `${ineligible.firstName} ${ineligible.lastName} non è autorizzato per la distinta: servono stato Autorizzato, modulo firmato e liberatoria video/foto`,
+      },
+      { status: 400 }
+    );
+  }
+
+  const homeSheet = sheetPlayers.filter((p) => p.teamId === match.homeTeamId);
+  const awaySheet = sheetPlayers.filter((p) => p.teamId === match.awayTeamId);
+
+  if (
+    homeSheet.length < FUTPOLI_RULES.minPlayersInMatchSheet ||
+    awaySheet.length < FUTPOLI_RULES.minPlayersInMatchSheet
+  ) {
+    return NextResponse.json(
+      {
+        error: `Ogni squadra deve avere almeno ${FUTPOLI_RULES.minPlayersInMatchSheet} giocatori autorizzati in distinta`,
+      },
       { status: 400 }
     );
   }
 
   const sheetSet = new Set(requestedSheetIds);
   const statOutsideSheet = rows.find((r) => !sheetSet.has(r.playerId));
+
   if (statOutsideSheet) {
     return NextResponse.json(
       { error: "Gol e assist possono essere assegnati solo a giocatori presenti in distinta" },
@@ -187,6 +195,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ matchId: strin
     });
 
     await tx.matchSheetPlayer.deleteMany({ where: { matchId } });
+
     await tx.matchSheetPlayer.createMany({
       data: sheetPlayers.map((p) => ({
         matchId,

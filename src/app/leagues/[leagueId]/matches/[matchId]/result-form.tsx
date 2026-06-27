@@ -16,11 +16,9 @@ type Player = {
   lastName: string;
   number: number;
   teamId: string;
-  status?: string;
-  documentSigned?: boolean;
-  privacyConsent?: boolean;
-  internalPhotoConsent?: boolean;
-  healthDeclaration?: boolean;
+  status?: string | null;
+  documentSigned?: boolean | null;
+  mediaConsent?: boolean | null;
 };
 
 type Team = {
@@ -102,14 +100,11 @@ function TeamCrest({
   );
 }
 
-
 function isPlayerEligible(player: Player) {
   return (
     player.status === "AUTHORIZED" &&
     player.documentSigned === true &&
-    player.privacyConsent === true &&
-    player.internalPhotoConsent === true &&
-    player.healthDeclaration === true
+    player.mediaConsent === true
   );
 }
 
@@ -117,14 +112,13 @@ function playerEligibilityLabel(player: Player) {
   if (isPlayerEligible(player)) return "Autorizzato";
   if (player.status !== "AUTHORIZED") return "Stato non autorizzato";
   if (!player.documentSigned) return "Modulo non firmato";
-  if (!player.privacyConsent) return "Privacy mancante";
-  if (!player.internalPhotoConsent) return "Foto interna mancante";
-  if (!player.healthDeclaration) return "Dichiarazione salute mancante";
+  if (!player.mediaConsent) return "Liberatoria video/foto mancante";
   return "Non autorizzato";
 }
 
 export default function MatchResultForm({ match }: { match: Match }) {
   const { user, loading: authLoading } = useAuth();
+
   const canEdit =
     !authLoading &&
     (user?.role === "ADMIN" ||
@@ -136,21 +130,26 @@ export default function MatchResultForm({ match }: { match: Match }) {
   const [homeGoals, setHomeGoals] = useState<string>(
     match.homeGoals === null ? "" : String(match.homeGoals)
   );
+
   const [awayGoals, setAwayGoals] = useState<string>(
     match.awayGoals === null ? "" : String(match.awayGoals)
   );
+
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  // date scheduling
   const toLocalDatetimeValue = (iso: string | null) => {
     if (!iso) return "";
+
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return "";
-    // datetime-local needs "YYYY-MM-DDTHH:mm"
+    if (Number.isNaN(d.getTime())) return "";
+
     const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+      d.getHours()
+    )}:${pad(d.getMinutes())}`;
   };
 
   const [dateValue, setDateValue] = useState(() => toLocalDatetimeValue(match.date));
@@ -160,25 +159,36 @@ export default function MatchResultForm({ match }: { match: Match }) {
 
   const initial = useMemo(() => {
     const m = new Map<string, { goals: number; assists: number }>();
-    for (const s of match.stats) m.set(s.playerId, { goals: s.goals, assists: s.assists });
+
+    for (const s of match.stats) {
+      m.set(s.playerId, { goals: s.goals, assists: s.assists });
+    }
+
     return m;
   }, [match.stats]);
 
   const [stats, setStats] = useState<Record<string, { goals: string; assists: string }>>(() => {
     const out: Record<string, { goals: string; assists: string }> = {};
+
     for (const p of [...match.homeTeam.players, ...match.awayTeam.players]) {
       const s = initial.get(p.id);
-      out[p.id] = { goals: s ? String(s.goals) : "", assists: s ? String(s.assists) : "" };
+      out[p.id] = {
+        goals: s ? String(s.goals) : "",
+        assists: s ? String(s.assists) : "",
+      };
     }
+
     return out;
   });
 
   const [sheet, setSheet] = useState<Record<string, boolean>>(() => {
     const selected = new Set(match.sheetPlayers?.map((row) => row.playerId) ?? []);
     const out: Record<string, boolean> = {};
+
     for (const p of [...match.homeTeam.players, ...match.awayTeam.players]) {
       out[p.id] = selected.has(p.id);
     }
+
     return out;
   });
 
@@ -186,52 +196,74 @@ export default function MatchResultForm({ match }: { match: Match }) {
     () => match.homeTeam.players.slice().sort((a, b) => a.number - b.number),
     [match.homeTeam.players]
   );
+
   const awayPlayers = useMemo(
     () => match.awayTeam.players.slice().sort((a, b) => a.number - b.number),
     [match.awayTeam.players]
   );
 
   const totals = useMemo(() => {
-    let goalsSum = 0, assistsSum = 0;
-    let homeSheetCount = 0, awaySheetCount = 0;
+    let goalsSum = 0;
+    let assistsSum = 0;
+    let homeSheetCount = 0;
+    let awaySheetCount = 0;
+
     for (const p of homePlayers) {
       goalsSum += Number(stats[p.id]?.goals || 0);
       assistsSum += Number(stats[p.id]?.assists || 0);
       if (sheet[p.id]) homeSheetCount += 1;
     }
+
     for (const p of awayPlayers) {
       goalsSum += Number(stats[p.id]?.goals || 0);
       assistsSum += Number(stats[p.id]?.assists || 0);
       if (sheet[p.id]) awaySheetCount += 1;
     }
+
     return { goalsSum, assistsSum, homeSheetCount, awaySheetCount };
   }, [stats, sheet, homePlayers, awayPlayers]);
 
   function setPlayerStat(playerId: string, key: "goals" | "assists", value: string) {
     const cleaned = value.replace(/[^\d]/g, "");
+
     setStats((prev) => ({
       ...prev,
-      [playerId]: { ...prev[playerId], [key]: cleaned === "" ? "0" : cleaned },
+      [playerId]: {
+        ...prev[playerId],
+        [key]: cleaned === "" ? "0" : cleaned,
+      },
     }));
   }
 
   function toggleSheet(playerId: string, checked: boolean) {
-    setSheet((prev) => ({ ...prev, [playerId]: checked }));
+    setSheet((prev) => ({
+      ...prev,
+      [playerId]: checked,
+    }));
   }
 
   async function saveDate(clear = false) {
     setDateErr(null);
     setDateMsg(null);
     setSavingDate(true);
+
     try {
       const res = await authFetch(`/api/matches/${match.id}/date`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: clear ? null : (dateValue ? new Date(dateValue).toISOString() : null) }),
+        body: JSON.stringify({
+          date: clear ? null : dateValue ? new Date(dateValue).toISOString() : null,
+        }),
       });
+
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as any)?.error ?? "Errore salvataggio data");
+
+      if (!res.ok) {
+        throw new Error((data as any)?.error ?? "Errore salvataggio data");
+      }
+
       if (clear) setDateValue("");
+
       setDateMsg(clear ? "Data rimossa" : "Data salvata");
       router.refresh();
     } catch (e: any) {
@@ -244,25 +276,52 @@ export default function MatchResultForm({ match }: { match: Match }) {
   async function save() {
     setErr(null);
     setMsg(null);
+
     const hg = homeGoals.trim() === "" ? null : Number(homeGoals);
     const ag = awayGoals.trim() === "" ? null : Number(awayGoals);
-    if (hg !== null && (!Number.isFinite(hg) || hg < 0)) { setErr("Gol squadra casa non valido"); return; }
-    if (ag !== null && (!Number.isFinite(ag) || ag < 0)) { setErr("Gol squadra ospite non valido"); return; }
+
+    if (hg !== null && (!Number.isFinite(hg) || hg < 0)) {
+      setErr("Gol squadra casa non valido");
+      return;
+    }
+
+    if (ag !== null && (!Number.isFinite(ag) || ag < 0)) {
+      setErr("Gol squadra ospite non valido");
+      return;
+    }
+
     const sheetPlayerIds = [...homePlayers, ...awayPlayers]
       .filter((p) => sheet[p.id])
       .map((p) => p.id);
+
     const playerStats = [...homePlayers, ...awayPlayers]
-      .map((p) => ({ playerId: p.id, goals: Number(stats[p.id]?.goals || 0), assists: Number(stats[p.id]?.assists || 0) }))
+      .map((p) => ({
+        playerId: p.id,
+        goals: Number(stats[p.id]?.goals || 0),
+        assists: Number(stats[p.id]?.assists || 0),
+      }))
       .filter((s) => s.goals > 0 || s.assists > 0);
+
     setSaving(true);
+
     try {
       const res = await authFetch(`/api/matches/${match.id}/result`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ homeGoals: hg === null ? undefined : hg, awayGoals: ag === null ? undefined : ag, playerStats, sheetPlayerIds }),
+        body: JSON.stringify({
+          homeGoals: hg === null ? undefined : hg,
+          awayGoals: ag === null ? undefined : ag,
+          playerStats,
+          sheetPlayerIds,
+        }),
       });
+
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as any)?.error ?? "Errore salvataggio");
+
+      if (!res.ok) {
+        throw new Error((data as any)?.error ?? "Errore salvataggio");
+      }
+
       setMsg("Salvato");
       router.refresh();
     } catch (e: any) {
@@ -279,17 +338,17 @@ export default function MatchResultForm({ match }: { match: Match }) {
   return (
     <DashboardShell leagueId={match.leagueId}>
       <div className="mx-auto w-full max-w-[560px] space-y-4 pb-8">
-
-        {/* Back + round */}
         <div className="flex items-center gap-2 pt-1">
           <Link
             href={`/leagues/${match.leagueId}/calendar`}
-            className="flex items-center gap-1 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            className="flex items-center gap-1 text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
           >
             <ChevronLeft size={16} />
             Calendario
           </Link>
+
           <span className="text-[var(--border-strong)]">·</span>
+
           <span
             className="text-sm text-[var(--muted)]"
             style={{ fontFamily: "var(--font-mono, ui-monospace)" }}
@@ -298,20 +357,27 @@ export default function MatchResultForm({ match }: { match: Match }) {
           </span>
         </div>
 
-        {/* Date scheduling — only for authorised users */}
         {canEdit && (
           <div className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.04)]">
-            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]" style={{ fontFamily: "var(--font-display)" }}>
+            <p
+              className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
               Data e ora
             </p>
+
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="datetime-local"
                 value={dateValue}
                 onChange={(e) => setDateValue(e.target.value)}
                 className="h-9 flex-1 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-3 text-[13px] text-[var(--foreground)] outline-none transition-colors focus:border-[var(--accent)] focus:bg-[var(--card)]"
-                style={{ fontFamily: "var(--font-mono, ui-monospace)", minWidth: 180 }}
+                style={{
+                  fontFamily: "var(--font-mono, ui-monospace)",
+                  minWidth: 180,
+                }}
               />
+
               <button
                 onClick={() => saveDate(false)}
                 disabled={savingDate || !dateValue}
@@ -319,6 +385,7 @@ export default function MatchResultForm({ match }: { match: Match }) {
               >
                 {savingDate ? "…" : "Salva"}
               </button>
+
               {dateValue && (
                 <button
                   onClick={() => saveDate(true)}
@@ -329,6 +396,7 @@ export default function MatchResultForm({ match }: { match: Match }) {
                 </button>
               )}
             </div>
+
             {dateMsg && <p className="mt-2 text-[12px] font-medium text-emerald-700">{dateMsg}</p>}
             {dateErr && <p className="mt-2 text-[12px] font-medium text-red-600">{dateErr}</p>}
           </div>
@@ -337,12 +405,16 @@ export default function MatchResultForm({ match }: { match: Match }) {
         {msg && <Badge variant="success">{msg}</Badge>}
         {err && <Badge variant="error">{err}</Badge>}
 
-        {/* Scoreboard */}
         <Card>
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-2">
-            {/* Home */}
             <div className="flex flex-col items-center gap-2 text-center">
-            <TeamCrest name={match.homeTeam.name} badgeUrl={match.homeTeam.badgeUrl ?? null} size={44} />              <span
+              <TeamCrest
+                name={match.homeTeam.name}
+                badgeUrl={match.homeTeam.badgeUrl ?? null}
+                size={44}
+              />
+
+              <span
                 className={[
                   "text-[13px] font-semibold leading-tight",
                   played && hg < ag ? "text-[var(--muted)]" : "text-[var(--foreground)]",
@@ -352,7 +424,6 @@ export default function MatchResultForm({ match }: { match: Match }) {
               </span>
             </div>
 
-            {/* Score */}
             <div className="flex flex-col items-center gap-3">
               <div
                 className="flex items-center gap-1"
@@ -371,14 +442,22 @@ export default function MatchResultForm({ match }: { match: Match }) {
                       ? "border-[var(--border)] bg-[var(--card-2)] focus:border-[var(--accent)] focus:bg-[var(--card)]"
                       : "cursor-default border-transparent bg-transparent",
                   ].join(" ")}
-                  style={{ height: 60, fontFamily: "var(--font-mono, ui-monospace)" }}
+                  style={{
+                    height: 60,
+                    fontFamily: "var(--font-mono, ui-monospace)",
+                  }}
                 />
+
                 <span
-                  className="text-[28px] font-light text-[var(--border-strong)] select-none"
-                  style={{ fontFamily: "var(--font-mono, ui-monospace)", lineHeight: 1 }}
+                  className="select-none text-[28px] font-light text-[var(--border-strong)]"
+                  style={{
+                    fontFamily: "var(--font-mono, ui-monospace)",
+                    lineHeight: 1,
+                  }}
                 >
                   :
                 </span>
+
                 <input
                   value={awayGoals}
                   onChange={(e) => canEdit && setAwayGoals(e.target.value.replace(/[^\d]/g, ""))}
@@ -392,7 +471,10 @@ export default function MatchResultForm({ match }: { match: Match }) {
                       ? "border-[var(--border)] bg-[var(--card-2)] focus:border-[var(--accent)] focus:bg-[var(--card)]"
                       : "cursor-default border-transparent bg-transparent",
                   ].join(" ")}
-                  style={{ height: 60, fontFamily: "var(--font-mono, ui-monospace)" }}
+                  style={{
+                    height: 60,
+                    fontFamily: "var(--font-mono, ui-monospace)",
+                  }}
                 />
               </div>
 
@@ -405,15 +487,23 @@ export default function MatchResultForm({ match }: { match: Match }) {
                     fontFamily: "var(--font-display)",
                   }}
                 >
-                  {hg > ag ? match.homeTeam.name.split(" ")[0] + " vince" : hg < ag ? match.awayTeam.name.split(" ")[0] + " vince" : "Pareggio"}
+                  {hg > ag
+                    ? `${match.homeTeam.name.split(" ")[0]} vince`
+                    : hg < ag
+                      ? `${match.awayTeam.name.split(" ")[0]} vince`
+                      : "Pareggio"}
                 </span>
               )}
             </div>
 
-            {/* Away */}
             <div className="flex flex-col items-center gap-2 text-center">
-            <TeamCrest name={match.awayTeam.name} badgeUrl={match.awayTeam.badgeUrl ?? null} size={44} />              <span
+              <TeamCrest
+                name={match.awayTeam.name}
+                badgeUrl={match.awayTeam.badgeUrl ?? null}
+                size={44}
+              />
 
+              <span
                 className={[
                   "text-[13px] font-semibold leading-tight",
                   played && ag < hg ? "text-[var(--muted)]" : "text-[var(--foreground)]",
@@ -431,7 +521,6 @@ export default function MatchResultForm({ match }: { match: Match }) {
           </p>
         )}
 
-        {/* Player stats */}
         <div className="grid gap-4 xl:grid-cols-2">
           <TeamStatsCard
             title={match.homeTeam.name}
@@ -442,6 +531,7 @@ export default function MatchResultForm({ match }: { match: Match }) {
             setPlayerStat={setPlayerStat}
             readOnly={!canEdit}
           />
+
           <TeamStatsCard
             title={match.awayTeam.name}
             players={awayPlayers}
@@ -453,7 +543,6 @@ export default function MatchResultForm({ match }: { match: Match }) {
           />
         </div>
 
-        {/* Save */}
         {canEdit && (
           <div className="flex items-center justify-between gap-4 rounded-[14px] bg-[var(--card)] px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.04)]">
             <div
@@ -461,35 +550,47 @@ export default function MatchResultForm({ match }: { match: Match }) {
               style={{ fontFamily: "var(--font-mono, ui-monospace)" }}
             >
               <span>
-                <span className="text-[var(--foreground)] font-semibold">{totals.goalsSum}</span>
-                {" "}gol
+                <span className="font-semibold text-[var(--foreground)]">{totals.goalsSum}</span> gol
               </span>
+
               <span>
-                <span className="text-[var(--foreground)] font-semibold">{totals.assistsSum}</span>
-                {" "}assist
+                <span className="font-semibold text-[var(--foreground)]">{totals.assistsSum}</span>{" "}
+                assist
               </span>
+
               <span>
-                <span className="text-[var(--foreground)] font-semibold">{totals.homeSheetCount}</span>
+                <span className="font-semibold text-[var(--foreground)]">
+                  {totals.homeSheetCount}
+                </span>
                 /8 {match.homeTeam.name.slice(0, 8)}
               </span>
+
               <span>
-                <span className="text-[var(--foreground)] font-semibold">{totals.awaySheetCount}</span>
+                <span className="font-semibold text-[var(--foreground)]">
+                  {totals.awaySheetCount}
+                </span>
                 /8 {match.awayTeam.name.slice(0, 8)}
               </span>
             </div>
+
             <Button onClick={save} disabled={saving}>
               {saving ? "Salvataggio…" : "Salva"}
             </Button>
           </div>
         )}
-
       </div>
     </DashboardShell>
   );
 }
 
 function TeamStatsCard({
-  title, players, stats, sheet, toggleSheet, setPlayerStat, readOnly,
+  title,
+  players,
+  stats,
+  sheet,
+  toggleSheet,
+  setPlayerStat,
+  readOnly,
 }: {
   title: string;
   players: Player[];
@@ -511,7 +612,9 @@ function TeamStatsCard({
         <div>
           {players.map((p, i) => {
             const hasStats =
-              Number(stats[p.id]?.goals || 0) > 0 || Number(stats[p.id]?.assists || 0) > 0;
+              Number(stats[p.id]?.goals || 0) > 0 ||
+              Number(stats[p.id]?.assists || 0) > 0;
+
             return (
               <div
                 key={p.id}
@@ -522,23 +625,29 @@ function TeamStatsCard({
                 ].join(" ")}
                 style={{ gridTemplateColumns: "28px 1fr auto auto" }}
               >
-                {/* Jersey number */}
                 <div
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-[11px] font-medium tabular-nums text-[var(--muted)]"
-                  style={{ background: "var(--card-2)", fontFamily: "var(--font-mono, ui-monospace)" }}
+                  style={{
+                    background: "var(--card-2)",
+                    fontFamily: "var(--font-mono, ui-monospace)",
+                  }}
                 >
                   {p.number}
                 </div>
 
-                {/* Name */}
                 <div className="min-w-0">
                   <span className="block truncate text-[13px] font-medium text-[var(--foreground)]">
                     {p.firstName} {p.lastName}
                   </span>
-                  <span className={[
-                    "mt-0.5 block truncate text-[10px] font-medium",
-                    isPlayerEligible(p) ? "text-emerald-700" : "text-red-600",
-                  ].join(" ")}>{playerEligibilityLabel(p)}</span>
+
+                  <span
+                    className={[
+                      "mt-0.5 block truncate text-[10px] font-medium",
+                      isPlayerEligible(p) ? "text-emerald-700" : "text-red-600",
+                    ].join(" ")}
+                  >
+                    {playerEligibilityLabel(p)}
+                  </span>
                 </div>
 
                 <label className="flex items-center gap-1 text-[10px] font-semibold text-[var(--muted)]">
@@ -551,7 +660,6 @@ function TeamStatsCard({
                   Distinta
                 </label>
 
-                {/* Inputs */}
                 <div className="flex items-center gap-1.5">
                   <StatInput
                     label="G"
@@ -559,6 +667,7 @@ function TeamStatsCard({
                     onChange={(v) => setPlayerStat(p.id, "goals", v)}
                     readOnly={readOnly}
                   />
+
                   <StatInput
                     label="A"
                     value={stats[p.id]?.assists ?? ""}
@@ -576,7 +685,10 @@ function TeamStatsCard({
 }
 
 function StatInput({
-  label, value, onChange, readOnly,
+  label,
+  value,
+  onChange,
+  readOnly,
 }: {
   label: string;
   value: string;
@@ -585,7 +697,8 @@ function StatInput({
 }) {
   return (
     <div className="flex items-center gap-1">
-      <span className="text-[10px] font-medium text-[var(--muted)] w-3">{label}</span>
+      <span className="w-3 text-[10px] font-medium text-[var(--muted)]">{label}</span>
+
       <input
         value={value === "0" ? "" : value}
         placeholder="0"
