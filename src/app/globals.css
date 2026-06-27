@@ -1,19 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #F7F6F2;
-  --foreground: #17160E;
-  --card: #FFFFFF;
-  --card-2: #EFEDE6;
-  --muted: rgba(0, 0, 0, 0.36);
-  --border: rgba(0, 0, 0, 0.07);
-  --border-strong: rgba(0, 0, 0, 0.14);
-  --accent: oklch(0.38 0.10 258);
-  --accent-2: oklch(0.30 0.12 258);
-  --success: oklch(0.44 0.13 148);
-  --danger: oklch(0.50 0.18 27);
-  --warn: oklch(0.62 0.15 76);
-  --tabbar-bg: rgba(247, 246, 242, 0.94);
+  --background: #080b10;
+  --foreground: #f7f9fb;
+  --card: rgba(17, 22, 30, 0.92);
+  --card-2: rgba(255, 255, 255, 0.06);
+  --muted: rgba(247, 249, 251, 0.56);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --accent: #00d26a;
+  --accent-2: #00b75c;
+  --accent-soft: rgba(0, 210, 106, 0.14);
+  --success: #00d26a;
+  --danger: #ff4d61;
+  --warn: #ffb020;
+  --tabbar-bg: rgba(8, 11, 16, 0.86);
 }
 
 @theme inline {
@@ -38,10 +39,25 @@ body {
   margin: 0;
   color: var(--foreground);
   font-family: var(--font-display, "Plus Jakarta Sans", system-ui, sans-serif);
-  background: var(--background);
+  background:
+    radial-gradient(circle at top left, rgba(0, 210, 106, 0.20), transparent 34rem),
+    radial-gradient(circle at top right, rgba(0, 90, 255, 0.15), transparent 34rem),
+    linear-gradient(180deg, #0b1018 0%, #07090d 56%, #05070a 100%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), transparent 75%);
 }
 
 @layer base {
@@ -58,23 +74,31 @@ textarea {
   font: inherit;
 }
 
-/* Scrollbar */
+input,
+select,
+textarea {
+  color-scheme: dark;
+}
+
+::selection {
+  background: rgba(0, 210, 106, 0.32);
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.24);
 }
 
-/* Bracket animations */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -84,7 +108,6 @@ textarea {
   animation: fade-in 0.4s ease-out;
 }
 
-/* Print styles */
 @media print {
   body { background: white !important; color: black !important; }
   aside, nav, .no-print { display: none !important; }

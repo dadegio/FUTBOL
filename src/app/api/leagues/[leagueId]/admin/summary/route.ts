@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/server-auth";
-import { FUTPOLI_RULES } from "@/lib/tournament-rules";
+import { FUTPOLI_RULES, isPlayerEligibleForMatchSheet } from "@/lib/tournament-rules";
 
 export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string }> }) {
   const authErr = await requireAdmin();
@@ -21,10 +21,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string 
         teamId: true,
         status: true,
         documentSigned: true,
-        privacyConsent: true,
-        internalPhotoConsent: true,
         mediaConsent: true,
-        healthDeclaration: true,
         wildcardUsed: true,
       },
     }),
@@ -37,25 +34,13 @@ export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string 
 
   if (!league) return NextResponse.json({ error: "Lega non trovata" }, { status: 404 });
 
-  const authorized = players.filter((p) =>
-    p.status === "AUTHORIZED" &&
-    p.documentSigned &&
-    p.privacyConsent &&
-    p.internalPhotoConsent &&
-    p.healthDeclaration
-  ).length;
+  const authorized = players.filter((p) => isPlayerEligibleForMatchSheet(p)).length;
 
   const playedMatches = matches.filter((m) => m.homeGoals !== null && m.awayGoals !== null).length;
 
   const byTeam = teams.map((team) => {
     const teamPlayers = players.filter((p) => p.teamId === team.id);
-    const teamAuthorized = teamPlayers.filter((p) =>
-      p.status === "AUTHORIZED" &&
-      p.documentSigned &&
-      p.privacyConsent &&
-      p.internalPhotoConsent &&
-      p.healthDeclaration
-    ).length;
+    const teamAuthorized = teamPlayers.filter((p) => isPlayerEligibleForMatchSheet(p)).length;
 
     return {
       teamId: team.id,

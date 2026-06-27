@@ -12,7 +12,7 @@ import {
   Search,
   Swords,
   ShieldCheck,
-  Banknote,
+  Settings,
 } from "lucide-react";
 import AuthButton from "./auth-button";
 import { useIsAdmin } from "@/lib/client-auth";
@@ -55,12 +55,16 @@ export default function Sidebar({ leagueId }: SidebarProps) {
   const isAdmin = useIsAdmin();
   const [search, setSearch] = useState("");
   const [leagueName, setLeagueName] = useState<string | null>(null);
+  const [hasPlayoffs, setHasPlayoffs] = useState(false);
 
   useEffect(() => {
     if (!leagueId) return;
     fetch(`/api/leagues/${leagueId}`, { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => { if (d?.name) setLeagueName(d.name); })
+      .then((d) => {
+        if (d?.name) setLeagueName(d.name);
+        setHasPlayoffs(Boolean(d?.playoffFormat));
+      })
       .catch(() => {});
   }, [leagueId]);
 
@@ -69,7 +73,7 @@ export default function Sidebar({ leagueId }: SidebarProps) {
         { href: `/leagues/${leagueId}`,           label: "Overview",    icon: <Home size={17} /> },
         { href: `/leagues/${leagueId}/table`,      label: "Classifica",  icon: <Trophy size={17} /> },
         { href: `/leagues/${leagueId}/calendar`,   label: "Calendario",  icon: <CalendarDays size={17} /> },
-        { href: `/leagues/${leagueId}/playoffs`,   label: "Playoff",     icon: <Swords size={17} /> },
+        ...(hasPlayoffs ? [{ href: `/leagues/${leagueId}/playoffs`, label: "Playoff", icon: <Swords size={17} /> }] : []),
         { href: `/leagues/${leagueId}/teams`,      label: "Squadre",     icon: <Users size={17} /> },
         { href: `/leagues/${leagueId}/players`,    label: "Giocatori",   icon: <Users size={17} /> },
         { href: `/leagues/${leagueId}/stats`,      label: "Statistiche", icon: <BarChart3 size={17} /> },
@@ -152,8 +156,8 @@ export default function Sidebar({ leagueId }: SidebarProps) {
           {leagueId && (
             <NavItem
               href={`/leagues/${leagueId}/admin`}
-              icon={<Banknote size={17} />}
-              label="Admin torneo"
+              icon={<Settings size={17} />}
+              label="Impostazioni"
               active={pathname === `/leagues/${leagueId}/admin`}
             />
           )}

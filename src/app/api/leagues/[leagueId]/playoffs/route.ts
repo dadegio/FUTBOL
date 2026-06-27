@@ -25,7 +25,7 @@ export async function GET(_: Request, ctx: Ctx) {
   }
 
   if (!league.playoffFormat) {
-    return NextResponse.json({ configured: false });
+    return NextResponse.json({ configured: false, planned: false });
   }
 
   const series = await prisma.playoffSeries.findMany({
@@ -51,7 +51,8 @@ export async function GET(_: Request, ctx: Ctx) {
   });
 
   return NextResponse.json({
-    configured: true,
+    configured: series.length > 0,
+    planned: true,
     format: league.playoffFormat,
     teamCount: league.playoffTeamCount,
     seeded: league.playoffSeeded,
@@ -66,28 +67,29 @@ export async function POST(req: Request, ctx: Ctx) {
   const { leagueId } = await ctx.params;
   const body = await req.json().catch(() => ({}));
 
-  const format = body?.format;
-  if (format !== "SINGLE_ELIM" && format !== "TWO_LEG") {
-    return NextResponse.json({ error: "Formato non valido (SINGLE_ELIM o TWO_LEG)" }, { status: 400 });
-  }
-
-  const teamCount = Number(body?.teamCount);
-  if (![2, 4, 8, 16].includes(teamCount)) {
-    return NextResponse.json({ error: "Numero squadre non valido (2, 4, 8 o 16)" }, { status: 400 });
-  }
-
-  const autoSeed = body?.autoSeed !== false;
-
   const league = await prisma.league.findUnique({
     where: { id: leagueId },
-    select: { id: true, playoffFormat: true },
+    select: { id: true, playoffFormat: true, playoffTeamCount: true, playoffSeeded: true },
   });
 
   if (!league) {
     return NextResponse.json({ error: "Lega non trovata" }, { status: 404 });
   }
 
-  if (league.playoffFormat) {
+  const format = body?.format ?? league.playoffFormat;
+  if (format !== "SINGLE_ELIM" && format !== "TWO_LEG") {
+    return NextResponse.json({ error: "Formato non valido (SINGLE_ELIM o TWO_LEG)" }, { status: 400 });
+  }
+
+  const teamCount = Number(body?.teamCount ?? league.playoffTeamCount);
+  if (![2, 4, 8, 16].includes(teamCount)) {
+    return NextResponse.json({ error: "Numero squadre non valido (2, 4, 8 o 16)" }, { status: 400 });
+  }
+
+  const autoSeed = body?.autoSeed ?? league.playoffSeeded ?? true;
+
+  const existingSeriesCount = await prisma.playoffSeries.count({ where: { leagueId } });
+  if (existingSeriesCount > 0) {
     return NextResponse.json({ error: "Playoff già configurati. Eliminarli prima di crearne di nuovi." }, { status: 400 });
   }
 

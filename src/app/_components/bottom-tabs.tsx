@@ -2,36 +2,43 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { Home, Table2, CalendarDays, Users, Trophy, BarChart3 } from "lucide-react";
 
 type BottomTabsProps = {
   leagueId: string;
 };
 
-const TABS = [
-  { key: "home", path: "", label: "Home", icon: Home },
-  { key: "table", path: "/table", label: "Tab.", icon: Table2 },
-  { key: "calendar", path: "/calendar", label: "Cal.", icon: CalendarDays },
-  { key: "playoffs", path: "/playoffs", label: "Playoff", icon: Trophy },
-  { key: "stats", path: "/stats", label: "Stats", icon: BarChart3 },
-  { key: "teams", path: "/teams", label: "Sqd.", icon: Users },
-];
-
 export default function BottomTabs({ leagueId }: BottomTabsProps) {
   const pathname = usePathname();
+  const [hasPlayoffs, setHasPlayoffs] = useState(false);
+
+  useEffect(() => {
+    if (!leagueId) return;
+    fetch(`/api/leagues/${leagueId}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setHasPlayoffs(Boolean(d?.playoffFormat)))
+      .catch(() => setHasPlayoffs(false));
+  }, [leagueId]);
+
+  const tabs = useMemo(
+    () => [
+      { key: "home", path: "", label: "Home", icon: Home },
+      { key: "table", path: "/table", label: "Tab.", icon: Table2 },
+      { key: "calendar", path: "/calendar", label: "Cal.", icon: CalendarDays },
+      ...(hasPlayoffs ? [{ key: "playoffs", path: "/playoffs", label: "Playoff", icon: Trophy }] : []),
+      { key: "stats", path: "/stats", label: "Stats", icon: BarChart3 },
+      { key: "teams", path: "/teams", label: "Sqd.", icon: Users },
+    ],
+    [hasPlayoffs]
+  );
 
   return (
-    <nav
-      className="no-print fixed inset-x-0 bottom-0 z-50 lg:hidden"
-      style={{ background: "var(--tabbar-bg)", borderTop: "1px solid var(--border)" }}
-    >
-      <div className="mx-auto flex max-w-[480px] items-center justify-around px-0 py-1">
-        {TABS.map((tab) => {
+    <nav className="no-print fixed inset-x-0 bottom-0 z-50 border-t border-[var(--border)] bg-[var(--tabbar-bg)] backdrop-blur-xl lg:hidden">
+      <div className="mx-auto flex max-w-[520px] items-center justify-around px-1 py-1">
+        {tabs.map((tab) => {
           const href = `/leagues/${leagueId}${tab.path}`;
-          const active =
-            tab.key === "home"
-              ? pathname === href
-              : pathname.startsWith(href);
+          const active = tab.key === "home" ? pathname === href : pathname.startsWith(href);
           const Icon = tab.icon;
 
           return (
@@ -45,15 +52,10 @@ export default function BottomTabs({ leagueId }: BottomTabsProps) {
                 fontFamily: "var(--font-display, system-ui)",
               }}
             >
-              <Icon
-                size={20}
-                strokeWidth={active ? 2.5 : 2}
-                style={{ opacity: active ? 1 : 0.6 }}
-              />
-              <span
-                className="text-[9px]"
-                style={{ fontWeight: active ? 600 : 400 }}
-              >
+              <span className={active ? "rounded-full bg-[var(--accent-soft)] px-3 py-1" : "px-3 py-1"}>
+                <Icon size={19} strokeWidth={active ? 2.7 : 2} style={{ opacity: active ? 1 : 0.62 }} />
+              </span>
+              <span className="text-[9px]" style={{ fontWeight: active ? 700 : 500 }}>
                 {tab.label}
               </span>
             </Link>
@@ -61,10 +63,7 @@ export default function BottomTabs({ leagueId }: BottomTabsProps) {
         })}
       </div>
       <div className="flex justify-center pb-1.5 pt-0.5">
-        <div
-          className="h-1 w-10 rounded-full"
-          style={{ background: "var(--border-strong)" }}
-        />
+        <div className="h-1 w-10 rounded-full bg-[var(--border-strong)]" />
       </div>
       <div className="h-[env(safe-area-inset-bottom)]" />
     </nav>

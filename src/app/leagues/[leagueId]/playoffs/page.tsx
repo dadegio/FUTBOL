@@ -14,7 +14,8 @@ import { useAuth, useIsAdmin, authFetch } from "@/lib/client-auth";
 
 type PlayoffData = {
   configured: boolean;
-  format?: string;
+  planned?: boolean;
+  format?: "SINGLE_ELIM" | "TWO_LEG";
   teamCount?: number;
   seeded?: boolean;
   series?: SeriesData[];
@@ -126,23 +127,42 @@ export default function PlayoffsPage() {
           <div className="text-[var(--foreground)]/60">Caricamento...</div>
         )}
 
-        {/* Setup form when no playoffs configured — admin only */}
-        {!loading && data && !data.configured && isAdmin && (
+        {!loading && data && !data.planned && (
           <Card>
-            <div className="mb-4 text-lg font-black text-[var(--foreground)]">
-              Configura playoff
+            <CardHeader
+              tag="Non attivi"
+              title="Playoff non previsti per questo torneo"
+              description={isAdmin
+                ? "Attivali dalle Impostazioni torneo: compariranno nella navigazione e potrai generare il tabellone quando sei pronto."
+                : "La fase playoff comparirà solo se l'organizzazione la abilita per questo torneo."}
+            />
+          </Card>
+        )}
+
+        {/* Setup form when playoffs are planned but bracket not generated — admin only */}
+        {!loading && data && data.planned && !data.configured && isAdmin && (
+          <Card>
+            <CardHeader
+              tag="Setup"
+              title="Genera tabellone playoff"
+              description="I playoff sono previsti per il torneo. Genera il tabellone quando classifica e squadre qualificate sono pronte."
+            />
+            <div className="mt-5">
+              {teamCount < 2 ? (
+                <p className="text-sm text-[var(--foreground)]/60">
+                  Servono almeno 2 squadre per creare i playoff.
+                </p>
+              ) : (
+                <PlayoffSetup
+                  leagueId={leagueId}
+                  teamCount={teamCount}
+                  initialFormat={data.format}
+                  initialTeamCount={data.teamCount}
+                  initialSeeded={data.seeded}
+                  onCreated={load}
+                />
+              )}
             </div>
-            {teamCount < 2 ? (
-              <p className="text-sm text-[var(--foreground)]/60">
-                Servono almeno 2 squadre per creare i playoff.
-              </p>
-            ) : (
-              <PlayoffSetup
-                leagueId={leagueId}
-                teamCount={teamCount}
-                onCreated={load}
-              />
-            )}
           </Card>
         )}
 

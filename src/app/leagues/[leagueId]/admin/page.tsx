@@ -6,7 +6,16 @@ import { useParams } from "next/navigation";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import Badge from "src/app/_components/ui/badge";
+import Button from "src/app/_components/ui/button";
 import { authFetch } from "@/lib/client-auth";
+
+type LeagueSettings = {
+  id: string;
+  name: string;
+  playoffFormat?: "SINGLE_ELIM" | "TWO_LEG" | null;
+  playoffTeamCount?: number | null;
+  playoffSeeded?: boolean;
+};
 
 type Summary = {
   league: { id: string; name: string };
@@ -41,6 +50,9 @@ export default function LeagueAdminPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<LeagueSettings | null>(null);
+  const [settingsMsg, setSettingsMsg] = useState<string | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     if (!leagueId) return;
@@ -50,10 +62,16 @@ export default function LeagueAdminPage() {
       setErr(null);
 
       try {
-        const res = await authFetch(`/api/leagues/${leagueId}/admin/summary`, { cache: "no-store" });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data?.error ?? "Errore caricamento admin");
+        const [summaryRes, leagueRes] = await Promise.all([
+          authFetch(`/api/leagues/${leagueId}/admin/summary`, { cache: "no-store" }),
+          fetch(`/api/leagues/${leagueId}`, { cache: "no-store" }),
+        ]);
+        const data = await summaryRes.json().catch(() => ({}));
+        const leagueData = await leagueRes.json().catch(() => ({}));
+        if (!summaryRes.ok) throw new Error(data?.error ?? "Errore caricamento admin");
+        if (!leagueRes.ok) throw new Error(leagueData?.error ?? "Errore caricamento impostazioni");
         setSummary(data);
+        setSettings(leagueData);
       } catch (error: any) {
         setErr(error.message ?? "Errore");
       } finally {
@@ -63,6 +81,34 @@ export default function LeagueAdminPage() {
 
     load();
   }, [leagueId]);
+
+  async function savePlayoffSettings(next: LeagueSettings) {
+    if (!leagueId) return;
+    setErr(null);
+    setSettingsMsg(null);
+    setSavingSettings(true);
+
+    try {
+      const res = await authFetch(`/api/leagues/${leagueId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playoffEnabled: Boolean(next.playoffFormat),
+          playoffFormat: next.playoffFormat ?? "SINGLE_ELIM",
+          playoffTeamCount: next.playoffTeamCount ?? 8,
+          playoffSeeded: next.playoffSeeded !== false,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Errore salvataggio impostazioni");
+      setSettings(data);
+      setSettingsMsg("Impostazioni playoff aggiornate");
+    } catch (error: any) {
+      setErr(error.message ?? "Errore");
+    } finally {
+      setSavingSettings(false);
+    }
+  }
 
   return (
     <DashboardShell leagueId={leagueId}>
@@ -74,6 +120,68 @@ export default function LeagueAdminPage() {
 
         {err && <Badge variant="error">{err}</Badge>}
         {loading && <p className="text-sm text-[var(--muted)]">Caricamento…</p>}
+        {settingsMsg && <Badge variant="success">{settingsMsg}</Badge>}
+
+        {settings && (
+          <Card>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--accent)]">Impostazioni torneo</p>
+                <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[var(--foreground)]">Playoff</h2>
+                <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
+                  La sezione Playoff compare nella navigazione solo se il torneo prevede una fase finale. Il tabellone si genera nella pagina Playoff quando sei pronto.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[520px] lg:grid-cols-[1fr_110px_1fr]">
+                <select
+                  value={settings.playoffFormat ?? "NONE"}
+                  onChange={(e) => {
+                    const value = e.target.value as "NONE" | "SINGLE_ELIM" | "TWO_LEG";
+                    const next = {
+                      ...settings,
+                      playoffFormat: value === "NONE" ? null : value,
+                      playoffTeamCount: settings.playoffTeamCount ?? 8,
+                      playoffSeeded: settings.playoffSeeded !== false,
+                    };
+                    setSettings(next);
+                  }}
+                  className="h-11 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-3 text-sm text-[var(--foreground)] outline-none"
+                >
+                  <option value="NONE" className="text-black">Nessun playoff</option>
+                  <option value="SINGLE_ELIM" className="text-black">Eliminazione diretta</option>
+                  <option value="TWO_LEG" className="text-black">Andata e ritorno</option>
+                </select>
+
+                <select
+                  value={settings.playoffTeamCount ?? 8}
+                  onChange={(e) => setSettings({ ...settings, playoffTeamCount: Number(e.target.value) })}
+                  disabled={!settings.playoffFormat}
+                  className="h-11 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-3 text-sm text-[var(--foreground)] outline-none disabled:opacity-50"
+                >
+                  {[2, 4, 8, 16].map((n) => (
+                    <option key={n} value={n} className="text-black">Top {n}</option>
+                  ))}
+                </select>
+
+                <div className="flex gap-2">
+                  <label className="flex flex-1 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-3 text-sm font-semibold text-[var(--foreground)]">
+                    <input
+                      type="checkbox"
+                      checked={settings.playoffSeeded !== false}
+                      disabled={!settings.playoffFormat}
+                      onChange={(e) => setSettings({ ...settings, playoffSeeded: e.target.checked })}
+                    />
+                    Seeding
+                  </label>
+                  <Button onClick={() => savePlayoffSettings(settings)} disabled={savingSettings} size="sm">
+                    {savingSettings ? "..." : "Salva"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {summary && (
           <>

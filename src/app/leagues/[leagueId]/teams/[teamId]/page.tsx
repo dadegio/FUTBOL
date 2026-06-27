@@ -25,9 +25,7 @@ type Player = {
   feeCents?: number;
   status?: string;
   documentSigned?: boolean;
-  privacyConsent?: boolean;
-  internalPhotoConsent?: boolean;
-  healthDeclaration?: boolean;
+  mediaConsent?: boolean;
 };
 
 type Team = {
@@ -48,7 +46,7 @@ function formatEuro(cents: number) {
 }
 
 function isAdminOk(player: Player) {
-  return player.status === "AUTHORIZED" && player.documentSigned && player.privacyConsent && player.internalPhotoConsent && player.healthDeclaration;
+  return Boolean(player.status === "AUTHORIZED" && player.documentSigned && player.mediaConsent);
 }
 
 function playerStatusLabel(player: Player) {

@@ -54,6 +54,10 @@ export default function HomePage() {
   const [loadingLeagues, setLoadingLeagues] = useState(true);
   const [showCreateLeague, setShowCreateLeague] = useState(false);
   const [teamIdsToCopy, setTeamIdsToCopy] = useState<string[]>([]);
+  const [playoffEnabled, setPlayoffEnabled] = useState(false);
+  const [playoffFormat, setPlayoffFormat] = useState<"SINGLE_ELIM" | "TWO_LEG">("SINGLE_ELIM");
+  const [playoffTeamCount, setPlayoffTeamCount] = useState(8);
+  const [playoffSeeded, setPlayoffSeeded] = useState(true);
 
   async function load() {
     setLoadingLeagues(true);
@@ -85,9 +89,17 @@ export default function HomePage() {
       await postJSON("/api/leagues", {
         name: n,
         teamIdsToCopy,
+        playoffEnabled,
+        playoffFormat,
+        playoffTeamCount,
+        playoffSeeded,
       });
       setName("");
       setTeamIdsToCopy([]);
+      setPlayoffEnabled(false);
+      setPlayoffFormat("SINGLE_ELIM");
+      setPlayoffTeamCount(8);
+      setPlayoffSeeded(true);
       setShowCreateLeague(false);
       await load();
     } catch (e: any) {
@@ -253,6 +265,57 @@ export default function HomePage() {
       <Button onClick={create} disabled={loading} className="h-14 md:min-w-[180px]">
         {loading ? "Creazione..." : "Crea torneo"}
       </Button>
+    </div>
+
+    <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--card-2)] p-4">
+      <label className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={playoffEnabled}
+          onChange={(e) => setPlayoffEnabled(e.target.checked)}
+          className="mt-1"
+        />
+        <span>
+          <span className="block text-sm font-black text-[var(--foreground)]">Prevedi fase playoff</span>
+          <span className="mt-1 block text-xs leading-relaxed text-[var(--muted)]">
+            La voce Playoff comparirà nel torneo solo se questa opzione è attiva. Il tabellone potrà essere generato dopo, quando squadre e classifica saranno pronte.
+          </span>
+        </span>
+      </label>
+
+      {playoffEnabled && (
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <label className="space-y-1 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+            Formato
+            <select
+              value={playoffFormat}
+              onChange={(e) => setPlayoffFormat(e.target.value as "SINGLE_ELIM" | "TWO_LEG")}
+              className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm normal-case tracking-normal text-[var(--foreground)] outline-none"
+            >
+              <option value="SINGLE_ELIM" className="text-black">Eliminazione diretta</option>
+              <option value="TWO_LEG" className="text-black">Andata e ritorno</option>
+            </select>
+          </label>
+
+          <label className="space-y-1 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+            Squadre
+            <select
+              value={playoffTeamCount}
+              onChange={(e) => setPlayoffTeamCount(Number(e.target.value))}
+              className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm normal-case tracking-normal text-[var(--foreground)] outline-none"
+            >
+              {[2, 4, 8, 16].map((n) => (
+                <option key={n} value={n} className="text-black">Top {n}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--foreground)]">
+            <input type="checkbox" checked={playoffSeeded} onChange={(e) => setPlayoffSeeded(e.target.checked)} />
+            Seeding da classifica
+          </label>
+        </div>
+      )}
     </div>
 
     {existingTeams.length > 0 && (

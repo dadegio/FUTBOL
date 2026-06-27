@@ -10,19 +10,30 @@ type Props = {
   leagueId: string;
   teamCount: number;
   onCreated: () => void;
+  initialFormat?: "SINGLE_ELIM" | "TWO_LEG";
+  initialTeamCount?: number | null;
+  initialSeeded?: boolean;
 };
 
 type TeamRow = { teamId: string; teamName: string; points: number; gd: number };
 
-export default function PlayoffSetup({ leagueId, teamCount, onCreated }: Props) {
-  const [format, setFormat] = useState<"SINGLE_ELIM" | "TWO_LEG">("SINGLE_ELIM");
+export default function PlayoffSetup({
+  leagueId,
+  teamCount,
+  onCreated,
+  initialFormat = "SINGLE_ELIM",
+  initialTeamCount = null,
+  initialSeeded = true,
+}: Props) {
+  const [format, setFormat] = useState<"SINGLE_ELIM" | "TWO_LEG">(initialFormat);
   const [count, setCount] = useState(() => {
+    if (initialTeamCount && initialTeamCount <= teamCount) return initialTeamCount;
     if (teamCount >= 16) return 16;
     if (teamCount >= 8) return 8;
     if (teamCount >= 4) return 4;
     return 2;
   });
-  const [autoSeed, setAutoSeed] = useState(true);
+  const [autoSeed, setAutoSeed] = useState(initialSeeded);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 

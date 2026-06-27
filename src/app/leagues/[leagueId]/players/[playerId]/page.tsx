@@ -491,7 +491,6 @@ export default function PlayerPage() {
                     value={signedAt}
                     onChange={(e) => setSignedAt(e.target.value)}
                   />
-
                   <Select aria-label="Stato admin" value={status} onChange={(e) => setStatus(e.target.value)}>
                     {PLAYER_STATUS_OPTIONS.map(([value, label]) => (
                       <option key={value} value={value} className="text-black">
