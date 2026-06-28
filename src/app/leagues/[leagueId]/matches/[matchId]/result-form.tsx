@@ -252,7 +252,7 @@ export default function MatchResultForm({ match }: { match: Match }) {
 
   return (
     <DashboardShell leagueId={match.leagueId}>
-      <div className="mx-auto w-full max-w-[1180px] space-y-5 pb-8">
+      <div className="w-full space-y-5 pb-8">
         <div className="flex items-center gap-2 pt-1">
           <Link href={`/leagues/${match.leagueId}/calendar`} className="flex items-center gap-1 text-sm text-[var(--muted)] transition-colors hover:text-[var(--foreground)]">
             <ChevronLeft size={16} /> Calendario
@@ -322,7 +322,7 @@ export default function MatchResultForm({ match }: { match: Match }) {
 
         {!canEdit && !authLoading && <p className="px-1 text-sm text-[var(--muted)]">Sola lettura — accedi come admin o capitano per modificare.</p>}
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <TeamStatsCard title={match.homeTeam.name} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEdit} isAdmin={isAdmin} />
           <TeamStatsCard title={match.awayTeam.name} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEdit} isAdmin={isAdmin} />
         </div>

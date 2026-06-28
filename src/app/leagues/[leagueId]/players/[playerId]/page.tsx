@@ -259,7 +259,7 @@ export default function PlayerPage() {
 
   return (
     <DashboardShell leagueId={leagueId}>
-      <div className="mx-auto w-full max-w-[1180px] space-y-5 pb-8">
+      <div className="w-full space-y-5 pb-8">
         <Link href={player.team ? `/leagues/${leagueId}/teams/${player.team.id}` : `/leagues/${leagueId}/players`} className="inline-flex items-center gap-2 text-sm font-bold text-[var(--muted)] hover:text-[var(--foreground)]">
           <ArrowLeft size={15} /> Torna alla squadra
         </Link>
@@ -299,7 +299,7 @@ export default function PlayerPage() {
           {isAdmin && <MiniStat label="Quote" value={formatEuro(feeCents ?? appearances * 50)} icon={<WalletCards size={16} />} />}
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)] 2xl:grid-cols-[minmax(0,1.45fr)_420px]">
           <Card>
             <div className="flex items-center justify-between gap-3">
               <div>

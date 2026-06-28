@@ -119,7 +119,7 @@ export default function HomePage() {
   const featured = leagues[0] ?? null;
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 px-4 py-5 sm:px-6 lg:py-8">
+    <div className="w-full space-y-6 px-4 py-5 sm:px-6 lg:px-10 lg:py-8 2xl:px-14">
       {err && <Badge variant="error" className="w-full">{err}</Badge>}
 
       <section className="matchroom-hero rounded-[34px] border border-[var(--border)] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.38)] sm:p-8 lg:p-10">
@@ -159,7 +159,7 @@ export default function HomePage() {
             <div className="grid gap-4 md:grid-cols-2"><LeagueCardSkeleton /><LeagueCardSkeleton /></div>
           ) : leagues.length === 0 ? (
             <Card className="turf-card py-14 text-center">
-              <div className="mx-auto max-w-md space-y-3">
+              <div className="w-full max-w-md space-y-3 lg:max-w-none">
                 <div className="text-lg font-black text-[var(--foreground)]">Nessun torneo salvato</div>
                 <p className="text-sm text-[var(--muted)]">{isAdmin ? "Crea il primo torneo per iniziare." : "Al momento non ci sono tornei disponibili."}</p>
                 {isAdmin && <Button onClick={() => setShowCreateLeague(true)}>Crea torneo</Button>}

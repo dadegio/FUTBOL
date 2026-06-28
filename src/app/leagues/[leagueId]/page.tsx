@@ -321,7 +321,7 @@ export default function LeagueHomePage() {
 
   return (
     <DashboardShell leagueId={leagueId}>
-      <div className="mx-auto w-full max-w-[480px] space-y-6 px-4 pb-8">
+      <div className="w-full space-y-6 pb-8">
         <header className="pt-2">
           <Link
             href="/"

@@ -40,8 +40,8 @@ export default function DashboardShell({
   }
 
 return (
-    <div className="min-h-screen px-3 py-3 sm:px-4 sm:py-4 md:px-5 md:py-5 lg:p-7">
-      <div className="mx-auto max-w-[1600px]">
+    <div className="min-h-screen px-3 py-3 sm:px-4 sm:py-4 md:px-5 md:py-5 lg:px-7 lg:py-7 xl:px-9 2xl:px-12">
+      <div className="w-full">
         {/* Mobile top bar */}
         <div className="no-print mb-4 flex items-center justify-between rounded-[18px] bg-[var(--card)] px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.04)] lg:hidden">
           <Link href="/" className="text-lg font-extrabold tracking-tight">
@@ -77,7 +77,7 @@ return (
           )}
         </div>
 
-        <div className="flex gap-4 md:gap-6">
+        <div className="flex w-full gap-4 md:gap-6">
           <Sidebar leagueId={leagueId} />
 
           <main className="min-w-0 flex-1 pb-20 lg:pb-0">
