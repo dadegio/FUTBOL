@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import HeroBanner from "src/app/_components//hero-banner";
-import HomeLeagueCard from "src/app/_components/home-league-card";
+import type { Dispatch, SetStateAction } from "react";
+import Link from "next/link";
+import { ArrowRight, CopyPlus, Plus, ShieldCheck, Sparkles, Trophy, Users } from "lucide-react";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
@@ -12,17 +13,12 @@ import { useIsAdmin, authFetch } from "@/lib/client-auth";
 type League = {
   id: string;
   name: string;
+  playoffFormat?: "SINGLE_ELIM" | "TWO_LEG" | null;
   teams?: Array<{
     id: string;
     name: string;
     badgeUrl?: string | null;
-    players?: Array<{
-      firstName: string;
-      lastName: string;
-      number: number;
-      position?: string | null;
-      photoUrl?: string | null;
-    }>;
+    players?: Array<{ firstName: string; lastName: string; number: number }>;
   }>;
 };
 
@@ -62,38 +58,24 @@ export default function HomePage() {
   async function load() {
     setLoadingLeagues(true);
     try {
-      const ls = await getJSON<League[]>("/api/leagues");
-      setLeagues(ls);
+      setLeagues(await getJSON<League[]>("/api/leagues"));
     } finally {
       setLoadingLeagues(false);
     }
   }
 
   useEffect(() => {
-    load().catch((e: any) => {
-      setErr(e.message ?? "Errore caricamento tornei");
-    });
+    load().catch((e: any) => setErr(e.message ?? "Errore caricamento tornei"));
   }, []);
 
   async function create() {
     setErr(null);
-
     const n = name.trim();
-    if (!n) {
-      setErr("Inserisci un nome torneo");
-      return;
-    }
+    if (!n) return setErr("Inserisci un nome torneo");
 
     try {
       setLoading(true);
-      await postJSON("/api/leagues", {
-        name: n,
-        teamIdsToCopy,
-        playoffEnabled,
-        playoffFormat,
-        playoffTeamCount,
-        playoffSeeded,
-      });
+      await postJSON("/api/leagues", { name: n, teamIdsToCopy, playoffEnabled, playoffFormat, playoffTeamCount, playoffSeeded });
       setName("");
       setTeamIdsToCopy([]);
       setPlayoffEnabled(false);
@@ -111,11 +93,7 @@ export default function HomePage() {
 
   async function removeLeague(id: string, leagueName: string) {
     setErr(null);
-
-    const ok = window.confirm(
-      `Eliminare il torneo "${leagueName}"?\n\nVerranno cancellati anche squadre, giocatori, partite e statistiche.`
-    );
-    if (!ok) return;
+    if (!window.confirm(`Eliminare il torneo "${leagueName}"?\n\nVerranno cancellati anche squadre, giocatori, partite e statistiche.`)) return;
 
     try {
       const res = await authFetch(`/api/leagues/${id}`, { method: "DELETE" });
@@ -127,355 +105,149 @@ export default function HomePage() {
     }
   }
 
-  const subtitle = useMemo(() => {
-    if (loadingLeagues) return "Caricamento tornei…";
-    if (leagues.length === 0) return "Nessun torneo disponibile";
-    if (leagues.length === 1) return "1 torneo disponibile";
-    return `${leagues.length} tornei disponibili`;
-  }, [leagues.length, loadingLeagues]);
-
   const existingTeams = useMemo(() => {
-  const map = new Map<string, { id: string; name: string; badgeUrl?: string | null }>();
-
-  for (const league of leagues) {
-    for (const team of league.teams ?? []) {
-      if (!map.has(team.id)) {
-        map.set(team.id, {
-          id: team.id,
-          name: team.name,
-          badgeUrl: team.badgeUrl ?? null,
-        });
+    const map = new Map<string, { id: string; name: string; badgeUrl?: string | null }>();
+    for (const league of leagues) {
+      for (const team of league.teams ?? []) {
+        if (!map.has(team.id)) map.set(team.id, { id: team.id, name: team.name, badgeUrl: team.badgeUrl ?? null });
       }
     }
-  }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [leagues]);
 
-  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-}, [leagues]);
+  const totalTeams = leagues.reduce((sum, league) => sum + (league.teams?.length ?? 0), 0);
+  const featured = leagues[0] ?? null;
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-6 px-4 py-5 sm:px-6">
-      <HeroBanner />
+    <div className="mx-auto max-w-[1500px] space-y-6 px-4 py-5 sm:px-6 lg:py-8">
+      {err && <Badge variant="error" className="w-full">{err}</Badge>}
 
-      {err && (
-        <Badge variant="error" className="w-full">
-          {err}
-        </Badge>
-      )}
-
-      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="overflow-hidden">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3">
-              <div className="inline-flex items-center rounded-full bg-[var(--card-2)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
-                Dashboard
-              </div>
-
-              <div>
-                <h1 className="text-3xl font-black tracking-[-0.05em] text-[var(--foreground)] sm:text-4xl">
-                  Crea e gestisci i tuoi tornei
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm text-[var(--muted)] sm:text-base">
-                  Organizza squadre, calendario, classifica, statistiche e playoff in
-                  un’unica dashboard.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <SummaryPill label="Tornei" value={loadingLeagues ? "…" : String(leagues.length)} />
-              <SummaryPill label="Ruolo" value={isAdmin ? "Admin" : "Viewer"} />
-              <SummaryPill label="Stato" value="Attivo" />
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-  <div className="flex h-full flex-col justify-between gap-5">
-    <div>
-      <div className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
-        {isAdmin ? "Controllo rapido" : "Modalità visualizzazione"}
-      </div>
-
-      <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[var(--foreground)]">
-        {subtitle}
-      </h2>
-
-      <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-        {isAdmin
-          ? "Accedi ai tornei esistenti oppure creane uno nuovo copiando anche squadre e rose già salvate."
-          : "Puoi consultare tornei, classifiche, calendari, playoff e statistiche in sola lettura."}
-      </p>
-    </div>
-
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-      {isAdmin ? (
-        <Button
-          size="sm"
-          onClick={() => setShowCreateLeague((v) => !v)}
-          className="h-10"
-        >
-          {showCreateLeague ? "Chiudi creazione" : "Nuovo torneo"}
-        </Button>
-      ) : (
-        <div className="rounded-2xl bg-[var(--card-2)] px-4 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
-            Accesso
-          </div>
-          <div className="mt-1 text-base font-black text-[var(--foreground)]">
-            Sola lettura
-          </div>
-        </div>
-      )}
-
-      <div className="rounded-2xl bg-[var(--card-2)] px-4 py-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
-          Salvati
-        </div>
-        <div className="mt-1 text-base font-black text-[var(--foreground)]">
-          {loadingLeagues ? "…" : leagues.length}
-        </div>
-      </div>
-    </div>
-  </div>
-</Card>
-      </section>
-
-      {isAdmin && showCreateLeague && (
-  <Card>
-    <div className="mb-4">
-      <div className="text-sm font-medium uppercase tracking-[0.2em] text-[var(--accent)]">
-        Creazione
-      </div>
-      <h2 className="mt-1 text-2xl font-bold text-[var(--foreground)]">
-        Nuovo torneo
-      </h2>
-      <p className="mt-2 text-sm text-[var(--muted)]">
-        Inserisci il nome del torneo. Potrai poi aggiungere squadre, calendario e
-        configurazioni.
-      </p>
-    </div>
-
-    <div className="flex flex-col gap-3 md:flex-row">
-      <Input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Nome torneo"
-        className="flex-1"
-      />
-      <Button onClick={create} disabled={loading} className="h-14 md:min-w-[180px]">
-        {loading ? "Creazione..." : "Crea torneo"}
-      </Button>
-    </div>
-
-    <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--card-2)] p-4">
-      <label className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={playoffEnabled}
-          onChange={(e) => setPlayoffEnabled(e.target.checked)}
-          className="mt-1"
-        />
-        <span>
-          <span className="block text-sm font-black text-[var(--foreground)]">Prevedi fase playoff</span>
-          <span className="mt-1 block text-xs leading-relaxed text-[var(--muted)]">
-            La voce Playoff comparirà nel torneo solo se questa opzione è attiva. Il tabellone potrà essere generato dopo, quando squadre e classifica saranno pronte.
-          </span>
-        </span>
-      </label>
-
-      {playoffEnabled && (
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <label className="space-y-1 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-            Formato
-            <select
-              value={playoffFormat}
-              onChange={(e) => setPlayoffFormat(e.target.value as "SINGLE_ELIM" | "TWO_LEG")}
-              className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm normal-case tracking-normal text-[var(--foreground)] outline-none"
-            >
-              <option value="SINGLE_ELIM" className="text-black">Eliminazione diretta</option>
-              <option value="TWO_LEG" className="text-black">Andata e ritorno</option>
-            </select>
-          </label>
-
-          <label className="space-y-1 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-            Squadre
-            <select
-              value={playoffTeamCount}
-              onChange={(e) => setPlayoffTeamCount(Number(e.target.value))}
-              className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm normal-case tracking-normal text-[var(--foreground)] outline-none"
-            >
-              {[2, 4, 8, 16].map((n) => (
-                <option key={n} value={n} className="text-black">Top {n}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm font-semibold text-[var(--foreground)]">
-            <input type="checkbox" checked={playoffSeeded} onChange={(e) => setPlayoffSeeded(e.target.checked)} />
-            Seeding da classifica
-          </label>
-        </div>
-      )}
-    </div>
-
-    {existingTeams.length > 0 && (
-      <div className="mt-5 space-y-3">
-        <div>
-          <h3 className="text-sm font-bold text-[var(--foreground)]">
-            Aggiungi squadre già presenti
-          </h3>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Le squadre selezionate verranno copiate nel nuovo torneo con logo e rosa.
-          </p>
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {existingTeams.map((team) => {
-            const checked = teamIdsToCopy.includes(team.id);
-
-            return (
-              <button
-                key={team.id}
-                type="button"
-                onClick={() => {
-                  setTeamIdsToCopy((prev) =>
-                    checked
-                      ? prev.filter((id) => id !== team.id)
-                      : [...prev, team.id]
-                  );
-                }}
-                className={[
-                  "flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition",
-                  checked
-                    ? "border-[var(--accent)] bg-[var(--accent)]/10"
-                    : "border-[var(--border)] bg-[var(--card-2)] hover:border-[var(--border-strong)]",
-                ].join(" ")}
-              >
-                {team.badgeUrl ? (
-                  <img
-                    src={team.badgeUrl}
-                    alt={`Logo ${team.name}`}
-                    className="h-9 w-9 shrink-0 rounded-xl object-contain"
-                  />
-                ) : (
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--card)] text-xs font-black text-[var(--muted)]">
-                    {team.name
-                      .split(" ")
-                      .map((word) => word[0])
-                      .join("")
-                      .slice(0, 2)
-                      .toUpperCase()}
-                  </span>
-                )}
-
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--foreground)]">
-                  {team.name}
-                </span>
-
-                <span
-                  className={[
-                    "h-4 w-4 shrink-0 rounded-full border",
-                    checked
-                      ? "border-[var(--accent)] bg-[var(--accent)]"
-                      : "border-[var(--border-strong)]",
-                  ].join(" ")}
-                />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    )}
-  </Card>
-)}
-
-      <Card>
-        <div className="mb-5 flex items-start justify-between gap-4">
+      <section className="matchroom-hero rounded-[34px] border border-[var(--border)] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.38)] sm:p-8 lg:p-10">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-end">
           <div>
-            <div className="text-sm font-medium uppercase tracking-[0.2em] text-[var(--accent)]">
-              Tornei
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--accent)]">
+              <Sparkles size={13} /> FUTPOLI Matchroom
             </div>
-            <h2 className="mt-1 text-2xl font-bold text-[var(--foreground)]">
-              Tornei disponibili
-            </h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              Apri un torneo per vedere overview, calendario, classifica, stats e
-              playoff.
+            <h1 className="mt-5 max-w-4xl text-5xl font-black tracking-[-0.09em] text-[var(--foreground)] sm:text-7xl lg:text-8xl">
+              scegli il torneo, entra nel campo.
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--muted)] sm:text-lg">
+              Una regia compatta per campionato, rose, classifiche, playoff e statistiche. Mobile da bordo campo, desktop da control room.
             </p>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <HeroMetric label="Tornei" value={loadingLeagues ? "…" : leagues.length} />
+            <HeroMetric label="Squadre" value={loadingLeagues ? "…" : totalTeams} />
+            <HeroMetric label="Ruolo" value={isAdmin ? "Admin" : "Viewer"} />
+            <HeroMetric label="Playoff" value={leagues.some((l) => l.playoffFormat) ? "On" : "Off"} />
+          </div>
         </div>
+      </section>
 
-        {loadingLeagues ? (
-          <div className="grid gap-4 xl:grid-cols-2">
-            <LeagueCardSkeleton />
-            <LeagueCardSkeleton />
-          </div>
-        ) : leagues.length === 0 ? (
-          <div className="rounded-[22px] border border-dashed border-[var(--border-strong)] bg-[var(--card-2)] px-5 py-14 text-center">
-            <div className="mx-auto max-w-md space-y-3">
-              <div className="text-lg font-bold text-[var(--foreground)]">
-                Nessun torneo salvato
-              </div>
-              <p className="text-sm text-[var(--muted)]">
-                {isAdmin
-                  ? "Crea il primo torneo per iniziare a gestire squadre, partite e classifiche."
-                  : "Al momento non ci sono tornei disponibili da visualizzare."}
-              </p>
-
-              {isAdmin && (
-                <div className="pt-2">
-                  <Button onClick={() => setShowCreateLeague(true)}>Crea il primo torneo</Button>
-                </div>
-              )}
+      <div className="desktop-control-grid gap-6">
+        <section className="space-y-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--accent)]">Competition switcher</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.06em] text-[var(--foreground)]">Tornei disponibili</h2>
             </div>
+            {isAdmin && <Button onClick={() => setShowCreateLeague((v) => !v)}>{showCreateLeague ? "Chiudi" : "Nuovo torneo"}</Button>}
           </div>
-        ) : (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {leagues.map((league) => (
-              <HomeLeagueCard
-                key={league.id}
-                id={league.id}
-                name={league.name}
-                onDelete={() => removeLeague(league.id, league.name)}
-              />
-            ))}
-          </div>
-        )}
-      </Card>
+
+          {loadingLeagues ? (
+            <div className="grid gap-4 md:grid-cols-2"><LeagueCardSkeleton /><LeagueCardSkeleton /></div>
+          ) : leagues.length === 0 ? (
+            <Card className="turf-card py-14 text-center">
+              <div className="mx-auto max-w-md space-y-3">
+                <div className="text-lg font-black text-[var(--foreground)]">Nessun torneo salvato</div>
+                <p className="text-sm text-[var(--muted)]">{isAdmin ? "Crea il primo torneo per iniziare." : "Al momento non ci sono tornei disponibili."}</p>
+                {isAdmin && <Button onClick={() => setShowCreateLeague(true)}>Crea torneo</Button>}
+              </div>
+            </Card>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {leagues.map((league, index) => <LeagueSwitchCard key={league.id} league={league} featured={index === 0} isAdmin={isAdmin} onDelete={() => removeLeague(league.id, league.name)} />)}
+            </div>
+          )}
+        </section>
+
+        <aside className="space-y-5">
+          <Card className="turf-card">
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--accent)] text-black"><Trophy size={22} /></div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-[var(--muted)]">In evidenza</p>
+                <h3 className="text-xl font-black text-[var(--foreground)]">{featured?.name ?? "Nessun torneo"}</h3>
+              </div>
+            </div>
+            {featured && <Link href={`/leagues/${featured.id}`} className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-2 text-sm font-black text-black">Apri torneo <ArrowRight size={15} /></Link>}
+          </Card>
+
+          {isAdmin && showCreateLeague && <CreateLeaguePanel name={name} setName={setName} loading={loading} create={create} existingTeams={existingTeams} teamIdsToCopy={teamIdsToCopy} setTeamIdsToCopy={setTeamIdsToCopy} playoffEnabled={playoffEnabled} setPlayoffEnabled={setPlayoffEnabled} playoffFormat={playoffFormat} setPlayoffFormat={setPlayoffFormat} playoffTeamCount={playoffTeamCount} setPlayoffTeamCount={setPlayoffTeamCount} playoffSeeded={playoffSeeded} setPlayoffSeeded={setPlayoffSeeded} />}
+        </aside>
+      </div>
     </div>
   );
 }
 
-function SummaryPill({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
+function HeroMetric({ label, value }: { label: string; value: string | number }) {
+  return <div className="rounded-[24px] border border-white/10 bg-black/20 px-4 py-4"><p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">{label}</p><p className="mt-1 text-2xl font-black text-[var(--foreground)]">{value}</p></div>;
+}
+
+function LeagueSwitchCard({ league, featured, isAdmin, onDelete }: { league: League; featured?: boolean; isAdmin: boolean; onDelete: () => void }) {
+  const teams = league.teams?.length ?? 0;
+  const players = league.teams?.reduce((sum, team) => sum + (team.players?.length ?? 0), 0) ?? 0;
+  return (
+    <Card className={["group turf-card transition hover:-translate-y-1 hover:border-[var(--accent)]/50", featured ? "lg:col-span-2" : ""].join(" ")}>
+      <div className="flex min-h-[180px] flex-col justify-between gap-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">{league.playoffFormat ? "Playoff planned" : "Regular season"}</span>
+            <h3 className="mt-4 text-2xl font-black tracking-[-0.06em] text-[var(--foreground)]">{league.name}</h3>
+          </div>
+          {isAdmin && <button onClick={onDelete} className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-black text-red-300">Elimina</button>}
+        </div>
+        <div className="flex items-end justify-between gap-4">
+          <div className="flex gap-3 text-sm text-[var(--muted)]"><span><b className="text-[var(--foreground)]">{teams}</b> squadre</span><span><b className="text-[var(--foreground)]">{players}</b> giocatori</span></div>
+          <Link href={`/leagues/${league.id}`} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-2 text-sm font-black text-black">Entra <ArrowRight size={15} /></Link>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function CreateLeaguePanel(props: {
+  name: string;
+  setName: (v: string) => void;
+  loading: boolean;
+  create: () => void;
+  existingTeams: Array<{ id: string; name: string; badgeUrl?: string | null }>;
+  teamIdsToCopy: string[];
+  setTeamIdsToCopy: Dispatch<SetStateAction<string[]>>;
+  playoffEnabled: boolean;
+  setPlayoffEnabled: (v: boolean) => void;
+  playoffFormat: "SINGLE_ELIM" | "TWO_LEG";
+  setPlayoffFormat: (v: "SINGLE_ELIM" | "TWO_LEG") => void;
+  playoffTeamCount: number;
+  setPlayoffTeamCount: (v: number) => void;
+  playoffSeeded: boolean;
+  setPlayoffSeeded: (v: boolean) => void;
 }) {
   return (
-    <div className="rounded-2xl bg-[var(--card-2)] px-4 py-3">
-      <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-[var(--muted)]">
-        {label}
+    <Card>
+      <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]"><Plus size={20} /></div><div><p className="text-xs font-black uppercase tracking-widest text-[var(--accent)]">Creazione</p><h2 className="text-xl font-black">Nuovo torneo</h2></div></div>
+      <div className="mt-5 space-y-4">
+        <Input value={props.name} onChange={(e) => props.setName(e.target.value)} placeholder="Nome torneo" />
+        <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card-2)] p-4"><input type="checkbox" checked={props.playoffEnabled} onChange={(e) => props.setPlayoffEnabled(e.target.checked)} className="mt-1" /><span><span className="block text-sm font-black">Prevedi fase playoff</span><span className="mt-1 block text-xs text-[var(--muted)]">La voce Playoff comparirà solo se questa opzione è attiva.</span></span></label>
+        {props.playoffEnabled && <div className="grid gap-3 sm:grid-cols-2"><select value={props.playoffFormat} onChange={(e) => props.setPlayoffFormat(e.target.value as "SINGLE_ELIM" | "TWO_LEG")} className="h-11 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-3 text-sm"><option value="SINGLE_ELIM" className="text-black">Eliminazione diretta</option><option value="TWO_LEG" className="text-black">Andata e ritorno</option></select><select value={props.playoffTeamCount} onChange={(e) => props.setPlayoffTeamCount(Number(e.target.value))} className="h-11 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-3 text-sm">{[2,4,8,16].map((n) => <option key={n} value={n} className="text-black">Top {n}</option>)}</select><label className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-3 py-2 text-sm font-semibold"><input type="checkbox" checked={props.playoffSeeded} onChange={(e) => props.setPlayoffSeeded(e.target.checked)} /> Seeding</label></div>}
+        {props.existingTeams.length > 0 && <div><p className="mb-2 text-xs font-black uppercase tracking-wider text-[var(--muted)]">Copia squadre</p><div className="grid gap-2">{props.existingTeams.slice(0, 8).map((team) => { const checked = props.teamIdsToCopy.includes(team.id); return <button key={team.id} type="button" onClick={() => props.setTeamIdsToCopy((prev) => checked ? prev.filter((id) => id !== team.id) : [...prev, team.id])} className={["flex items-center gap-3 rounded-2xl border px-3 py-3 text-left", checked ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--border)] bg-[var(--card-2)]"].join(" ")}><CopyPlus size={15} /><span className="truncate text-sm font-semibold">{team.name}</span></button>; })}</div></div>}
+        <Button onClick={props.create} disabled={props.loading} className="w-full">{props.loading ? "Creazione…" : "Crea torneo"}</Button>
       </div>
-      <div className="mt-1 text-lg font-black tracking-[-0.04em] text-[var(--foreground)]">
-        {value}
-      </div>
-    </div>
+    </Card>
   );
 }
 
 function LeagueCardSkeleton() {
-  return (
-    <div className="rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-5">
-      <div className="animate-pulse space-y-4">
-        <div className="h-4 w-24 rounded bg-white/10" />
-        <div className="h-8 w-2/3 rounded bg-white/10" />
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          <div className="h-12 rounded bg-white/10" />
-          <div className="h-12 rounded bg-white/10" />
-        </div>
-      </div>
-    </div>
-  );
+  return <div className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5"><div className="animate-pulse space-y-4"><div className="h-4 w-24 rounded bg-white/10" /><div className="h-8 w-2/3 rounded bg-white/10" /><div className="h-20 rounded bg-white/10" /></div></div>;
 }
