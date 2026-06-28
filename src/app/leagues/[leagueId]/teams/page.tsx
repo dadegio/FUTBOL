@@ -10,6 +10,7 @@ import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
 import Badge from "src/app/_components/ui/badge";
 import { authFetch } from "@/lib/client-auth";
+import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 type TeamRow = {
   id: string;
@@ -168,14 +169,6 @@ export default function TeamsPage() {
               />
 
               <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Descrizione squadra"
-                rows={4}
-                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--card-2)] px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
-              />
-
-              <textarea
                 aria-label="Descrizione squadra"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -234,25 +227,18 @@ function TeamListItem({
   return (
     <Link
       href={`/leagues/${leagueId}/teams/${team.id}`}
-      className="grid grid-cols-[44px_minmax(0,1fr)_auto_18px] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0 active:bg-black/[0.02]"
+      className="grid grid-cols-[44px_minmax(0,1fr)_18px] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0 active:bg-black/[0.02]"
     >
       <TeamLogo name={team.name} badgeUrl={team.badgeUrl ?? null} />
 
       <div className="min-w-0">
-        <div className="truncate text-[16px] font-semibold text-[var(--foreground)]">
+        <div className="break-words text-[16px] font-semibold text-[var(--foreground)]">
           {team.name}
         </div>
-          {team.description && (
-            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-[var(--muted)]">{team.description}</p>
-          )}
 
         <div className="mt-0.5 text-sm text-[var(--muted)]">
-          Rosa {playersCount}/16
+          Rosa {playersCount}/{FUTPOLI_RULES.maxPlayersPerTeam}
         </div>
-      </div>
-
-      <div className="rounded-full bg-[#eef0ec] px-3 py-1 text-xs font-bold text-[var(--muted)]">
-        {playersCount}
       </div>
 
       <span className="text-xl text-[var(--muted)]">›</span>

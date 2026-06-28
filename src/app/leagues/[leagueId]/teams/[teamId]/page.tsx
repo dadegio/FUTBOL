@@ -11,6 +11,7 @@ import Badge from "src/app/_components/ui/badge";
 import Input from "src/app/_components/ui/input";
 import Select from "src/app/_components/ui/select";
 import { useAuth, useCanEditTeam, authFetch } from "@/lib/client-auth";
+import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 type Player = {
   id: string;
@@ -41,7 +42,7 @@ type Team = {
 };
 
 const POSITIONS = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
-const MAX_PLAYERS_PER_TEAM = 14;
+const MAX_PLAYERS_PER_TEAM = FUTPOLI_RULES.maxPlayersPerTeam;
 
 const ROLE_ORDER = ["Portiere", "Difensore", "Centrocampista", "Attaccante"];
 
@@ -326,18 +327,18 @@ export default function TeamPage() {
             <span>{team.name}</span>
           </Link>
 
-          <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)_180px] xl:items-center">
+          <div className="grid gap-5 xl:grid-cols-[180px_minmax(0,1fr)_180px] xl:items-center 2xl:grid-cols-[220px_minmax(0,1fr)_180px]">
             <TeamLogo name={team.name} badgeUrl={team.badgeUrl ?? null} />
 
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-4xl font-black tracking-[-0.07em] text-[var(--foreground)] lg:text-5xl">
+              <h1 className="[overflow-wrap:anywhere] text-4xl font-black leading-[0.95] tracking-[-0.07em] text-[var(--foreground)] lg:text-5xl">
                 {team.name}
-                {team.description && (
-                  <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-                    {team.description}
-                  </p>
-                )}
               </h1>
+              {team.description && (
+                <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--muted)] sm:text-base">
+                  {team.description}
+                </p>
+              )}
             </div>
 
             <div className="rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-5 text-right shadow-[0_1px_3px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.04)]">
@@ -409,23 +410,15 @@ export default function TeamPage() {
               className="w-full"
             />
 
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Descrizione squadra"
-              rows={4}
-              className="w-full rounded-2xl border border-[var(--border)] bg-[var(--card-2)] px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
-            />
-
             <div className="flex items-start gap-4">
               {badgePreview ? (
                 <img
                   src={badgePreview}
                   alt="Preview logo"
-                  className="h-16 w-16 shrink-0 rounded-xl border border-[var(--border)] object-contain"
+                  className="h-28 w-28 shrink-0 rounded-xl border border-[var(--border)] object-contain"
                 />
               ) : (
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[#eef0ec] text-xs text-[var(--muted)]">
+                <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[#eef0ec] text-xs text-[var(--muted)]">
                   Logo
                 </div>
               )}
@@ -460,7 +453,7 @@ export default function TeamPage() {
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="space-y-3">
               <textarea
                 aria-label="Descrizione squadra"
                 value={description}
@@ -470,13 +463,15 @@ export default function TeamPage() {
                 className="min-h-28 w-full resize-none rounded-2xl border border-[var(--border)] bg-white/[0.04] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] focus:bg-white/[0.07]"
               />
 
-              <Button onClick={saveTeam} disabled={savingTeam}>
-                {savingTeam ? "Salvataggio…" : "Salva"}
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button onClick={saveTeam} disabled={savingTeam}>
+                  {savingTeam ? "Salvataggio…" : "Salva"}
+                </Button>
 
-              <Button variant="secondary" onClick={() => setEditingTeam(false)}>
-                Annulla
-              </Button>
+                <Button variant="secondary" onClick={() => setEditingTeam(false)}>
+                  Annulla
+                </Button>
+              </div>
             </div>
           </Card>
         )}
@@ -645,14 +640,13 @@ function PlayerRow({
       <PlayerPhoto
         name={fullName}
         photoUrl={player.photoUrl ?? null}
-        number={player.number}
       />
 
       <Link
         href={`/leagues/${leagueId}/players/${player.id}`}
         className="min-w-0"
       >
-        <div className="truncate text-[16px] font-semibold text-[var(--foreground)]">
+        <div className="break-words text-[16px] font-semibold text-[var(--foreground)]">
           {fullName}
         </div>
 
@@ -728,11 +722,9 @@ function TeamLogo({
 function PlayerPhoto({
   name,
   photoUrl,
-  number,
 }: {
   name: string;
   photoUrl?: string | null;
-  number: number;
 }) {
   const initials = name
     .split(" ")
@@ -749,10 +741,6 @@ function PlayerPhoto({
           alt={`Foto ${name}`}
           className="h-full w-full object-cover"
         />
-
-        <span className="absolute bottom-0 right-0 flex h-5 min-w-5 items-center justify-center rounded-tl-lg bg-[var(--accent)] px-1 text-[10px] font-black text-white">
-          {number}
-        </span>
       </div>
     );
   }
@@ -760,10 +748,6 @@ function PlayerPhoto({
   return (
     <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--background)] text-sm font-black text-[var(--accent)]">
       {initials}
-
-      <span className="absolute bottom-0 right-0 flex h-5 min-w-5 items-center justify-center rounded-tl-lg bg-[var(--accent)] px-1 text-[10px] font-black text-white">
-        {number}
-      </span>
     </div>
   );
 }

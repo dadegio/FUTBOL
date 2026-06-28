@@ -39,7 +39,7 @@ export default function PlayoffsPage() {
   const [teamCount, setTeamCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [view, setView] = useState<ViewMode>("list");
+  const [view, setView] = useState<ViewMode>("bracket");
   const [advancing, setAdvancing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -123,9 +123,7 @@ export default function PlayoffsPage() {
 
         {err && <Badge variant="error">{err}</Badge>}
 
-        {loading && (
-          <div className="text-[var(--foreground)]/60">Caricamento...</div>
-        )}
+        {loading && <PlayoffsLoadingSkeleton />}
 
         {!loading && data && !data.planned && (
           <Card>
@@ -280,6 +278,39 @@ export default function PlayoffsPage() {
         )}
       </div>
     </DashboardShell>
+  );
+}
+
+
+function PlayoffsLoadingSkeleton() {
+  return (
+    <Card>
+      <div className="space-y-5" aria-busy="true" aria-label="Caricamento playoff">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="h-3 w-24 animate-pulse rounded-full bg-[var(--card-2)]" />
+            <div className="h-6 w-56 animate-pulse rounded-full bg-[var(--card-2)]" />
+          </div>
+          <div className="h-9 w-40 animate-pulse rounded-2xl bg-[var(--card-2)]" />
+        </div>
+
+        <div className="overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--card-2)]/40 p-4">
+          <div className="grid auto-cols-[minmax(260px,1fr)] grid-flow-col gap-5" style={{ minWidth: 860 }}>
+            {[0, 1, 2].map((round) => (
+              <div key={round} className="space-y-4 rounded-[20px] border border-[var(--border)] bg-[var(--card)]/60 p-3">
+                <div className="h-4 w-32 animate-pulse rounded-full bg-[var(--card-2)]" />
+                {[0, 1].map((card) => (
+                  <div key={card} className="space-y-2 rounded-[18px] border border-[var(--border)] bg-[var(--card)] p-3">
+                    <div className="h-9 animate-pulse rounded-xl bg-[var(--card-2)]" />
+                    <div className="h-9 animate-pulse rounded-xl bg-[var(--card-2)]" />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 

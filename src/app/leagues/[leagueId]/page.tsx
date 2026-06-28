@@ -223,6 +223,7 @@ export default function LeagueHomePage() {
   const [overviewMatches, setOverviewMatches] = useState<Match[]>([]);
   const [table, setTable] = useState<TableRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!leagueId) return;
@@ -230,6 +231,7 @@ export default function LeagueHomePage() {
     async function load() {
       try {
         setErr(null);
+        setLoading(true);
 
         const [leagueData, teamsData, matchesData, tableData, playoffData] =
           await Promise.all([
@@ -263,6 +265,8 @@ export default function LeagueHomePage() {
         setTable(tableData);
       } catch (error: any) {
         setErr(error.message);
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -318,6 +322,14 @@ export default function LeagueHomePage() {
   );
 
   if (!leagueId) return null;
+
+  if (loading) {
+    return (
+      <DashboardShell leagueId={leagueId}>
+        <LeagueOverviewSkeleton />
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell leagueId={leagueId}>
@@ -497,6 +509,72 @@ export default function LeagueHomePage() {
         </section>
       </div>
     </DashboardShell>
+  );
+}
+
+
+function LeagueOverviewSkeleton() {
+  return (
+    <div className="w-full space-y-6 pb-8" aria-busy="true" aria-label="Caricamento torneo">
+      <header className="space-y-5 pt-2">
+        <div className="h-4 w-40 animate-pulse rounded-full bg-[var(--card-2)]" />
+        <div className="flex items-center justify-between gap-4">
+          <div className="h-10 w-72 max-w-full animate-pulse rounded-full bg-[var(--card-2)]" />
+          <div className="h-9 w-24 animate-pulse rounded-full bg-[var(--card-2)]" />
+        </div>
+      </header>
+
+      <Card className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="h-5 w-40 animate-pulse rounded-full bg-[var(--card-2)]" />
+          <div className="h-5 w-14 animate-pulse rounded-full bg-[var(--card-2)]" />
+        </div>
+        <div className="h-1 rounded-full bg-[var(--card-2)]" />
+        <div className="grid grid-cols-3 gap-4 pt-1">
+          {[0, 1, 2].map((item) => (
+            <div key={item} className="space-y-2">
+              <div className="h-7 w-12 animate-pulse rounded-full bg-[var(--card-2)]" />
+              <div className="h-3 w-20 animate-pulse rounded-full bg-[var(--card-2)]" />
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="h-6 w-28 animate-pulse rounded-full bg-[var(--card-2)]" />
+          <div className="h-4 w-20 animate-pulse rounded-full bg-[var(--card-2)]" />
+        </div>
+        <Card className="overflow-hidden !p-0">
+          {[0, 1, 2, 3, 4].map((row) => (
+            <div key={row} className="grid grid-cols-[28px_32px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0">
+              <div className="h-4 w-4 animate-pulse rounded bg-[var(--card-2)]" />
+              <div className="h-8 w-8 animate-pulse rounded-lg bg-[var(--card-2)]" />
+              <div className="h-4 w-40 max-w-full animate-pulse rounded-full bg-[var(--card-2)]" />
+              <div className="h-5 w-7 animate-pulse rounded-full bg-[var(--card-2)]" />
+            </div>
+          ))}
+        </Card>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="h-6 w-28 animate-pulse rounded-full bg-[var(--card-2)]" />
+          <div className="h-4 w-14 animate-pulse rounded-full bg-[var(--card-2)]" />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {[0, 1].map((match) => (
+            <Card key={match} className="min-h-[136px] space-y-4">
+              <div className="h-4 w-32 animate-pulse rounded-full bg-[var(--card-2)]" />
+              <div className="space-y-3">
+                <div className="h-7 animate-pulse rounded-xl bg-[var(--card-2)]" />
+                <div className="h-7 animate-pulse rounded-xl bg-[var(--card-2)]" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 

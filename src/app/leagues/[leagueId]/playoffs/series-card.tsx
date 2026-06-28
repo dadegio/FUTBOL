@@ -33,85 +33,98 @@ type Props = {
   format: string;
 };
 
+function getTeamGoals(match: Match | undefined, teamId: string | undefined) {
+  if (!match || !teamId) return null;
+  if (match.homeGoals === null || match.awayGoals === null) return null;
+  if (match.homeTeamId === teamId) return match.homeGoals;
+  if (match.awayTeamId === teamId) return match.awayGoals;
+  return null;
+}
+
 export default function SeriesCard({ series, leagueId, format }: Props) {
   const { homeTeam, awayTeam, winnerId, matches } = series;
+  const isTwoLeg = format === "TWO_LEG";
 
-  const leg1 = matches.find((m) => m.leg === 1);
+  const leg1 = matches.find((m) => m.leg === 1) ?? matches[0];
   const leg2 = matches.find((m) => m.leg === 2);
 
-  const homeWon = winnerId && homeTeam && winnerId === homeTeam.id;
-  const awayWon = winnerId && awayTeam && winnerId === awayTeam.id;
+  const homeWon = Boolean(winnerId && homeTeam && winnerId === homeTeam.id);
+  const awayWon = Boolean(winnerId && awayTeam && winnerId === awayTeam.id);
+  const ready = Boolean(homeTeam && awayTeam);
 
   return (
-    <div
+    <article
       className={[
-        "w-[220px] overflow-hidden rounded-2xl border shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
+        "group overflow-hidden rounded-[20px] border bg-[var(--card)] shadow-[0_10px_26px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.35)] transition duration-200",
         winnerId
-          ? "border-[var(--accent)]/30 bg-[var(--card)]"
-          : "border-[var(--border)] bg-[var(--card)]",
+          ? "border-[var(--accent)]/35 ring-1 ring-[var(--accent)]/10"
+          : "border-[var(--border)] hover:border-[var(--accent)]/35",
       ].join(" ")}
     >
-      {/* Home team row */}
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--card-2)]/70 px-3 py-2">
+        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--muted)]">
+          Serie #{series.position + 1}
+        </span>
+        <span
+          className={[
+            "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+            winnerId
+              ? "bg-[var(--accent)]/12 text-[var(--accent)]"
+              : ready
+                ? "bg-white/5 text-[var(--muted)]"
+                : "bg-[var(--border)]/30 text-[var(--muted)]",
+          ].join(" ")}
+        >
+          {winnerId ? "Qualificata" : ready ? "Da giocare" : "In attesa"}
+        </span>
+      </div>
+
       <TeamRow
         seed={series.homeSeed}
         name={homeTeam?.name ?? null}
-        badgeUrl = {homeTeam?.badgeUrl ?? null}
-        won={!!homeWon}
-        lost={!!awayWon}
-        leg1Score={leg1?.homeGoals ?? null}
-        leg2Score={format === "TWO_LEG" ? (leg2?.awayGoals ?? null) : null}
-        isTwoLeg={format === "TWO_LEG"}
+        badgeUrl={homeTeam?.badgeUrl ?? null}
+        won={homeWon}
+        lost={awayWon}
+        leg1Score={getTeamGoals(leg1, homeTeam?.id)}
+        leg2Score={isTwoLeg ? getTeamGoals(leg2, homeTeam?.id) : null}
+        isTwoLeg={isTwoLeg}
         border
       />
 
-      {/* Away team row */}
       <TeamRow
         seed={series.awaySeed}
         name={awayTeam?.name ?? null}
-        badgeUrl = {awayTeam?.badgeUrl ?? null}
-        won={!!awayWon}
-        lost={!!homeWon}
-        leg1Score={leg1?.awayGoals ?? null}
-        leg2Score={format === "TWO_LEG" ? (leg2?.homeGoals ?? null) : null}
-        isTwoLeg={format === "TWO_LEG"}
+        badgeUrl={awayTeam?.badgeUrl ?? null}
+        won={awayWon}
+        lost={homeWon}
+        leg1Score={getTeamGoals(leg1, awayTeam?.id)}
+        leg2Score={isTwoLeg ? getTeamGoals(leg2, awayTeam?.id) : null}
+        isTwoLeg={isTwoLeg}
       />
 
+      {series.penaltiesHome !== null && series.penaltiesAway !== null && (
+        <div className="border-t border-[var(--border)] bg-[var(--card-2)]/45 px-3 py-1.5 text-center text-[10px] font-semibold text-[var(--muted)]">
+          Rigori {series.penaltiesHome}–{series.penaltiesAway}
+        </div>
+      )}
 
-      {/* Action link */}
       {homeTeam && awayTeam && !winnerId && matches.length > 0 && (
-        <div className="border-t border-[var(--border)] px-3 py-2">
+        <div className="border-t border-[var(--border)] px-3 py-2.5">
           <div className="flex gap-2">
             {matches.map((m) => (
               <Link
                 key={m.id}
                 href={`/leagues/${leagueId}/matches/${m.id}`}
-                className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-2 py-1.5 text-center text-xs font-medium text-[var(--accent)] hover:bg-[var(--card)] transition-colors"
+                className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-2 py-1.5 text-center text-xs font-bold text-[var(--accent)] transition-colors hover:border-[var(--accent)]/40 hover:bg-[var(--card)]"
               >
                 {m.homeGoals !== null ? "Modifica" : "Risultato"}
-                {format === "TWO_LEG" ? ` G${m.leg}` : ""}
+                {isTwoLeg ? ` · G${m.leg}` : ""}
               </Link>
             ))}
           </div>
         </div>
       )}
-
-      {/* Penalties badge */}
-      {series.penaltiesHome !== null && series.penaltiesAway !== null && (
-        <div
-          className="border-t border-[var(--border)] px-3 py-1.5 text-center text-[10px] font-semibold text-[var(--muted)]"
-          style={{ fontFamily: "var(--font-mono, ui-monospace)" }}
-        >
-          Rig. {series.penaltiesHome}–{series.penaltiesAway}
-        </div>
-      )}
-
-      {/* Winner badge */}
-      {winnerId && (
-        <div className="animate-fade-in border-t border-[var(--border)] px-3 py-1.5 text-center text-[10px] font-semibold text-[var(--accent)]">
-          Qualificato
-        </div>
-      )}
-    </div>
+    </article>
   );
 }
 
@@ -139,37 +152,38 @@ function TeamRow({
   return (
     <div
       className={[
-        "flex items-center gap-2 px-3 py-2.5 transition-colors",
+        "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 transition-colors",
         border ? "border-b border-[var(--border)]" : "",
-        won ? "bg-[oklch(0.96_0.02_258)]" : "",
-        lost ? "opacity-45" : "",
+        won ? "bg-[var(--accent)]/10" : "",
+        lost ? "opacity-50" : "",
       ].join(" ")}
     >
-      {seed && (
-        <span className="w-5 shrink-0 text-center text-xs font-medium text-[var(--muted)]">
-          {seed}
-        </span>
-      )}
+      <div className="relative">
+        <TeamMiniLogo name={name ?? "In attesa"} badgeUrl={badgeUrl} muted={!name} />
+        {seed && (
+          <span className="absolute -bottom-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border border-[var(--card)] bg-[var(--card-2)] px-1 text-[9px] font-black tabular-nums text-[var(--muted)]">
+            {seed}
+          </span>
+        )}
+      </div>
 
-      <TeamMiniLogo name={name ?? "TBD"} badgeUrl={badgeUrl} />
+      <div className="min-w-0">
+        <div
+          className={[
+            "break-words text-sm font-black leading-tight tracking-[-0.02em]",
+            won
+              ? "text-[var(--accent)]"
+              : name
+                ? "text-[var(--foreground)]"
+                : "italic text-[var(--muted)]",
+          ].join(" ")}
+        >
+          {name ?? "In attesa"}
+        </div>
+        {won && <div className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">Passa il turno</div>}
+      </div>
 
-      <span
-        className={[
-          "flex-1 truncate text-sm font-semibold",
-          won
-            ? "text-[var(--accent)]"
-            : name
-              ? "text-[var(--foreground)]"
-              : "italic text-[var(--muted)]",
-        ].join(" ")}
-      >
-        {name ?? "TBD"}
-      </span>
-      <ScoreDisplay
-        leg1Score={leg1Score}
-        leg2Score={leg2Score}
-        isTwoLeg={isTwoLeg}
-      />
+      <ScoreDisplay leg1Score={leg1Score} leg2Score={leg2Score} isTwoLeg={isTwoLeg} />
     </div>
   );
 }
@@ -184,15 +198,12 @@ function ScoreDisplay({
   isTwoLeg: boolean;
 }) {
   if (leg1Score === null && leg2Score === null) {
-    return <span className="text-xs text-[var(--border-strong)]">—</span>;
+    return <span className="rounded-xl bg-[var(--card-2)] px-2.5 py-1 text-sm font-black text-[var(--border-strong)]">—</span>;
   }
 
   if (isTwoLeg) {
     return (
-      <div
-        className="flex gap-1 text-sm font-semibold tabular-nums text-[var(--foreground)]"
-        style={{ fontFamily: "var(--font-mono, ui-monospace)" }}
-      >
+      <div className="flex items-center gap-1 rounded-xl bg-[var(--card-2)] px-2.5 py-1 text-sm font-black tabular-nums text-[var(--foreground)]">
         <span>{leg1Score ?? "—"}</span>
         <span className="text-[var(--border-strong)]">|</span>
         <span>{leg2Score ?? "—"}</span>
@@ -201,10 +212,7 @@ function ScoreDisplay({
   }
 
   return (
-    <span
-      className="text-sm font-semibold tabular-nums text-[var(--foreground)]"
-      style={{ fontFamily: "var(--font-mono, ui-monospace)" }}
-    >
+    <span className="rounded-xl bg-[var(--card-2)] px-2.5 py-1 text-sm font-black tabular-nums text-[var(--foreground)]">
       {leg1Score ?? "—"}
     </span>
   );
@@ -213,9 +221,11 @@ function ScoreDisplay({
 function TeamMiniLogo({
   name,
   badgeUrl,
+  muted = false,
 }: {
   name: string;
   badgeUrl: string | null;
+  muted?: boolean;
 }) {
   const initials = name
     .split(" ")
@@ -229,13 +239,20 @@ function TeamMiniLogo({
       <img
         src={badgeUrl}
         alt={`Logo ${name}`}
-        className="h-6 w-6 shrink-0 rounded-lg object-contain"
+        className="h-9 w-9 shrink-0 rounded-xl object-contain"
       />
     );
   }
 
   return (
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--card-2)] text-[9px] font-black text-[var(--muted)]">
+    <span
+      className={[
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[10px] font-black",
+        muted
+          ? "border border-dashed border-[var(--border)] bg-transparent text-[var(--muted)]"
+          : "bg-[var(--card-2)] text-[var(--muted)]",
+      ].join(" ")}
+    >
       {initials || "?"}
     </span>
   );

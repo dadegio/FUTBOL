@@ -25,6 +25,11 @@ function isOpaqueIdSegment(segment: string) {
   return /^[a-z0-9]{16,}$/i.test(segment) && !SECTION_LABELS[segment];
 }
 
+
+function looksLikeId(value: string) {
+  return /^c[a-z0-9]{10,}$/i.test(value) || /^[a-z0-9]{18,}$/i.test(value);
+}
+
 export default function Breadcrumbs({ leagueId }: BreadcrumbsProps) {
   const pathname = usePathname();
 

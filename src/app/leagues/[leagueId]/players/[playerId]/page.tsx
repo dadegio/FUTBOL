@@ -268,10 +268,9 @@ export default function PlayerPage() {
         {err && <Badge variant="error">{err}</Badge>}
 
         <Card className="overflow-hidden !p-0">
-          <div className="matchroom-hero grid gap-6 p-5 sm:p-7 lg:grid-cols-[420px_minmax(0,1fr)]">
-            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[36px] border border-white/10 bg-black/20 p-6 text-center">
+          <div className="matchroom-hero grid gap-5 p-4 sm:p-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[28px] border border-white/10 bg-black/20 p-3 text-center sm:min-h-[280px]">
               <PlayerAvatar firstName={player.firstName} lastName={player.lastName} number={player.number} photoUrl={player.photoUrl ?? null} />
-              <span className="mt-4 rounded-full bg-[var(--accent)] px-3 py-1 text-xs font-black text-black">#{player.number}</span>
               <p className="mt-2 text-sm text-[var(--muted)]">{player.position || "Ruolo non impostato"}</p>
             </div>
 
@@ -341,7 +340,7 @@ export default function PlayerPage() {
             <h2 className="mb-4 text-lg font-black text-[var(--foreground)]">Modifica giocatore</h2>
             <div className="grid gap-4">
               <div className="grid gap-4 lg:grid-cols-[96px_minmax(0,1fr)] lg:items-start">
-                <div>{photoPreview ? <img src={photoPreview} alt="Preview" className="h-36 w-36 rounded-[2rem] md:h-48 md:w-48 border border-[var(--border)] object-cover" /> : <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/5 text-xs font-bold text-[var(--foreground)]/35">N/A</div>}</div>
+                <div>{photoPreview ? <img src={photoPreview} alt="Preview" className="h-28 w-28 rounded-[1.5rem] border border-[var(--border)] object-cover md:h-36 md:w-36" /> : <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-white/5 text-xs font-bold text-[var(--foreground)]/35 md:h-36 md:w-36">N/A</div>}</div>
                 <div className="space-y-3">
                   <input type="file" accept="image/*" aria-label="Carica foto giocatore" onChange={(e) => { const file = e.target.files?.[0] ?? null; setPhotoFile(file); if (file) setRemovePhoto(false); }} className="block w-full rounded-xl border border-[var(--border)] bg-white/5 px-3.5 py-2.5 text-sm text-[var(--foreground)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--accent)] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-black" />
                   <Button variant="destructive" size="sm" onClick={() => { setPhotoFile(null); setPhotoUrl(""); setRemovePhoto(true); }}>Rimuovi foto</Button>
@@ -388,7 +387,7 @@ export default function PlayerPage() {
             <div className="space-y-3">{recentMatches?.map((match) => (
               <Link key={match.matchId} href={`/leagues/${leagueId}/matches/${match.matchId}`} className="block rounded-2xl border border-[var(--border)] bg-white/[0.03] px-4 py-3 transition hover:bg-white/[0.05]">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0"><div className="truncate font-semibold text-[var(--foreground)]">{match.homeTeamName} vs {match.awayTeamName}</div><div className="mt-1 text-sm text-[var(--foreground)]/55">{match.date ? new Date(match.date).toLocaleDateString("it-IT") : "Data da definire"}</div></div>
+                  <div className="min-w-0"><div className="break-words font-semibold text-[var(--foreground)]">{match.homeTeamName} vs {match.awayTeamName}</div><div className="mt-1 text-sm text-[var(--foreground)]/55">{match.date ? new Date(match.date).toLocaleDateString("it-IT") : "Data da definire"}</div></div>
                   <div className="flex items-center gap-4"><div className="text-sm font-bold text-[var(--foreground)]">{match.homeGoals ?? "-"} - {match.awayGoals ?? "-"}</div><div className="text-xs text-[var(--foreground)]/60">{match.goals} gol · {match.assists} assist</div></div>
                 </div>
               </Link>
@@ -403,8 +402,24 @@ export default function PlayerPage() {
 function PlayerAvatar({ firstName, lastName, number, photoUrl }: { firstName: string; lastName: string; number: number; photoUrl?: string | null }) {
   const fullName = `${firstName} ${lastName}`;
   const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
-  if (photoUrl) return <div className="relative h-48 w-48 shrink-0 overflow-hidden rounded-[48px] md:h-56 md:w-56 border border-[var(--border)] bg-[var(--background)] shadow-sm"><img src={photoUrl} alt={`Foto ${fullName}`} className="h-full w-full object-cover" /><span className="absolute bottom-0 right-0 flex h-14 min-w-14 items-center justify-center rounded-tl-3xl bg-[var(--accent)] px-3 text-lg font-black text-black">{number}</span></div>;
-  return <div className="relative flex h-48 w-48 shrink-0 items-center justify-center rounded-[48px] md:h-56 md:w-56 border border-[var(--border)] bg-[var(--background)] text-5xl font-black text-[var(--accent)] shadow-sm">{initials || "?"}<span className="absolute bottom-0 right-0 flex h-14 min-w-14 items-center justify-center rounded-tl-3xl bg-[var(--accent)] px-3 text-lg font-black text-black">{number}</span></div>;
+  const frameClass =
+    "relative aspect-[4/5] h-[220px] w-full max-w-[210px] shrink-0 overflow-hidden rounded-[30px] border border-[var(--border)] bg-[var(--background)] shadow-sm sm:h-[235px] sm:max-w-[225px]";
+
+  if (photoUrl) {
+    return (
+      <div className={frameClass}>
+        <img src={photoUrl} alt={`Foto ${fullName}`} className="absolute inset-0 h-full w-full object-cover object-center" />
+        <span className="absolute bottom-0 right-0 flex h-12 min-w-12 items-center justify-center rounded-tl-3xl bg-[var(--accent)] px-3 text-base font-black text-black">{number}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${frameClass} flex items-center justify-center text-4xl font-black text-[var(--accent)]`}>
+      {initials || "?"}
+      <span className="absolute bottom-0 right-0 flex h-12 min-w-12 items-center justify-center rounded-tl-3xl bg-[var(--accent)] px-3 text-base font-black text-black">{number}</span>
+    </div>
+  );
 }
 
 function PassportPill({ label, value, positive }: { label: string; value: string | number; positive?: boolean }) {
