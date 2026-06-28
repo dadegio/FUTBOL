@@ -63,7 +63,6 @@ export async function POST(
 
   const mode = String(body?.mode ?? "");
 
-  // modalità manuale
   if (mode === "manual") {
     const round = Number(body?.round);
     const homeTeamId = String(body?.homeTeamId ?? "").trim();
@@ -106,6 +105,15 @@ export async function POST(
       );
     }
 
+    const date = dateRaw ? new Date(dateRaw) : null;
+
+    if (dateRaw && Number.isNaN(date?.getTime())) {
+      return NextResponse.json(
+        { error: "Data partita non valida" },
+        { status: 400 }
+      );
+    }
+
     try {
       const match = await prisma.match.create({
         data: {
@@ -113,7 +121,7 @@ export async function POST(
           round,
           homeTeamId,
           awayTeamId,
-          ...(dateRaw ? { date: new Date(dateRaw) } : {}),
+          ...(date ? { date } : {}),
         },
       });
 
@@ -126,8 +134,10 @@ export async function POST(
     }
   }
 
-  // modalità automatica
   const random = body?.random !== false;
+  const doubleRound = body?.doubleRound !== false;
+  const replace = body?.replace === true;
+  const alternateHomeAway = body?.alternateHomeAway !== false;
 
   const seed =
     body?.seed === undefined ||
@@ -140,12 +150,60 @@ export async function POST(
     return NextResponse.json({ error: "Seed non valido" }, { status: 400 });
   }
 
+  const firstDateTime =
+    body?.firstDateTime === undefined || body?.firstDateTime === null
+      ? null
+      : String(body.firstDateTime).trim();
+
+  const roundIntervalDays = Number(body?.roundIntervalDays ?? 7);
+  const slotMinutes = Number(body?.slotMinutes ?? 70);
+  const pitchCount = Number(body?.pitchCount ?? 1);
+
+  if (
+    !Number.isInteger(roundIntervalDays) ||
+    roundIntervalDays < 1 ||
+    roundIntervalDays > 30
+  ) {
+    return NextResponse.json(
+      { error: "Intervallo tra giornate non valido" },
+      { status: 400 }
+    );
+  }
+
+  if (!Number.isInteger(slotMinutes) || slotMinutes < 30 || slotMinutes > 240) {
+    return NextResponse.json(
+      { error: "Durata slot non valida" },
+      { status: 400 }
+    );
+  }
+
+  if (!Number.isInteger(pitchCount) || pitchCount < 1 || pitchCount > 8) {
+    return NextResponse.json(
+      { error: "Numero campi non valido" },
+      { status: 400 }
+    );
+  }
+
+  let firstKickoff: Date | null = null;
+
+  if (firstDateTime) {
+    firstKickoff = new Date(firstDateTime);
+
+    if (Number.isNaN(firstKickoff.getTime())) {
+      return NextResponse.json(
+        { error: "Data di inizio non valida" },
+        { status: 400 }
+      );
+    }
+  }
+
   const teams = await prisma.team.findMany({
     where: { leagueId },
+    orderBy: [{ createdAt: "asc" }, { name: "asc" }],
     select: { id: true },
   });
 
-  const teamIds = teams.map((t) => t.id);
+  const teamIds = teams.map((team) => team.id);
 
   if (teamIds.length < 2) {
     return NextResponse.json(
@@ -154,27 +212,109 @@ export async function POST(
     );
   }
 
-  await prisma.match.deleteMany({
+  const existingMatches = await prisma.match.findMany({
     where: { leagueId, seriesId: null },
+    select: {
+      id: true,
+      homeGoals: true,
+      awayGoals: true,
+    },
   });
 
-  const pairings = generateRoundRobin(teamIds, { random, seed });
+  if (existingMatches.length > 0 && !replace) {
+    return NextResponse.json(
+      {
+        error: "Calendario già presente: usa Rigenera calendario per sostituirlo",
+        existing: existingMatches.length,
+      },
+      { status: 409 }
+    );
+  }
+
+  const existingMatchIds = existingMatches.map((match) => match.id);
+
+  const [statsCount, sheetPlayersCount] =
+    existingMatchIds.length > 0
+      ? await Promise.all([
+          prisma.matchPlayerStat.count({
+            where: { matchId: { in: existingMatchIds } },
+          }),
+          prisma.matchSheetPlayer.count({
+            where: { matchId: { in: existingMatchIds } },
+          }),
+        ])
+      : [0, 0];
+
+  const lockedByResult = existingMatches.filter(
+    (match) => match.homeGoals !== null || match.awayGoals !== null
+  );
+
+  const hasProtectedData =
+    lockedByResult.length > 0 || statsCount > 0 || sheetPlayersCount > 0;
+
+  if (replace && hasProtectedData) {
+    return NextResponse.json(
+      {
+        error:
+          "Non posso rigenerare: ci sono partite già compilate con risultati, statistiche o distinte",
+        locked: lockedByResult.length,
+        stats: statsCount,
+        sheetPlayers: sheetPlayersCount,
+      },
+      { status: 400 }
+    );
+  }
+
+  if (replace) {
+    await prisma.match.deleteMany({
+      where: { leagueId, seriesId: null },
+    });
+  }
+
+  const pairings = generateRoundRobin(teamIds, {
+    random,
+    seed,
+    alternateHomeAway,
+    doubleRound,
+  });
+
+  const matchIndexByRound = new Map<number, number>();
 
   await prisma.match.createMany({
-    data: pairings.map((p) => ({
-      leagueId,
-      round: p.round,
-      homeTeamId: p.homeTeamId,
-      awayTeamId: p.awayTeamId,
-    })),
+    data: pairings.map((pairing) => {
+      const roundMatchIndex = matchIndexByRound.get(pairing.round) ?? 0;
+      matchIndexByRound.set(pairing.round, roundMatchIndex + 1);
+
+      let date: Date | undefined;
+
+      if (firstKickoff) {
+        date = new Date(firstKickoff);
+        date.setDate(
+          date.getDate() + (pairing.round - 1) * roundIntervalDays
+        );
+        date.setMinutes(
+          date.getMinutes() +
+            Math.floor(roundMatchIndex / pitchCount) * slotMinutes
+        );
+      }
+
+      return {
+        leagueId,
+        round: pairing.round,
+        homeTeamId: pairing.homeTeamId,
+        awayTeamId: pairing.awayTeamId,
+        ...(date ? { date } : {}),
+      };
+    }),
   });
 
   const rounds = pairings.length
-    ? Math.max(...pairings.map((p) => p.round))
+    ? Math.max(...pairings.map((pairing) => pairing.round))
     : 0;
 
   return NextResponse.json({
     created: pairings.length,
     rounds,
+    scheduled: Boolean(firstKickoff),
   });
 }

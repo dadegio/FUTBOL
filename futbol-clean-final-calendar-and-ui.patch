@@ -1,0 +1,898 @@
+diff --git a/lib/scheduler.ts b/lib/scheduler.ts
+index a140299..1120a7d 100644
+--- a/lib/scheduler.ts
++++ b/lib/scheduler.ts
+@@ -1,42 +1,64 @@
+-export type Pairing = { homeTeamId: string; awayTeamId: string; round: number };
++export type Pairing = {
++  homeTeamId: string;
++  awayTeamId: string;
++  round: number;
++};
+ 
+ function shuffle<T>(arr: T[], seed?: number): T[] {
+   const a = [...arr];
+   let x = seed ?? Math.floor(Math.random() * 1e9);
+-  const rand = () => (x = (x * 1664525 + 1013904223) % 4294967296) / 4294967296;
++
++  const rand = () => {
++    x = (x * 1664525 + 1013904223) % 4294967296;
++    return x / 4294967296;
++  };
+ 
+   for (let i = a.length - 1; i > 0; i--) {
+-    const j = Math.floor((seed !== undefined ? rand() : Math.random()) * (i + 1));
++    const randomValue = seed !== undefined ? rand() : Math.random();
++    const j = Math.floor(randomValue * (i + 1));
+     [a[i], a[j]] = [a[j], a[i]];
+   }
++
+   return a;
+ }
+ 
+ /**
+- * Round-robin con girone di andata e ritorno.
+- * Se numero squadre dispari -> una riposa (BYE).
++ * Genera un calendario round-robin.
+  *
+- * Il ritorno viene generato invertendo casa/trasferta e spostando
+- * le giornate dopo quelle dell'andata.
++ * - Se doubleRound=false genera solo andata.
++ * - Se doubleRound=true genera andata e ritorno.
++ * - Se il numero di squadre è dispari aggiunge un BYE interno.
+  */
+ export function generateRoundRobin(
+   teamIds: string[],
+-  opts?: { random?: boolean; seed?: number; alternateHomeAway?: boolean; doubleRound?: boolean }
++  opts?: {
++    random?: boolean;
++    seed?: number;
++    alternateHomeAway?: boolean;
++    doubleRound?: boolean;
++  }
+ ): Pairing[] {
+-  const { random = true, seed, alternateHomeAway = true, doubleRound = true } = opts ?? {};
++  const {
++    random = true,
++    seed,
++    alternateHomeAway = true,
++    doubleRound = true,
++  } = opts ?? {};
++
+   let teams = random ? shuffle(teamIds, seed) : [...teamIds];
+ 
+   const BYE = "__BYE__";
++
+   if (teams.length < 2) return [];
+   if (teams.length % 2 === 1) teams = [...teams, BYE];
+ 
+   const n = teams.length;
+   const rounds = n - 1;
+   const half = n / 2;
+-
+   const pairings: Pairing[] = [];
+ 
+   let arr = [...teams];
++
+   for (let r = 1; r <= rounds; r++) {
+     const left = arr.slice(0, half);
+     const right = arr.slice(half).reverse();
+@@ -44,6 +66,7 @@ export function generateRoundRobin(
+     for (let i = 0; i < half; i++) {
+       const a = left[i];
+       const b = right[i];
++
+       if (a === BYE || b === BYE) continue;
+ 
+       const flip = alternateHomeAway ? (r + i) % 2 === 0 : false;
+@@ -61,10 +84,10 @@ export function generateRoundRobin(
+ 
+   if (!doubleRound) return pairings;
+ 
+-  const returnLeg = pairings.map((p) => ({
+-    round: p.round + rounds,
+-    homeTeamId: p.awayTeamId,
+-    awayTeamId: p.homeTeamId,
++  const returnLeg = pairings.map((pairing) => ({
++    round: pairing.round + rounds,
++    homeTeamId: pairing.awayTeamId,
++    awayTeamId: pairing.homeTeamId,
+   }));
+ 
+   return [...pairings, ...returnLeg];
+diff --git a/src/app/api/leagues/[leagueId]/schedule/route.ts b/src/app/api/leagues/[leagueId]/schedule/route.ts
+index ed16ec9..ad5eec2 100644
+--- a/src/app/api/leagues/[leagueId]/schedule/route.ts
++++ b/src/app/api/leagues/[leagueId]/schedule/route.ts
+@@ -63,7 +63,6 @@ export async function POST(
+ 
+   const mode = String(body?.mode ?? "");
+ 
+-  // modalità manuale
+   if (mode === "manual") {
+     const round = Number(body?.round);
+     const homeTeamId = String(body?.homeTeamId ?? "").trim();
+@@ -106,6 +105,15 @@ export async function POST(
+       );
+     }
+ 
++    const date = dateRaw ? new Date(dateRaw) : null;
++
++    if (dateRaw && Number.isNaN(date?.getTime())) {
++      return NextResponse.json(
++        { error: "Data partita non valida" },
++        { status: 400 }
++      );
++    }
++
+     try {
+       const match = await prisma.match.create({
+         data: {
+@@ -113,7 +121,7 @@ export async function POST(
+           round,
+           homeTeamId,
+           awayTeamId,
+-          ...(dateRaw ? { date: new Date(dateRaw) } : {}),
++          ...(date ? { date } : {}),
+         },
+       });
+ 
+@@ -126,8 +134,10 @@ export async function POST(
+     }
+   }
+ 
+-  // modalità automatica
+   const random = body?.random !== false;
++  const doubleRound = body?.doubleRound !== false;
++  const replace = body?.replace === true;
++  const alternateHomeAway = body?.alternateHomeAway !== false;
+ 
+   const seed =
+     body?.seed === undefined ||
+@@ -140,12 +150,60 @@ export async function POST(
+     return NextResponse.json({ error: "Seed non valido" }, { status: 400 });
+   }
+ 
++  const firstDateTime =
++    body?.firstDateTime === undefined || body?.firstDateTime === null
++      ? null
++      : String(body.firstDateTime).trim();
++
++  const roundIntervalDays = Number(body?.roundIntervalDays ?? 7);
++  const slotMinutes = Number(body?.slotMinutes ?? 70);
++  const pitchCount = Number(body?.pitchCount ?? 1);
++
++  if (
++    !Number.isInteger(roundIntervalDays) ||
++    roundIntervalDays < 1 ||
++    roundIntervalDays > 30
++  ) {
++    return NextResponse.json(
++      { error: "Intervallo tra giornate non valido" },
++      { status: 400 }
++    );
++  }
++
++  if (!Number.isInteger(slotMinutes) || slotMinutes < 30 || slotMinutes > 240) {
++    return NextResponse.json(
++      { error: "Durata slot non valida" },
++      { status: 400 }
++    );
++  }
++
++  if (!Number.isInteger(pitchCount) || pitchCount < 1 || pitchCount > 8) {
++    return NextResponse.json(
++      { error: "Numero campi non valido" },
++      { status: 400 }
++    );
++  }
++
++  let firstKickoff: Date | null = null;
++
++  if (firstDateTime) {
++    firstKickoff = new Date(firstDateTime);
++
++    if (Number.isNaN(firstKickoff.getTime())) {
++      return NextResponse.json(
++        { error: "Data di inizio non valida" },
++        { status: 400 }
++      );
++    }
++  }
++
+   const teams = await prisma.team.findMany({
+     where: { leagueId },
++    orderBy: [{ createdAt: "asc" }, { name: "asc" }],
+     select: { id: true },
+   });
+ 
+-  const teamIds = teams.map((t) => t.id);
++  const teamIds = teams.map((team) => team.id);
+ 
+   if (teamIds.length < 2) {
+     return NextResponse.json(
+@@ -154,27 +212,109 @@ export async function POST(
+     );
+   }
+ 
+-  await prisma.match.deleteMany({
++  const existingMatches = await prisma.match.findMany({
+     where: { leagueId, seriesId: null },
++    select: {
++      id: true,
++      homeGoals: true,
++      awayGoals: true,
++    },
++  });
++
++  if (existingMatches.length > 0 && !replace) {
++    return NextResponse.json(
++      {
++        error: "Calendario già presente: usa Rigenera calendario per sostituirlo",
++        existing: existingMatches.length,
++      },
++      { status: 409 }
++    );
++  }
++
++  const existingMatchIds = existingMatches.map((match) => match.id);
++
++  const [statsCount, sheetPlayersCount] =
++    existingMatchIds.length > 0
++      ? await Promise.all([
++          prisma.matchPlayerStat.count({
++            where: { matchId: { in: existingMatchIds } },
++          }),
++          prisma.matchSheetPlayer.count({
++            where: { matchId: { in: existingMatchIds } },
++          }),
++        ])
++      : [0, 0];
++
++  const lockedByResult = existingMatches.filter(
++    (match) => match.homeGoals !== null || match.awayGoals !== null
++  );
++
++  const hasProtectedData =
++    lockedByResult.length > 0 || statsCount > 0 || sheetPlayersCount > 0;
++
++  if (replace && hasProtectedData) {
++    return NextResponse.json(
++      {
++        error:
++          "Non posso rigenerare: ci sono partite già compilate con risultati, statistiche o distinte",
++        locked: lockedByResult.length,
++        stats: statsCount,
++        sheetPlayers: sheetPlayersCount,
++      },
++      { status: 400 }
++    );
++  }
++
++  if (replace) {
++    await prisma.match.deleteMany({
++      where: { leagueId, seriesId: null },
++    });
++  }
++
++  const pairings = generateRoundRobin(teamIds, {
++    random,
++    seed,
++    alternateHomeAway,
++    doubleRound,
+   });
+ 
+-  const pairings = generateRoundRobin(teamIds, { random, seed });
++  const matchIndexByRound = new Map<number, number>();
+ 
+   await prisma.match.createMany({
+-    data: pairings.map((p) => ({
+-      leagueId,
+-      round: p.round,
+-      homeTeamId: p.homeTeamId,
+-      awayTeamId: p.awayTeamId,
+-    })),
++    data: pairings.map((pairing) => {
++      const roundMatchIndex = matchIndexByRound.get(pairing.round) ?? 0;
++      matchIndexByRound.set(pairing.round, roundMatchIndex + 1);
++
++      let date: Date | undefined;
++
++      if (firstKickoff) {
++        date = new Date(firstKickoff);
++        date.setDate(
++          date.getDate() + (pairing.round - 1) * roundIntervalDays
++        );
++        date.setMinutes(
++          date.getMinutes() +
++            Math.floor(roundMatchIndex / pitchCount) * slotMinutes
++        );
++      }
++
++      return {
++        leagueId,
++        round: pairing.round,
++        homeTeamId: pairing.homeTeamId,
++        awayTeamId: pairing.awayTeamId,
++        ...(date ? { date } : {}),
++      };
++    }),
+   });
+ 
+   const rounds = pairings.length
+-    ? Math.max(...pairings.map((p) => p.round))
++    ? Math.max(...pairings.map((pairing) => pairing.round))
+     : 0;
+ 
+   return NextResponse.json({
+     created: pairings.length,
+     rounds,
++    scheduled: Boolean(firstKickoff),
+   });
+-}
+\ No newline at end of file
++}
+diff --git a/src/app/leagues/[leagueId]/calendar/page.tsx b/src/app/leagues/[leagueId]/calendar/page.tsx
+index c74dde5..02d17d1 100644
+--- a/src/app/leagues/[leagueId]/calendar/page.tsx
++++ b/src/app/leagues/[leagueId]/calendar/page.tsx
+@@ -1,12 +1,16 @@
+ "use client";
+ 
+-import { useEffect, useMemo, useState } from "react";
++import { useCallback, useEffect, useMemo, useState } from "react";
+ import Link from "next/link";
+-import { ChevronLeft, ChevronRight } from "lucide-react";
++import { ChevronLeft, ChevronRight, RefreshCw, Wand2 } from "lucide-react";
+ import { useParams } from "next/navigation";
+ import DashboardShell from "src/app/_components/dashboard-shell";
+ import Card from "src/app/_components/ui/card";
+ import Badge from "src/app/_components/ui/badge";
++import Button from "src/app/_components/ui/button";
++import Input from "src/app/_components/ui/input";
++import Select from "src/app/_components/ui/select";
++import { authFetch, useAuth } from "@/lib/client-auth";
+ 
+ type Team = {
+   id: string;
+@@ -27,6 +31,12 @@ type Match = {
+ 
+ type Filter = "all" | "pending" | "played";
+ 
++type GeneratorResult = {
++  created: number;
++  rounds: number;
++  scheduled: boolean;
++};
++
+ async function getJSON<T>(url: string): Promise<T> {
+   const res = await fetch(url, { cache: "no-store" });
+   const data = await res.json().catch(() => ({}));
+@@ -61,7 +71,6 @@ function isLiveMatch(match: Match) {
+   if (!isToday(start)) return false;
+ 
+   const now = new Date();
+-  // 60 min match + 2 min break + 15 min post-match grace = 77 min live window.
+   const end = new Date(start.getTime() + 77 * 60 * 1000);
+ 
+   return now >= start && now <= end;
+@@ -79,7 +88,7 @@ function getLiveMinute(match: Match) {
+ 
+   if (diffMinutes < 0 || diffMinutes > 77) return null;
+   if (diffMinutes <= 30) return `${diffMinutes}'`;
+-  if (diffMinutes <= 32) return "30'+";  // half-time break
++  if (diffMinutes <= 32) return "30'+";
+   if (diffMinutes <= 62) return `${diffMinutes - 2}'`;
+ 
+   return "60'+";
+@@ -116,7 +125,6 @@ function formatDayTitle(date: string | null) {
+   const parsed = new Date(date);
+ 
+   if (Number.isNaN(parsed.getTime())) return "DATA DA DEFINIRE";
+-
+   if (isToday(parsed)) return "OGGI";
+ 
+   const weekday = parsed
+@@ -134,35 +142,58 @@ function formatDayTitle(date: string | null) {
+   return `${weekday} ${day} ${month}`;
+ }
+ 
++function toDatetimeLocalValue(date: Date) {
++  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
++  return local.toISOString().slice(0, 16);
++}
++
+ export default function CalendarPage() {
+   const { leagueId } = useParams<{ leagueId: string }>();
++  const { user } = useAuth();
++  const isAdmin = user?.role === "ADMIN";
+ 
+   const [matches, setMatches] = useState<Match[]>([]);
+   const [loading, setLoading] = useState(true);
+   const [err, setErr] = useState<string | null>(null);
++  const [msg, setMsg] = useState<string | null>(null);
+ 
+   const [filter, setFilter] = useState<Filter>("all");
+   const [selectedRound, setSelectedRound] = useState<number | null>(null);
+ 
+-  useEffect(() => {
++  const [doubleRound, setDoubleRound] = useState(true);
++  const [random, setRandom] = useState(true);
++  const [alternateHomeAway, setAlternateHomeAway] = useState(true);
++  const [seed, setSeed] = useState("");
++  const [firstDateTime, setFirstDateTime] = useState(() => {
++    const next = new Date();
++    next.setDate(next.getDate() + 7);
++    next.setHours(20, 0, 0, 0);
++    return toDatetimeLocalValue(next);
++  });
++  const [roundIntervalDays, setRoundIntervalDays] = useState("7");
++  const [slotMinutes, setSlotMinutes] = useState("70");
++  const [pitchCount, setPitchCount] = useState("1");
++  const [generating, setGenerating] = useState(false);
++
++  const load = useCallback(async () => {
+     if (!leagueId) return;
+ 
+-    async function load() {
+-      setErr(null);
+-      setLoading(true);
+-
+-      try {
+-        const data = await getJSON<Match[]>(`/api/leagues/${leagueId}/schedule`);
+-        setMatches(data);
+-      } catch (error: any) {
+-        setErr(error.message);
+-      } finally {
+-        setLoading(false);
+-      }
++    setErr(null);
++    setLoading(true);
++
++    try {
++      const data = await getJSON<Match[]>(`/api/leagues/${leagueId}/schedule`);
++      setMatches(data);
++    } catch (error: any) {
++      setErr(error.message ?? "Errore caricamento calendario");
++    } finally {
++      setLoading(false);
+     }
++  }, [leagueId]);
+ 
++  useEffect(() => {
+     load();
+-  }, [leagueId]);
++  }, [load]);
+ 
+   const rounds = useMemo(
+     () =>
+@@ -186,11 +217,15 @@ export default function CalendarPage() {
+   }, [matches, rounds]);
+ 
+   useEffect(() => {
+-    if (selectedRound !== null) return;
+-    if (currentRound === null) return;
++    if (currentRound === null) {
++      setSelectedRound(null);
++      return;
++    }
++
++    if (selectedRound !== null && rounds.includes(selectedRound)) return;
+ 
+     setSelectedRound(currentRound);
+-  }, [currentRound, selectedRound]);
++  }, [currentRound, rounds, selectedRound]);
+ 
+   const visibleRound = selectedRound ?? currentRound;
+ 
+@@ -218,13 +253,7 @@ export default function CalendarPage() {
+   }, [matches, visibleRound, filter]);
+ 
+   const grouped = useMemo(() => {
+-    const map = new Map<
+-      string,
+-      {
+-        title: string;
+-        matches: Match[];
+-      }
+-    >();
++    const map = new Map<string, { title: string; matches: Match[] }>();
+ 
+     for (const match of filteredMatches) {
+       const key = getDayKey(match);
+@@ -242,6 +271,51 @@ export default function CalendarPage() {
+     return [...map.values()];
+   }, [filteredMatches]);
+ 
++  async function generateCalendar(replace: boolean) {
++    if (!leagueId) return;
++
++    setErr(null);
++    setMsg(null);
++    setGenerating(true);
++
++    try {
++      const res = await authFetch(`/api/leagues/${leagueId}/schedule`, {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify({
++          replace,
++          doubleRound,
++          random,
++          alternateHomeAway,
++          seed: seed.trim() || null,
++          firstDateTime: firstDateTime || null,
++          roundIntervalDays: Number(roundIntervalDays),
++          slotMinutes: Number(slotMinutes),
++          pitchCount: Number(pitchCount),
++        }),
++      });
++
++      const data = await res.json().catch(() => ({}));
++
++      if (!res.ok) {
++        throw new Error((data as any)?.error ?? "Errore generazione calendario");
++      }
++
++      const result = data as GeneratorResult;
++      setMsg(
++        `Calendario generato: ${result.created} partite in ${result.rounds} giornate${
++          result.scheduled ? " con date automatiche" : ""
++        }.`
++      );
++      setSelectedRound(null);
++      await load();
++    } catch (error: any) {
++      setErr(error.message ?? "Errore generazione calendario");
++    } finally {
++      setGenerating(false);
++    }
++  }
++
+   function goToPreviousRound() {
+     if (!visibleRound) return;
+ 
+@@ -267,9 +341,16 @@ export default function CalendarPage() {
+       <div className="w-full space-y-5 pb-8">
+         <header className="pt-2">
+           <div className="flex items-end justify-between gap-4">
+-            <h1 className="text-[31px] font-black tracking-[-0.06em] text-[var(--foreground)]">
+-              Calendario
+-            </h1>
++            <div>
++              <h1 className="text-[31px] font-black tracking-[-0.06em] text-[var(--foreground)]">
++                Calendario
++              </h1>
++              <p className="mt-1 text-sm text-[var(--muted)]">
++                {loading
++                  ? "Caricamento partite…"
++                  : `${matches.length} partite · ${rounds.length} giornate`}
++              </p>
++            </div>
+ 
+             <div className="flex items-center gap-3">
+               <button
+@@ -300,37 +381,134 @@ export default function CalendarPage() {
+           </div>
+         </header>
+ 
++        {isAdmin && (
++          <Card className="space-y-4">
++            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
++              <div>
++                <div className="flex items-center gap-2">
++                  <Wand2 size={18} className="text-[var(--accent)]" />
++                  <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--foreground)]">
++                    Generatore calendario
++                  </h2>
++                </div>
++                <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
++                  Crea automaticamente il round-robin della regular season. La rigenerazione è bloccata se esistono risultati, statistiche o distinte già compilate.
++                </p>
++              </div>
++
++              <div className="flex shrink-0 flex-wrap gap-2">
++                <Button
++                  onClick={() => generateCalendar(false)}
++                  disabled={generating || loading || matches.length > 0}
++                >
++                  {generating ? "Genero…" : "Genera calendario"}
++                </Button>
++                <Button
++                  variant="secondary"
++                  onClick={() => generateCalendar(true)}
++                  disabled={generating || loading || matches.length === 0}
++                >
++                  <RefreshCw size={15} />
++                  Rigenera
++                </Button>
++              </div>
++            </div>
++
++            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
++              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
++                Primo kickoff
++                <Input
++                  type="datetime-local"
++                  value={firstDateTime}
++                  onChange={(event) => setFirstDateTime(event.target.value)}
++                />
++              </label>
++
++              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
++                Giorni tra giornate
++                <Input
++                  value={roundIntervalDays}
++                  onChange={(event) => setRoundIntervalDays(event.target.value.replace(/[^0-9]/g, ""))}
++                  inputMode="numeric"
++                />
++              </label>
++
++              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
++                Minuti tra slot
++                <Input
++                  value={slotMinutes}
++                  onChange={(event) => setSlotMinutes(event.target.value.replace(/[^0-9]/g, ""))}
++                  inputMode="numeric"
++                />
++              </label>
++
++              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
++                Campi disponibili
++                <Input
++                  value={pitchCount}
++                  onChange={(event) => setPitchCount(event.target.value.replace(/[^0-9]/g, ""))}
++                  inputMode="numeric"
++                />
++              </label>
++
++              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
++                Formula
++                <Select
++                  value={doubleRound ? "double" : "single"}
++                  onChange={(event) => setDoubleRound(event.target.value === "double")}
++                >
++                  <option value="single" className="text-black">Solo andata</option>
++                  <option value="double" className="text-black">Andata e ritorno</option>
++                </Select>
++              </label>
++
++              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
++                Ordine squadre
++                <Select
++                  value={random ? "random" : "created"}
++                  onChange={(event) => setRandom(event.target.value === "random")}
++                >
++                  <option value="random" className="text-black">Casuale</option>
++                  <option value="created" className="text-black">Ordine iscrizione</option>
++                </Select>
++              </label>
++
++              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
++                Seed opzionale
++                <Input
++                  value={seed}
++                  onChange={(event) => setSeed(event.target.value.replace(/[^0-9]/g, ""))}
++                  placeholder="es. 2026"
++                  inputMode="numeric"
++                />
++              </label>
++
++              <label className="flex items-center gap-2 self-end rounded-2xl border border-[var(--border)] bg-[var(--card-2)] px-4 py-3 text-sm font-semibold text-[var(--foreground)]">
++                <input
++                  type="checkbox"
++                  checked={alternateHomeAway}
++                  onChange={(event) => setAlternateHomeAway(event.target.checked)}
++                />
++                Alterna casa/trasferta
++              </label>
++            </div>
++          </Card>
++        )}
++
+         <div className="flex gap-8 border-b border-[var(--border)] text-base">
+-          <CalendarTab
+-            label="Tutte"
+-            active={filter === "all"}
+-            onClick={() => setFilter("all")}
+-          />
+-          <CalendarTab
+-            label="Prossime"
+-            active={filter === "pending"}
+-            onClick={() => setFilter("pending")}
+-          />
+-          <CalendarTab
+-            label="Concluse"
+-            active={filter === "played"}
+-            onClick={() => setFilter("played")}
+-          />
++          <CalendarTab label="Tutte" active={filter === "all"} onClick={() => setFilter("all")} />
++          <CalendarTab label="Prossime" active={filter === "pending"} onClick={() => setFilter("pending")} />
++          <CalendarTab label="Concluse" active={filter === "played"} onClick={() => setFilter("played")} />
+         </div>
+ 
++        {msg && <Badge variant="success">{msg}</Badge>}
+         {err && <Badge variant="error">{err}</Badge>}
+ 
+-        {loading && (
+-          <p className="text-sm text-[var(--muted)]">
+-            Caricamento calendario…
+-          </p>
+-        )}
++        {loading && <CalendarSkeleton />}
+ 
+         {!loading && matches.length === 0 && (
+           <Card>
+-            <p className="font-medium text-[var(--foreground)]">
+-              Nessuna partita
+-            </p>
++            <p className="font-medium text-[var(--foreground)]">Nessuna partita</p>
+             <p className="mt-1 text-sm text-[var(--muted)]">
+               Il calendario non è ancora disponibile.
+             </p>
+@@ -339,9 +517,7 @@ export default function CalendarPage() {
+ 
+         {!loading && matches.length > 0 && grouped.length === 0 && (
+           <Card>
+-            <p className="text-sm text-[var(--muted)]">
+-              Nessuna partita per questo filtro.
+-            </p>
++            <p className="text-sm text-[var(--muted)]">Nessuna partita per questo filtro.</p>
+           </Card>
+         )}
+ 
+@@ -355,18 +531,13 @@ export default function CalendarPage() {
+                   </h2>
+ 
+                   <span className="font-mono text-sm text-[var(--muted)]">
+-                    {group.matches.length}{" "}
+-                    {group.matches.length === 1 ? "partita" : "partite"}
++                    {group.matches.length} {group.matches.length === 1 ? "partita" : "partite"}
+                   </span>
+                 </div>
+ 
+                 <Card className="overflow-hidden !p-0">
+                   {group.matches.map((match) => (
+-                    <CalendarMatchRow
+-                      key={match.id}
+-                      leagueId={leagueId}
+-                      match={match}
+-                    />
++                    <CalendarMatchRow key={match.id} leagueId={leagueId} match={match} />
+                   ))}
+                 </Card>
+               </section>
+@@ -378,24 +549,14 @@ export default function CalendarPage() {
+   );
+ }
+ 
+-function CalendarTab({
+-  label,
+-  active,
+-  onClick,
+-}: {
+-  label: string;
+-  active: boolean;
+-  onClick: () => void;
+-}) {
++function CalendarTab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+   return (
+     <button
+       type="button"
+       onClick={onClick}
+       className={[
+         "pb-3 font-medium",
+-        active
+-          ? "border-b-2 border-[var(--accent)] text-[var(--foreground)]"
+-          : "text-[var(--muted)]",
++        active ? "border-b-2 border-[var(--accent)] text-[var(--foreground)]" : "text-[var(--muted)]",
+       ].join(" ")}
+     >
+       {label}
+@@ -403,13 +564,35 @@ function CalendarTab({
+   );
+ }
+ 
+-function CalendarMatchRow({
+-  leagueId,
+-  match,
+-}: {
+-  leagueId: string;
+-  match: Match;
+-}) {
++function CalendarSkeleton() {
++  return (
++    <div className="space-y-6" aria-busy="true" aria-label="Caricamento calendario">
++      {[0, 1].map((group) => (
++        <section key={group} className="space-y-2">
++          <div className="flex items-center justify-between">
++            <div className="h-4 w-28 animate-pulse rounded-full bg-[var(--card-2)]" />
++            <div className="h-4 w-16 animate-pulse rounded-full bg-[var(--card-2)]" />
++          </div>
++          <Card className="overflow-hidden !p-0">
++            {[0, 1, 2].map((row) => (
++              <div key={row} className="grid grid-cols-[58px_minmax(0,1fr)_auto_18px] items-center gap-2 border-b border-[var(--border)] px-3 py-4 last:border-b-0">
++                <div className="mx-auto h-5 w-10 animate-pulse rounded-full bg-[var(--card-2)]" />
++                <div className="space-y-3">
++                  <div className="h-5 w-2/3 animate-pulse rounded-full bg-[var(--card-2)]" />
++                  <div className="h-5 w-1/2 animate-pulse rounded-full bg-[var(--card-2)]" />
++                </div>
++                <div className="h-5 w-5 animate-pulse rounded-full bg-[var(--card-2)]" />
++                <div className="h-5 w-3 animate-pulse rounded-full bg-[var(--card-2)]" />
++              </div>
++            ))}
++          </Card>
++        </section>
++      ))}
++    </div>
++  );
++}
++
++function CalendarMatchRow({ leagueId, match }: { leagueId: string; match: Match }) {
+   const played = isPlayed(match);
+   const live = isLiveMatch(match);
+   const liveMinute = getLiveMinute(match);
+@@ -460,7 +643,7 @@ function TeamLine({ team, muted }: { team: Team; muted?: boolean }) {
+ 
+       <span
+         className={[
+-          "min-w-0 truncate text-[15px] font-semibold",
++          "min-w-0 break-words text-[15px] font-semibold leading-snug",
+           muted ? "text-[var(--muted)]" : "text-[var(--foreground)]",
+         ].join(" ")}
+       >
+@@ -470,13 +653,7 @@ function TeamLine({ team, muted }: { team: Team; muted?: boolean }) {
+   );
+ }
+ 
+-function TeamLogo({
+-  name,
+-  badgeUrl,
+-}: {
+-  name: string;
+-  badgeUrl: string | null;
+-}) {
++function TeamLogo({ name, badgeUrl }: { name: string; badgeUrl: string | null }) {
+   const initials = name
+     .split(" ")
+     .map((word) => word[0])
+@@ -499,4 +676,4 @@ function TeamLogo({
+       {initials}
+     </span>
+   );
+-}
+\ No newline at end of file
++}
+diff --git a/src/app/leagues/[leagueId]/players/[playerId]/page.tsx b/src/app/leagues/[leagueId]/players/[playerId]/page.tsx
+index a9070aa..5f62cfa 100644
+--- a/src/app/leagues/[leagueId]/players/[playerId]/page.tsx
++++ b/src/app/leagues/[leagueId]/players/[playerId]/page.tsx
+@@ -268,8 +268,8 @@ export default function PlayerPage() {
+         {err && <Badge variant="error">{err}</Badge>}
+ 
+         <Card className="overflow-hidden !p-0">
+-          <div className="matchroom-hero grid gap-5 p-4 sm:p-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+-            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[28px] border border-white/10 bg-black/20 p-3 text-center sm:min-h-[280px]">
++          <div className="matchroom-hero grid gap-5 p-4 sm:p-5 lg:grid-cols-[230px_minmax(0,1fr)]">
++            <div className="flex min-h-[215px] flex-col items-center justify-center rounded-[24px] border border-white/10 bg-black/20 p-3 text-center sm:min-h-[230px]">
+               <PlayerAvatar firstName={player.firstName} lastName={player.lastName} number={player.number} photoUrl={player.photoUrl ?? null} />
+               <p className="mt-2 text-sm text-[var(--muted)]">{player.position || "Ruolo non impostato"}</p>
+             </div>
+@@ -340,7 +340,7 @@ export default function PlayerPage() {
+             <h2 className="mb-4 text-lg font-black text-[var(--foreground)]">Modifica giocatore</h2>
+             <div className="grid gap-4">
+               <div className="grid gap-4 lg:grid-cols-[96px_minmax(0,1fr)] lg:items-start">
+-                <div>{photoPreview ? <img src={photoPreview} alt="Preview" className="h-28 w-28 rounded-[1.5rem] border border-[var(--border)] object-cover md:h-36 md:w-36" /> : <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-white/5 text-xs font-bold text-[var(--foreground)]/35 md:h-36 md:w-36">N/A</div>}</div>
++                <div>{photoPreview ? <img src={photoPreview} alt="Preview" className="h-24 w-24 rounded-[1.25rem] border border-[var(--border)] object-cover md:h-28 md:w-28" /> : <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/5 text-xs font-bold text-[var(--foreground)]/35 md:h-28 md:w-28">N/A</div>}</div>
+                 <div className="space-y-3">
+                   <input type="file" accept="image/*" aria-label="Carica foto giocatore" onChange={(e) => { const file = e.target.files?.[0] ?? null; setPhotoFile(file); if (file) setRemovePhoto(false); }} className="block w-full rounded-xl border border-[var(--border)] bg-white/5 px-3.5 py-2.5 text-sm text-[var(--foreground)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--accent)] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-black" />
+                   <Button variant="destructive" size="sm" onClick={() => { setPhotoFile(null); setPhotoUrl(""); setRemovePhoto(true); }}>Rimuovi foto</Button>
+@@ -403,7 +403,7 @@ function PlayerAvatar({ firstName, lastName, number, photoUrl }: { firstName: st
+   const fullName = `${firstName} ${lastName}`;
+   const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
+   const frameClass =
+-    "relative aspect-[4/5] h-[220px] w-full max-w-[210px] shrink-0 overflow-hidden rounded-[30px] border border-[var(--border)] bg-[var(--background)] shadow-sm sm:h-[235px] sm:max-w-[225px]";
++    "relative aspect-[4/5] h-[178px] w-full max-w-[168px] shrink-0 overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--background)] shadow-sm sm:h-[190px] sm:max-w-[180px]";
+ 
+   if (photoUrl) {
+     return (

@@ -268,8 +268,8 @@ export default function PlayerPage() {
         {err && <Badge variant="error">{err}</Badge>}
 
         <Card className="overflow-hidden !p-0">
-          <div className="matchroom-hero grid gap-5 p-4 sm:p-5 lg:grid-cols-[300px_minmax(0,1fr)]">
-            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[28px] border border-white/10 bg-black/20 p-3 text-center sm:min-h-[280px]">
+          <div className="matchroom-hero grid gap-5 p-4 sm:p-5 lg:grid-cols-[230px_minmax(0,1fr)]">
+            <div className="flex min-h-[215px] flex-col items-center justify-center rounded-[24px] border border-white/10 bg-black/20 p-3 text-center sm:min-h-[230px]">
               <PlayerAvatar firstName={player.firstName} lastName={player.lastName} number={player.number} photoUrl={player.photoUrl ?? null} />
               <p className="mt-2 text-sm text-[var(--muted)]">{player.position || "Ruolo non impostato"}</p>
             </div>
@@ -340,7 +340,7 @@ export default function PlayerPage() {
             <h2 className="mb-4 text-lg font-black text-[var(--foreground)]">Modifica giocatore</h2>
             <div className="grid gap-4">
               <div className="grid gap-4 lg:grid-cols-[96px_minmax(0,1fr)] lg:items-start">
-                <div>{photoPreview ? <img src={photoPreview} alt="Preview" className="h-28 w-28 rounded-[1.5rem] border border-[var(--border)] object-cover md:h-36 md:w-36" /> : <div className="flex h-28 w-28 items-center justify-center rounded-2xl bg-white/5 text-xs font-bold text-[var(--foreground)]/35 md:h-36 md:w-36">N/A</div>}</div>
+                <div>{photoPreview ? <img src={photoPreview} alt="Preview" className="h-24 w-24 rounded-[1.25rem] border border-[var(--border)] object-cover md:h-28 md:w-28" /> : <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/5 text-xs font-bold text-[var(--foreground)]/35 md:h-28 md:w-28">N/A</div>}</div>
                 <div className="space-y-3">
                   <input type="file" accept="image/*" aria-label="Carica foto giocatore" onChange={(e) => { const file = e.target.files?.[0] ?? null; setPhotoFile(file); if (file) setRemovePhoto(false); }} className="block w-full rounded-xl border border-[var(--border)] bg-white/5 px-3.5 py-2.5 text-sm text-[var(--foreground)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--accent)] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-black" />
                   <Button variant="destructive" size="sm" onClick={() => { setPhotoFile(null); setPhotoUrl(""); setRemovePhoto(true); }}>Rimuovi foto</Button>
@@ -403,7 +403,7 @@ function PlayerAvatar({ firstName, lastName, number, photoUrl }: { firstName: st
   const fullName = `${firstName} ${lastName}`;
   const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
   const frameClass =
-    "relative aspect-[4/5] h-[220px] w-full max-w-[210px] shrink-0 overflow-hidden rounded-[30px] border border-[var(--border)] bg-[var(--background)] shadow-sm sm:h-[235px] sm:max-w-[225px]";
+    "relative aspect-[4/5] h-[178px] w-full max-w-[168px] shrink-0 overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--background)] shadow-sm sm:h-[190px] sm:max-w-[180px]";
 
   if (photoUrl) {
     return (
