@@ -2,11 +2,14 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdminOrCaptainOfTeam } from "@/lib/server-auth";
+import { getServerSession, requireAdminOrCaptainOfTeam } from "@/lib/server-auth";
 import { FUTPOLI_RULES } from "@/lib/tournament-rules";
+import { canSeeAdminPlayerDetails, sanitizePlayerForRole } from "@/lib/player-visibility";
 
 export async function GET(_: Request, ctx: { params: Promise<{ teamId: string }> }) {
   const { teamId } = await ctx.params;
+  const session = await getServerSession();
+  const showAdminDetails = canSeeAdminPlayerDetails(session);
 
   const team = await prisma.team.findUnique({
     where: { id: teamId },
@@ -28,17 +31,22 @@ export async function GET(_: Request, ctx: { params: Promise<{ teamId: string }>
 
   if (!team) return NextResponse.json({ error: "Squadra non trovata" }, { status: 404 });
 
-  // Aggregate stats per player
   const players = team.players.map(({ stats, sheetEntries, ...p }) => {
     const appearances = sheetEntries.length;
+    const base = sanitizePlayerForRole(
+      {
+        ...p,
+        goals: stats.reduce((s, r) => s + r.goals, 0),
+        assists: stats.reduce((s, r) => s + r.assists, 0),
+        appearances,
+        ...(showAdminDetails
+          ? { feeCents: appearances * FUTPOLI_RULES.playerFeeCentsPerAppearance }
+          : {}),
+      },
+      session
+    );
 
-    return {
-      ...p,
-      goals: stats.reduce((s, r) => s + r.goals, 0),
-      assists: stats.reduce((s, r) => s + r.assists, 0),
-      appearances,
-      feeCents: appearances * FUTPOLI_RULES.playerFeeCentsPerAppearance,
-    };
+    return base;
   });
 
   return NextResponse.json({ ...team, players });

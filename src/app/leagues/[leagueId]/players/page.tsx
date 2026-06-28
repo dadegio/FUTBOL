@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { Search, Users } from "lucide-react";
+import { Search, SlidersHorizontal, Users } from "lucide-react";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card, { CardHeader } from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
 import Badge from "src/app/_components/ui/badge";
+import { authFetch } from "@/lib/client-auth";
 
 type Row = {
   id: string;
@@ -17,6 +18,8 @@ type Row = {
   number: number;
   position?: string | null;
   photoUrl?: string | null;
+  registrationStatus?: string;
+  isEligibleForMatchSheet?: boolean;
   team: {
     id: string;
     name: string;
@@ -29,6 +32,7 @@ export default function PlayersPage() {
   const sp = useSearchParams();
   const router = useRouter();
   const q = (sp.get("q") ?? "").trim();
+  const status = (sp.get("status") ?? "").trim();
 
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState(q);
@@ -45,7 +49,7 @@ export default function PlayersPage() {
     setErr(null);
     setLoading(true);
 
-    fetch(`/api/leagues/${leagueId}/players?q=${encodeURIComponent(q)}`, {
+    authFetch(`/api/leagues/${leagueId}/players?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`, {
       cache: "no-store",
     })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
@@ -55,7 +59,7 @@ export default function PlayersPage() {
       })
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false));
-  }, [leagueId, q]);
+  }, [leagueId, q, status]);
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -64,8 +68,8 @@ export default function PlayersPage() {
 
     router.push(
       value
-        ? `/leagues/${leagueId}/players?q=${encodeURIComponent(value)}`
-        : `/leagues/${leagueId}/players`
+        ? `/leagues/${leagueId}/players?q=${encodeURIComponent(value)}${status ? `&status=${status}` : ""}`
+        : `/leagues/${leagueId}/players${status ? `?status=${status}` : ""}`
     );
   }
 
@@ -100,14 +104,14 @@ export default function PlayersPage() {
             <CardHeader
               tag="Giocatori"
               title="Rosa torneo"
-              description="Cerca e consulta tutti i giocatori divisi per squadra."
+              description="Player registry del torneo: cerca, filtra e apri i profili senza esporre dati amministrativi."
               level={1}
             />
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <InfoBox label="Risultati" value={loading ? "…" : String(rows.length)} />
               <InfoBox label="Squadre" value={String(grouped.length)} />
-              <InfoBox label="Filtro" value={q ? "Attivo" : "Tutti"} />
+              <InfoBox label="Filtro" value={q || status ? "Attivo" : "Tutti"} />
             </div>
           </div>
         </Card>
@@ -130,6 +134,34 @@ export default function PlayersPage() {
 
             <Button className="h-12 md:min-w-[150px]">Cerca</Button>
           </form>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-wider text-[var(--muted)]">
+              <SlidersHorizontal size={13} /> Stato
+            </span>
+            {[
+              ["", "Tutti"],
+              ["ok", "Iscrizione OK"],
+              ["todo", "Da completare"],
+            ].map(([value, label]) => {
+              const active = status === value;
+              const href = `/leagues/${leagueId}/players${value ? `?status=${value}${q ? `&q=${encodeURIComponent(q)}` : ""}` : q ? `?q=${encodeURIComponent(q)}` : ""}`;
+              return (
+                <Link
+                  key={value}
+                  href={href}
+                  className={[
+                    "rounded-full border px-3 py-1.5 text-xs font-black transition",
+                    active
+                      ? "border-[var(--accent)] bg-[var(--accent)] text-black"
+                      : "border-[var(--border)] bg-[var(--card-2)] text-[var(--muted)] hover:text-[var(--foreground)]",
+                  ].join(" ")}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
 
           {err && (
             <Badge variant="error" className="mt-4">
@@ -239,6 +271,15 @@ function PlayerCard({
               <p className="mt-1 text-sm font-medium text-[var(--muted)]">
                 {player.position || "Ruolo non impostato"}
               </p>
+
+              <span className={[
+                "mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide",
+                player.isEligibleForMatchSheet
+                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                  : "bg-amber-400/10 text-amber-300",
+              ].join(" ")}>
+                {player.registrationStatus ?? "Da completare"}
+              </span>
             </div>
 
             <span className="rounded-xl bg-[var(--accent)] px-2.5 py-1 text-sm font-black text-white">

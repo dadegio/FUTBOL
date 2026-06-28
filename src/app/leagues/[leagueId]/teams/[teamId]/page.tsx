@@ -10,7 +10,7 @@ import Button from "src/app/_components/ui/button";
 import Badge from "src/app/_components/ui/badge";
 import Input from "src/app/_components/ui/input";
 import Select from "src/app/_components/ui/select";
-import { useCanEditTeam, authFetch } from "@/lib/client-auth";
+import { useAuth, useCanEditTeam, authFetch } from "@/lib/client-auth";
 
 type Player = {
   id: string;
@@ -26,6 +26,9 @@ type Player = {
   status?: string;
   documentSigned?: boolean;
   mediaConsent?: boolean;
+  registrationStatus?: string;
+  isEligibleForMatchSheet?: boolean;
+  adminMissingItems?: string[];
 };
 
 type Team = {
@@ -46,16 +49,16 @@ function formatEuro(cents: number) {
 }
 
 function isAdminOk(player: Player) {
-  return Boolean(player.status === "AUTHORIZED" && player.documentSigned && player.mediaConsent);
+  return player.isEligibleForMatchSheet === true || Boolean(player.status === "AUTHORIZED" && player.documentSigned && player.mediaConsent);
 }
 
 function playerStatusLabel(player: Player) {
-  if (isAdminOk(player)) return "Autorizzato";
+  if (isAdminOk(player)) return "Iscrizione OK";
   if (player.status === "SUSPENDED") return "Squalificato";
   if (player.status === "BLOCKED") return "Bloccato";
   if (player.status === "IN_REVIEW") return "In verifica";
   if (player.status === "RETIRED") return "Ritirato";
-  return "Da completare";
+  return player.registrationStatus ?? "Da completare";
 }
 
 const SHORT_ROLE: Record<string, string> = {
@@ -89,6 +92,8 @@ export default function TeamPage() {
     teamId: string;
   }>();
 
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const canEdit = useCanEditTeam(teamId);
 
   const [team, setTeam] = useState<Team | null>(null);
@@ -112,7 +117,7 @@ export default function TeamPage() {
   async function load() {
     setErr(null);
 
-    const res = await fetch(`/api/teams/${teamId}`, {
+    const res = await authFetch(`/api/teams/${teamId}`, {
       cache: "no-store",
     });
 
@@ -430,7 +435,7 @@ export default function TeamPage() {
                       setBadgeUrl("");
                       setRemoveBadge(true);
                     }}
-                    className="text-xs font-semibold text-red-600"
+                    className="text-xs font-semibold text-amber-300"
                   >
                     Rimuovi logo
                   </button>
@@ -569,6 +574,7 @@ export default function TeamPage() {
                       player={player}
                       role={role}
                       canEdit={canEdit}
+                      isAdmin={isAdmin}
                       onDelete={() =>
                         deletePlayer(
                           player.id,
@@ -592,12 +598,14 @@ function PlayerRow({
   player,
   role,
   canEdit,
+  isAdmin,
   onDelete,
 }: {
   leagueId: string;
   player: Player;
   role: string;
   canEdit: boolean;
+  isAdmin: boolean;
   onDelete: () => void;
 }) {
   const shortRole = SHORT_ROLE[role] ?? "—";
@@ -606,7 +614,7 @@ function PlayerRow({
   return (
     <div className={[
       "grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0",
-      isAdminOk(player) ? "" : "bg-red-50/40",
+      isAdminOk(player) ? "" : "bg-amber-400/5",
     ].join(" ")}>
       <PlayerPhoto
         name={fullName}
@@ -630,7 +638,8 @@ function PlayerRow({
           <span>{playerStatusLabel(player)}</span>
         </div>
         <div className="mt-1 text-xs text-[var(--muted)]">
-          {player.appearances ?? 0} presenze · {formatEuro(player.feeCents ?? 0)} quota
+          {player.appearances ?? 0} presenze
+          {isAdmin && <> · {formatEuro(player.feeCents ?? 0)} quota</>}
         </div>
       </Link>
 
@@ -648,7 +657,7 @@ function PlayerRow({
           <button
             type="button"
             onClick={onDelete}
-            className="grid h-9 w-9 place-items-center rounded-lg text-[var(--muted)] active:bg-red-50 active:text-red-600"
+            className="grid h-9 w-9 place-items-center rounded-lg text-[var(--muted)] active:bg-red-50 active:text-amber-300"
             aria-label={`Elimina ${fullName}`}
           >
             <Trash2 size={15} />

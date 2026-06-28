@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "@/lib/server-auth";
+import { sanitizePlayerForRole } from "@/lib/player-visibility";
 
 export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await ctx.params;
+  const session = await getServerSession();
 
   const match = await prisma.match.findUnique({
     where: { id: matchId },
@@ -11,6 +14,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }
         select: {
           id: true,
           name: true,
+          badgeUrl: true,
           players: {
             orderBy: { number: "asc" },
             select: {
@@ -18,6 +22,8 @@ export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }
               firstName: true,
               lastName: true,
               number: true,
+              position: true,
+              photoUrl: true,
               teamId: true,
               status: true,
               documentSigned: true,
@@ -30,6 +36,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }
         select: {
           id: true,
           name: true,
+          badgeUrl: true,
           players: {
             orderBy: { number: "asc" },
             select: {
@@ -37,6 +44,8 @@ export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }
               firstName: true,
               lastName: true,
               number: true,
+              position: true,
+              photoUrl: true,
               teamId: true,
               status: true,
               documentSigned: true,
@@ -63,5 +72,15 @@ export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }
     return NextResponse.json({ error: "Partita non trovata" }, { status: 404 });
   }
 
-  return NextResponse.json(match);
+  return NextResponse.json({
+    ...match,
+    homeTeam: {
+      ...match.homeTeam,
+      players: match.homeTeam.players.map((player) => sanitizePlayerForRole(player, session)),
+    },
+    awayTeam: {
+      ...match.awayTeam,
+      players: match.awayTeam.players.map((player) => sanitizePlayerForRole(player, session)),
+    },
+  });
 }

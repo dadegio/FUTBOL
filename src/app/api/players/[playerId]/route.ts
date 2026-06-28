@@ -2,7 +2,8 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdminOrCaptainOfTeam } from "@/lib/server-auth";
+import { getServerSession, requireAdminOrCaptainOfTeam } from "@/lib/server-auth";
+import { canEditAdminPlayerDetails, sanitizePlayerForRole } from "@/lib/player-visibility";
 
 const PLAYER_STATUSES = new Set(["PENDING", "IN_REVIEW", "AUTHORIZED", "BLOCKED", "SUSPENDED", "RETIRED"]);
 
@@ -22,6 +23,7 @@ export async function GET(
   ctx: { params: Promise<{ playerId: string }> }
 ) {
   const { playerId } = await ctx.params;
+  const session = await getServerSession();
 
   const player = await prisma.player.findUnique({
     where: { id: playerId },
@@ -69,7 +71,7 @@ export async function GET(
     );
   }
 
-  return NextResponse.json(player);
+  return NextResponse.json(sanitizePlayerForRole(player, session));
 }
 
 export async function PATCH(
@@ -95,6 +97,9 @@ export async function PATCH(
 
   const authErr = await requireAdminOrCaptainOfTeam(existing.teamId);
   if (authErr) return authErr;
+
+  const session = await getServerSession();
+  const canEditAdminFields = canEditAdminPlayerDetails(session);
 
   const body = await req.json().catch(() => ({}));
 
@@ -189,18 +194,18 @@ export async function PATCH(
       ...(number !== undefined ? { number } : {}),
       ...(position !== undefined ? { position } : {}),
       ...(photoUrl !== undefined ? { photoUrl } : {}),
-      ...(fiscalCode !== undefined ? { fiscalCode } : {}),
-      ...(birthDate !== undefined ? { birthDate } : {}),
-      ...(signedAt !== undefined ? { signedAt } : {}),
-      ...(documentSigned !== undefined ? { documentSigned } : {}),
-      ...(privacyConsent !== undefined ? { privacyConsent } : {}),
-      ...(internalPhotoConsent !== undefined ? { internalPhotoConsent } : {}),
-      ...(publicPhotoConsent !== undefined ? { publicPhotoConsent } : {}),
-      ...(mediaConsent !== undefined ? { mediaConsent } : {}),
-      ...(healthDeclaration !== undefined ? { healthDeclaration } : {}),
-      ...(wildcardUsed !== undefined ? { wildcardUsed } : {}),
-      ...(status !== undefined ? { status: status as any } : {}),
-      ...(statusNote !== undefined ? { statusNote } : {}),
+      ...(canEditAdminFields && fiscalCode !== undefined ? { fiscalCode } : {}),
+      ...(canEditAdminFields && birthDate !== undefined ? { birthDate } : {}),
+      ...(canEditAdminFields && signedAt !== undefined ? { signedAt } : {}),
+      ...(canEditAdminFields && documentSigned !== undefined ? { documentSigned } : {}),
+      ...(canEditAdminFields && privacyConsent !== undefined ? { privacyConsent } : {}),
+      ...(canEditAdminFields && internalPhotoConsent !== undefined ? { internalPhotoConsent } : {}),
+      ...(canEditAdminFields && publicPhotoConsent !== undefined ? { publicPhotoConsent } : {}),
+      ...(canEditAdminFields && mediaConsent !== undefined ? { mediaConsent } : {}),
+      ...(canEditAdminFields && healthDeclaration !== undefined ? { healthDeclaration } : {}),
+      ...(canEditAdminFields && wildcardUsed !== undefined ? { wildcardUsed } : {}),
+      ...(canEditAdminFields && status !== undefined ? { status: status as any } : {}),
+      ...(canEditAdminFields && statusNote !== undefined ? { statusNote } : {}),
     },
     select: {
       id: true,
@@ -239,7 +244,7 @@ export async function PATCH(
     },
   });
 
-  return NextResponse.json(updated);
+  return NextResponse.json(sanitizePlayerForRole(updated, session));
 }
 
 export async function DELETE(

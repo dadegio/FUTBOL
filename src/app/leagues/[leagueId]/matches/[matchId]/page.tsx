@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { sanitizePlayerForRole } from "@/lib/player-visibility";
 import MatchResultForm from "./result-form";
 
 export default async function MatchPage({
@@ -14,14 +15,26 @@ export default async function MatchPage({
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
-      homeTeam: { include: { players: true } },
-      awayTeam: { include: { players: true } },
+      homeTeam: { include: { players: { orderBy: { number: "asc" } } } },
+      awayTeam: { include: { players: { orderBy: { number: "asc" } } } },
       stats: true,
+      sheetPlayers: { select: { playerId: true, teamId: true } },
     },
   });
 
   if (!match || match.leagueId !== leagueId) return notFound();
 
-  const safeMatch = JSON.parse(JSON.stringify(match));
-  return <MatchResultForm match={safeMatch} />;
+  const safeMatch = {
+    ...match,
+    homeTeam: {
+      ...match.homeTeam,
+      players: match.homeTeam.players.map((player) => sanitizePlayerForRole(player, null)),
+    },
+    awayTeam: {
+      ...match.awayTeam,
+      players: match.awayTeam.players.map((player) => sanitizePlayerForRole(player, null)),
+    },
+  };
+
+  return <MatchResultForm match={JSON.parse(JSON.stringify(safeMatch))} />;
 }

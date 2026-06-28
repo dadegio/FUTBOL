@@ -3,12 +3,16 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { FUTPOLI_RULES } from "@/lib/tournament-rules";
+import { getServerSession } from "@/lib/server-auth";
+import { canSeeAdminPlayerDetails } from "@/lib/player-visibility";
 
 export async function GET(
   _: Request,
   ctx: { params: Promise<{ playerId: string }> }
 ) {
   const { playerId } = await ctx.params;
+  const session = await getServerSession();
+  const showAdminDetails = canSeeAdminPlayerDetails(session);
 
   const player = await prisma.player.findUnique({
     where: { id: playerId },
@@ -76,7 +80,9 @@ export async function GET(
     goals: agg._sum.goals ?? 0,
     assists: agg._sum.assists ?? 0,
     appearances,
-    feeCents: appearances * FUTPOLI_RULES.playerFeeCentsPerAppearance,
+    ...(showAdminDetails
+      ? { feeCents: appearances * FUTPOLI_RULES.playerFeeCentsPerAppearance }
+      : {}),
     recentMatches: sheetEntries.map((entry) => {
       const stat = statsByMatch.get(entry.matchId);
       const match = entry.match;
