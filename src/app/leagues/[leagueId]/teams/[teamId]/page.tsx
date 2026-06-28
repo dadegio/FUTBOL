@@ -326,11 +326,11 @@ export default function TeamPage() {
             <span>{team.name}</span>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)_180px] xl:items-center">
             <TeamLogo name={team.name} badgeUrl={team.badgeUrl ?? null} />
 
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-[27px] font-black tracking-[-0.06em] text-[var(--foreground)]">
+              <h1 className="truncate text-4xl font-black tracking-[-0.07em] text-[var(--foreground)] lg:text-5xl">
                 {team.name}
                 {team.description && (
                   <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--muted)] sm:text-base">
@@ -340,8 +340,8 @@ export default function TeamPage() {
               </h1>
             </div>
 
-            <div className="text-right">
-              <div className="text-2xl font-black tracking-[-0.06em] text-[var(--foreground)]">
+            <div className="rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-5 text-right shadow-[0_1px_3px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.04)]">
+              <div className="text-4xl font-black tracking-[-0.06em] text-[var(--foreground)]">
                 {team.players.length}
               </div>
               <div className="text-sm text-[var(--muted)]">giocatori / {MAX_PLAYERS_PER_TEAM}</div>
@@ -407,6 +407,14 @@ export default function TeamPage() {
               onChange={(event) => setName(event.target.value)}
               placeholder="Nome squadra"
               className="w-full"
+            />
+
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Descrizione squadra"
+              rows={4}
+              className="w-full rounded-2xl border border-[var(--border)] bg-[var(--card-2)] px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
             />
 
             <div className="flex items-start gap-4">
@@ -705,13 +713,13 @@ function TeamLogo({
       <img
         src={badgeUrl}
         alt={`Logo ${name}`}
-        className="h-14 w-14 shrink-0 rounded-[15px] object-contain"
+        className="h-36 w-36 shrink-0 rounded-[34px] object-contain xl:h-44 xl:w-44"
       />
     );
   }
 
   return (
-    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[15px] bg-green-200 text-lg font-black text-green-900">
+    <span className="flex h-36 w-36 shrink-0 items-center justify-center rounded-[34px] bg-green-200 text-4xl font-black text-green-900 xl:h-44 xl:w-44">
       {initials}
     </span>
   );

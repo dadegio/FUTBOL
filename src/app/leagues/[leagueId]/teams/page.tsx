@@ -168,6 +168,14 @@ export default function TeamsPage() {
               />
 
               <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Descrizione squadra"
+                rows={4}
+                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--card-2)] px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+              />
+
+              <textarea
                 aria-label="Descrizione squadra"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}

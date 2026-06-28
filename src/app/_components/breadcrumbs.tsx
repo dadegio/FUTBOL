@@ -21,6 +21,10 @@ const SECTION_LABELS: Record<string, string> = {
 // Sections that don't have an index page — render as text, not a link
 const NO_INDEX_SECTIONS = new Set(["matches"]);
 
+function isOpaqueIdSegment(segment: string) {
+  return /^[a-z0-9]{16,}$/i.test(segment) && !SECTION_LABELS[segment];
+}
+
 export default function Breadcrumbs({ leagueId }: BreadcrumbsProps) {
   const pathname = usePathname();
 
@@ -40,6 +44,8 @@ export default function Breadcrumbs({ leagueId }: BreadcrumbsProps) {
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
     accumulated += `/${seg}`;
+    if (isOpaqueIdSegment(seg)) continue;
+
     const label = SECTION_LABELS[seg] ?? seg;
     const isLast = i === segments.length - 1;
     const noIndex = NO_INDEX_SECTIONS.has(seg);

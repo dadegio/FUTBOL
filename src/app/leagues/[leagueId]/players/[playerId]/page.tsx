@@ -268,8 +268,8 @@ export default function PlayerPage() {
         {err && <Badge variant="error">{err}</Badge>}
 
         <Card className="overflow-hidden !p-0">
-          <div className="matchroom-hero grid gap-6 p-5 sm:p-7 lg:grid-cols-[260px_minmax(0,1fr)]">
-            <div className="flex flex-col items-center rounded-[32px] border border-white/10 bg-black/20 p-5 text-center">
+          <div className="matchroom-hero grid gap-6 p-5 sm:p-7 lg:grid-cols-[420px_minmax(0,1fr)]">
+            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[36px] border border-white/10 bg-black/20 p-6 text-center">
               <PlayerAvatar firstName={player.firstName} lastName={player.lastName} number={player.number} photoUrl={player.photoUrl ?? null} />
               <span className="mt-4 rounded-full bg-[var(--accent)] px-3 py-1 text-xs font-black text-black">#{player.number}</span>
               <p className="mt-2 text-sm text-[var(--muted)]">{player.position || "Ruolo non impostato"}</p>
@@ -299,8 +299,8 @@ export default function PlayerPage() {
           {isAdmin && <MiniStat label="Quote" value={formatEuro(feeCents ?? appearances * 50)} icon={<WalletCards size={16} />} />}
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)] 2xl:grid-cols-[minmax(0,1.45fr)_420px]">
-          <Card>
+        <div className={isAdmin ? "grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)] 2xl:grid-cols-[minmax(0,1.45fr)_420px]" : "grid gap-5"}>
+          <Card className={!isAdmin ? "xl:col-span-2" : undefined}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black text-[var(--foreground)]">Profilo sportivo</h2>
@@ -313,7 +313,7 @@ export default function PlayerPage() {
               )}
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <InfoRow label="Nome" value={fullName} />
               <InfoRow label="Numero" value={`#${player.number}`} />
               <InfoRow label="Ruolo" value={player.position || "Non impostato"} />
@@ -403,8 +403,8 @@ export default function PlayerPage() {
 function PlayerAvatar({ firstName, lastName, number, photoUrl }: { firstName: string; lastName: string; number: number; photoUrl?: string | null }) {
   const fullName = `${firstName} ${lastName}`;
   const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
-  if (photoUrl) return <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-[36px] border border-[var(--border)] bg-[var(--background)] shadow-sm"><img src={photoUrl} alt={`Foto ${fullName}`} className="h-full w-full object-cover" /><span className="absolute bottom-0 right-0 flex h-10 min-w-10 items-center justify-center rounded-tl-2xl bg-[var(--accent)] px-2 text-sm font-black text-black">{number}</span></div>;
-  return <div className="relative flex h-32 w-32 shrink-0 items-center justify-center rounded-[36px] border border-[var(--border)] bg-[var(--background)] text-3xl font-black text-[var(--accent)] shadow-sm">{initials || "?"}<span className="absolute bottom-0 right-0 flex h-10 min-w-10 items-center justify-center rounded-tl-2xl bg-[var(--accent)] px-2 text-sm font-black text-black">{number}</span></div>;
+  if (photoUrl) return <div className="relative h-48 w-48 shrink-0 overflow-hidden rounded-[48px] md:h-56 md:w-56 border border-[var(--border)] bg-[var(--background)] shadow-sm"><img src={photoUrl} alt={`Foto ${fullName}`} className="h-full w-full object-cover" /><span className="absolute bottom-0 right-0 flex h-14 min-w-14 items-center justify-center rounded-tl-3xl bg-[var(--accent)] px-3 text-lg font-black text-black">{number}</span></div>;
+  return <div className="relative flex h-48 w-48 shrink-0 items-center justify-center rounded-[48px] md:h-56 md:w-56 border border-[var(--border)] bg-[var(--background)] text-5xl font-black text-[var(--accent)] shadow-sm">{initials || "?"}<span className="absolute bottom-0 right-0 flex h-14 min-w-14 items-center justify-center rounded-tl-3xl bg-[var(--accent)] px-3 text-lg font-black text-black">{number}</span></div>;
 }
 
 function PassportPill({ label, value, positive }: { label: string; value: string | number; positive?: boolean }) {
