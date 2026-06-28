@@ -341,7 +341,7 @@ export default function PlayerPage() {
             <h2 className="mb-4 text-lg font-black text-[var(--foreground)]">Modifica giocatore</h2>
             <div className="grid gap-4">
               <div className="grid gap-4 lg:grid-cols-[96px_minmax(0,1fr)] lg:items-start">
-                <div>{photoPreview ? <img src={photoPreview} alt="Preview" className="h-24 w-24 rounded-2xl border border-[var(--border)] object-cover" /> : <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/5 text-xs font-bold text-[var(--foreground)]/35">N/A</div>}</div>
+                <div>{photoPreview ? <img src={photoPreview} alt="Preview" className="h-36 w-36 rounded-[2rem] md:h-48 md:w-48 border border-[var(--border)] object-cover" /> : <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/5 text-xs font-bold text-[var(--foreground)]/35">N/A</div>}</div>
                 <div className="space-y-3">
                   <input type="file" accept="image/*" aria-label="Carica foto giocatore" onChange={(e) => { const file = e.target.files?.[0] ?? null; setPhotoFile(file); if (file) setRemovePhoto(false); }} className="block w-full rounded-xl border border-[var(--border)] bg-white/5 px-3.5 py-2.5 text-sm text-[var(--foreground)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--accent)] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-black" />
                   <Button variant="destructive" size="sm" onClick={() => { setPhotoFile(null); setPhotoUrl(""); setRemovePhoto(true); }}>Rimuovi foto</Button>

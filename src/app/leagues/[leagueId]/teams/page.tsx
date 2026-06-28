@@ -15,6 +15,7 @@ type TeamRow = {
   id: string;
   name: string;
   badgeUrl?: string | null;
+  description?: string | null;
   players?: Array<{ id: string }>;
   _count?: { players: number };
 };
@@ -25,6 +26,7 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [name, setName] = useState("");
   const [badgeUrl, setBadgeUrl] = useState("");
+  const [description, setDescription] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,6 +81,7 @@ export default function TeamsPage() {
       body: JSON.stringify({
         name: teamName,
         badgeUrl: badgeUrl.trim() ? badgeUrl.trim() : null,
+        description: description.trim() || null,
       }),
     });
 
@@ -90,6 +93,7 @@ export default function TeamsPage() {
 
       setName("");
       setBadgeUrl("");
+      setDescription("");
       setMsg("Squadra creata");
       setShowCreateTeam(false);
       await load();
@@ -163,6 +167,15 @@ export default function TeamsPage() {
                 placeholder="Logo squadra URL"
               />
 
+              <textarea
+                aria-label="Descrizione squadra"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Racconta identità, stile o motto della squadra"
+                rows={3}
+                className="min-h-24 w-full resize-none rounded-2xl border border-[var(--border)] bg-white/[0.04] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] focus:bg-white/[0.07]"
+              />
+
               <Button onClick={createTeam} className="w-full">
                 Crea squadra
               </Button>
@@ -221,6 +234,9 @@ function TeamListItem({
         <div className="truncate text-[16px] font-semibold text-[var(--foreground)]">
           {team.name}
         </div>
+          {team.description && (
+            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-[var(--muted)]">{team.description}</p>
+          )}
 
         <div className="mt-0.5 text-sm text-[var(--muted)]">
           Rosa {playersCount}/16

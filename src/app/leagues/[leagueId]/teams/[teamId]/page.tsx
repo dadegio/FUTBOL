@@ -35,6 +35,7 @@ type Team = {
   id: string;
   name: string;
   badgeUrl?: string | null;
+  description?: string | null;
   league: { id: string; name: string };
   players: Player[];
 };
@@ -99,6 +100,7 @@ export default function TeamPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [name, setName] = useState("");
   const [badgeUrl, setBadgeUrl] = useState("");
+  const [description, setDescription] = useState("");
   const [badgeFile, setBadgeFile] = useState<File | null>(null);
   const [removeBadge, setRemoveBadge] = useState(false);
   const [editingTeam, setEditingTeam] = useState(false);
@@ -130,6 +132,7 @@ export default function TeamPage() {
     setTeam(data);
     setName(data.name ?? "");
     setBadgeUrl(data.badgeUrl ?? "");
+    setDescription(data.description ?? "");
     setBadgeFile(null);
     setRemoveBadge(false);
   }
@@ -184,6 +187,7 @@ export default function TeamPage() {
         body: JSON.stringify({
           name: trimmedName,
           badgeUrl: finalBadgeUrl,
+          description: description.trim() || null,
         }),
       });
 
@@ -328,6 +332,11 @@ export default function TeamPage() {
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-[27px] font-black tracking-[-0.06em] text-[var(--foreground)]">
                 {team.name}
+                {team.description && (
+                  <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--muted)] sm:text-base">
+                    {team.description}
+                  </p>
+                )}
               </h1>
             </div>
 
@@ -444,6 +453,15 @@ export default function TeamPage() {
             </div>
 
             <div className="flex gap-2">
+              <textarea
+                aria-label="Descrizione squadra"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Racconta identità, stile o motto della squadra"
+                rows={4}
+                className="min-h-28 w-full resize-none rounded-2xl border border-[var(--border)] bg-white/[0.04] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-[var(--accent)] focus:bg-white/[0.07]"
+              />
+
               <Button onClick={saveTeam} disabled={savingTeam}>
                 {savingTeam ? "Salvataggio…" : "Salva"}
               </Button>

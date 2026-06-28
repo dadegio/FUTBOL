@@ -62,6 +62,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ teamId: strin
   const name = body?.name !== undefined ? String(body.name).trim() : undefined;
   const badgeUrl =
     body?.badgeUrl === undefined ? undefined : body.badgeUrl === null ? null : String(body.badgeUrl).trim() || null;
+  const description =
+    body?.description === undefined ? undefined : body.description === null ? null : String(body.description).trim() || null;
 
   if (name !== undefined && !name) {
     return NextResponse.json({ error: "Nome squadra non valido" }, { status: 400 });
@@ -87,6 +89,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ teamId: strin
     data: {
       ...(name !== undefined ? { name } : {}),
       ...(badgeUrl !== undefined ? { badgeUrl } : {}),
+      ...(description !== undefined ? { description } : {}),
     },
     include: {
       league: { select: { id: true, name: true } },

@@ -23,6 +23,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
   const body = await req.json().catch(() => ({}));
   const name = String(body?.name ?? "").trim();
   const badgeUrl = body?.badgeUrl ? String(body.badgeUrl).trim() : null;
+  const description = body?.description ? String(body.description).trim() : null;
 
   if (!name) {
     return NextResponse.json({ error: "Nome squadra mancante" }, { status: 400 });
@@ -42,6 +43,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
       data: {
         name,
         badgeUrl: badgeUrl || undefined,
+        description: description || undefined,
         league: { connect: { id: leagueId } },
       },
     });

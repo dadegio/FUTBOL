@@ -54,6 +54,7 @@ model Team {
   id          String   @id @default(cuid())
   name        String
   badgeUrl    String?
+  description String?
   createdAt   DateTime @default(now())
 
   leagueId    String
