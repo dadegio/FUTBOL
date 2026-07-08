@@ -13,6 +13,7 @@ import {
   Swords,
   ShieldCheck,
   Settings,
+  Youtube,
 } from "lucide-react";
 import AuthButton from "./auth-button";
 import { useIsAdmin } from "@/lib/client-auth";
@@ -77,6 +78,7 @@ export default function Sidebar({ leagueId }: SidebarProps) {
         { href: `/leagues/${leagueId}/teams`,      label: "Squadre",     icon: <Users size={17} /> },
         { href: `/leagues/${leagueId}/players`,    label: "Giocatori",   icon: <Users size={17} /> },
         { href: `/leagues/${leagueId}/stats`,      label: "Statistiche", icon: <BarChart3 size={17} /> },
+        { href: `/leagues/${leagueId}/videos`,     label: "Video",       icon: <Youtube size={17} /> },
       ]
     : [{ href: `/`, label: "Home", icon: <Home size={17} /> }];
 

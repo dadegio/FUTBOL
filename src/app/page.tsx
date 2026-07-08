@@ -184,7 +184,6 @@ export default function HomePage() {
             </div>
             {featured && <Link href={`/leagues/${featured.id}`} className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-[rgba(210,174,114,0.38)] bg-[linear-gradient(135deg,var(--imperial-green-2),var(--imperial-green))] px-4 py-2 text-sm font-black text-[var(--imperial-text)]">Apri torneo <ArrowRight size={15} /></Link>}
           </Card>
-
           {isAdmin && showCreateLeague && <CreateLeaguePanel name={name} setName={setName} loading={loading} create={create} existingTeams={existingTeams} teamIdsToCopy={teamIdsToCopy} setTeamIdsToCopy={setTeamIdsToCopy} playoffEnabled={playoffEnabled} setPlayoffEnabled={setPlayoffEnabled} playoffFormat={playoffFormat} setPlayoffFormat={setPlayoffFormat} playoffTeamCount={playoffTeamCount} setPlayoffTeamCount={setPlayoffTeamCount} playoffSeeded={playoffSeeded} setPlayoffSeeded={setPlayoffSeeded} />}
         </aside>
       </div>

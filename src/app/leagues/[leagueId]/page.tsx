@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
+import YouTubeVideoCard from "src/app/_components/youtube-video-card";
 
 type League = {
   id: string;
@@ -385,8 +386,7 @@ export default function LeagueHomePage() {
             <SummaryStat label="Goal" value={totalGoals} />
           </div>
         </Card>
-
-        {liveMatch && (
+{liveMatch && (
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold tracking-[-0.03em]">In diretta</h2>
@@ -440,6 +440,26 @@ export default function LeagueHomePage() {
             </Card>
           </section>
         )}
+
+
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold tracking-[-0.03em]">Cammino TV</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">Video ufficiale di presentazione del torneo.</p>
+            </div>
+
+            <Link
+              href={`/leagues/${leagueId}/videos`}
+              className="shrink-0 text-sm font-semibold text-[var(--accent)]"
+            >
+              Tutti i video →
+            </Link>
+          </div>
+
+          <YouTubeVideoCard leagueId={leagueId} mode="presentation" compact />
+        </section>
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">
