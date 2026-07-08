@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     manifest: "/manifest.json",
     icons: {
     icon: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
+    apple: "/cammino-imperiale-logo.png",
     },
 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
