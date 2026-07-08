@@ -105,7 +105,7 @@ export default async function VideosPage({ params, searchParams }: VideosPagePro
                     </div>
                     <h3 className="mt-4 text-xl font-black text-[var(--foreground)]">Configura la playlist</h3>
                     <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-[var(--muted)]">
-                      Aggiungi <code className="text-[var(--foreground)]">NEXT_PUBLIC_YOUTUBE_PLAYLIST_ID</code> oppure <code className="text-[var(--foreground)]">NEXT_PUBLIC_YOUTUBE_PLAYLIST_URL</code> nel file <code className="text-[var(--foreground)]">.env.local</code>.
+                      Aggiungi <code className="text-[var(--foreground)]">NEXT_PUBLIC_YOUTUBE_PLAYLIST_ID</code> oppure <code className="text-[var(--foreground)]">NEXT_PUBLIC_YOUTUBE_PLAYLIST_URL</code> nel file <code className="text-[var(--foreground)]">.env</code>.
                     </p>
                   </div>
                 </div>
