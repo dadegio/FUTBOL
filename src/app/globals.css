@@ -1,20 +1,30 @@
 @import "tailwindcss";
 
-:root {
-  --background: #080b10;
-  --foreground: #f7f9fb;
-  --card: rgba(17, 22, 30, 0.92);
-  --card-2: rgba(255, 255, 255, 0.06);
-  --muted: rgba(247, 249, 251, 0.56);
-  --border: rgba(255, 255, 255, 0.10);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --accent: #00d26a;
-  --accent-2: #00b75c;
-  --accent-soft: rgba(0, 210, 106, 0.14);
-  --success: #00d26a;
-  --danger: #ff4d61;
-  --warn: #ffb020;
-  --tabbar-bg: rgba(8, 11, 16, 0.86);
+ :root {
+  --background: #050806;
+  --foreground: #f4ead8;
+  --card: rgba(13, 19, 15, 0.88);
+  --card-2: rgba(185, 144, 88, 0.075);
+  --muted: rgba(244, 234, 216, 0.58);
+  --border: rgba(210, 174, 114, 0.18);
+  --border-strong: rgba(210, 174, 114, 0.34);
+  --accent: #c9a766;
+  --accent-2: #8f6d3e;
+  --accent-soft: rgba(201, 167, 102, 0.14);
+  --success: #3d8a5a;
+  --danger: #b64034;
+  --warn: #d2ae72;
+  --tabbar-bg: rgba(5, 8, 6, 0.90);
+
+  --imperial-black: #050806;
+  --imperial-panel: rgba(13, 19, 15, 0.88);
+  --imperial-panel-strong: rgba(18, 28, 22, 0.94);
+  --imperial-green: #183524;
+  --imperial-green-2: #28563b;
+  --imperial-gold: #c9a766;
+  --imperial-gold-2: #e0c181;
+  --imperial-red: #b64034;
+  --imperial-text: #f4ead8;
 }
 
 @theme inline {
@@ -115,31 +125,43 @@ textarea {
   * { box-shadow: none !important; }
 }
 
-/* FUTPOLI Matchroom redesign */
+/* Cammino Imperiale redesign */
 :root {
-  --matchroom-bg: #05070b;
-  --matchroom-panel: rgba(13, 18, 27, 0.76);
-  --matchroom-panel-strong: rgba(18, 25, 38, 0.90);
-  --matchroom-lime: #b7ff2a;
-  --matchroom-cyan: #35d2ff;
-  --matchroom-violet: #7657ff;
+  --matchroom-bg: var(--imperial-black);
+  --matchroom-panel: rgba(13, 19, 15, 0.76);
+  --matchroom-panel-strong: var(--imperial-panel-strong);
+  --matchroom-lime: var(--imperial-gold);
+  --matchroom-cyan: var(--imperial-green-2);
+  --matchroom-violet: var(--imperial-red);
 }
 
 body {
   background:
-    radial-gradient(circle at 12% 8%, rgba(183,255,42,0.16), transparent 28rem),
-    radial-gradient(circle at 86% 0%, rgba(53,210,255,0.14), transparent 32rem),
-    radial-gradient(circle at 50% 94%, rgba(118,87,255,0.13), transparent 36rem),
-    linear-gradient(180deg, #07101b 0%, #05070b 56%, #030407 100%);
+    radial-gradient(circle at 12% 8%, rgba(47, 89, 58, 0.24), transparent 30rem),
+    radial-gradient(circle at 88% 0%, rgba(34, 72, 58, 0.18), transparent 34rem),
+    radial-gradient(circle at 50% 96%, rgba(58, 42, 95, 0.14), transparent 38rem),
+    linear-gradient(180deg, #08100c 0%, #050806 58%, #020302 100%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(210, 174, 114, 0.08), transparent 24rem),
+    linear-gradient(115deg, transparent 0 48%, rgba(210, 174, 114, 0.035) 48% 48.35%, transparent 48.35% 100%);
+  opacity: 0.9;
 }
 
 .matchroom-hero {
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(183,255,42,0.16), transparent 34%),
-    radial-gradient(circle at 80% 20%, rgba(53,210,255,0.18), transparent 28rem),
-    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+    radial-gradient(circle at 14% 16%, rgba(68, 117, 71, 0.28), transparent 30rem),
+    radial-gradient(circle at 88% 18%, rgba(32, 78, 75, 0.22), transparent 32rem),
+    linear-gradient(135deg, rgba(201, 167, 102, 0.13), rgba(5, 8, 6, 0.78) 42%, rgba(9, 18, 17, 0.86));
+  border-color: rgba(210, 174, 114, 0.24) !important;
 }
 
 .matchroom-hero::before {
@@ -148,9 +170,26 @@ body {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(115deg, transparent 0 42%, rgba(255,255,255,0.08) 42% 42.7%, transparent 42.7% 100%),
-    repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 34px);
-  mask-image: linear-gradient(90deg, rgba(0,0,0,0.92), transparent 78%);
+    radial-gradient(circle at 78% 44%, rgba(201, 167, 102, 0.08), transparent 15rem),
+    linear-gradient(115deg, transparent 0 42%, rgba(210, 174, 114, 0.12) 42% 42.45%, transparent 42.45% 100%),
+    repeating-linear-gradient(90deg, rgba(244,234,216,0.032) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(0deg, rgba(244,234,216,0.025) 0 1px, transparent 1px 34px);
+  mask-image: linear-gradient(90deg, rgba(0,0,0,0.94), transparent 86%);
+}
+
+.matchroom-hero::after {
+  content: "";
+  position: absolute;
+  right: 5%;
+  top: 50%;
+  width: min(42vw, 520px);
+  aspect-ratio: 1;
+  transform: translateY(-50%) rotate(45deg);
+  background:
+    linear-gradient(rgba(5, 8, 6, 0.18), rgba(5, 8, 6, 0.18)),
+    url("/cammino-imperiale-logo.png") center / contain no-repeat;
+  filter: drop-shadow(0 0 44px rgba(177, 42, 31, 0.18));
+  opacity: 0.16;
 }
 
 .matchroom-hero > * {
@@ -161,6 +200,16 @@ body {
 .turf-card {
   position: relative;
   overflow: hidden;
+  border-color: rgba(210, 174, 114, 0.18) !important;
+}
+
+.turf-card::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+  border-radius: inherit;
+  border: 1px solid rgba(244, 234, 216, 0.035);
 }
 
 .turf-card::after {
@@ -169,14 +218,35 @@ body {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 25% 18%, rgba(183,255,42,0.12), transparent 22rem),
-    linear-gradient(120deg, transparent 0 54%, rgba(255,255,255,0.05) 54% 54.5%, transparent 54.5% 100%);
-  opacity: 0.8;
+    radial-gradient(circle at 25% 18%, rgba(64, 111, 67, 0.16), transparent 22rem),
+    linear-gradient(120deg, transparent 0 54%, rgba(210, 174, 114, 0.06) 54% 54.5%, transparent 54.5% 100%);
+  opacity: 0.95;
 }
 
 .turf-card > * {
   position: relative;
   z-index: 1;
+}
+
+.imperial-title {
+  font-family: var(--font-imperial), var(--font-display), system-ui, sans-serif;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.32), 0 18px 45px rgba(0,0,0,0.35);
+}
+
+.imperial-chip {
+  border: 1px solid rgba(210, 174, 114, 0.34);
+  background: linear-gradient(135deg, rgba(31, 74, 52, 0.52), rgba(5, 8, 6, 0.42));
+  color: var(--imperial-gold-2);
+}
+
+.imperial-plate {
+  border: 1px solid rgba(210, 174, 114, 0.24);
+  background:
+    linear-gradient(135deg, rgba(31, 74, 52, 0.36), rgba(5, 8, 6, 0.86)),
+    radial-gradient(circle at 0% 0%, rgba(182, 64, 52, 0.12), transparent 18rem);
+  box-shadow: inset 0 1px 0 rgba(244, 234, 216, 0.05), 0 18px 60px rgba(0,0,0,0.26);
 }
 
 @media (min-width: 1024px) {

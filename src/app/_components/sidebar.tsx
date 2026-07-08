@@ -39,8 +39,8 @@ function NavItem({
       className={[
         "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
         active
-          ? "bg-[var(--card-2)] font-medium text-[var(--accent)]"
-          : "font-normal text-[var(--muted)] hover:bg-[var(--card-2)] hover:text-[var(--foreground)]",
+          ? "border border-[rgba(210,174,114,0.28)] bg-[var(--accent-soft)] font-bold text-[var(--accent)]"
+          : "border border-transparent font-normal text-[var(--muted)] hover:border-[rgba(210,174,114,0.14)] hover:bg-[var(--card-2)] hover:text-[var(--foreground)]",
       ].join(" ")}
     >
       <span className={active ? "opacity-100" : "opacity-60"}>{icon}</span>
@@ -91,17 +91,25 @@ export default function Sidebar({ leagueId }: SidebarProps) {
   }
 
   return (
-    <aside className="hidden w-[260px] shrink-0 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 lg:block">
+    <aside className="turf-card hidden w-[260px] shrink-0 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 lg:block">
       {/* Logo */}
       <div className="mb-5">
-        <Link href="/" className="text-lg font-bold italic tracking-tight text-[var(--accent)]">
-          FUTBOL
+        <Link href="/" className="flex items-center gap-3">
+          <img
+            src="/cammino-imperiale-logo.png"
+            alt="Cammino Imperiale"
+            className="h-12 w-12 shrink-0 object-contain drop-shadow-[0_0_18px_rgba(177,42,31,0.22)]"
+          />
+          <span className="imperial-title leading-none text-[22px] font-bold tracking-[0.08em] text-[var(--accent)]">
+            CAMMINO<br />
+            IMPERIALE
+          </span>
         </Link>
       </div>
 
       {/* League name */}
       {leagueId && leagueName && (
-        <div className="mb-4 rounded-xl border border-[var(--border)] px-3 py-2.5">
+        <div className="imperial-plate mb-4 rounded-xl px-3 py-2.5">
           <p className="text-[10px] font-medium uppercase tracking-widest text-[var(--foreground)]/35">
             Torneo attivo
           </p>
@@ -126,7 +134,7 @@ export default function Sidebar({ leagueId }: SidebarProps) {
         {leagueId && (
           <button
             type="submit"
-            className="rounded-lg bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-white"
+            className="rounded-lg border border-[rgba(210,174,114,0.32)] bg-[var(--imperial-green-2)] px-2.5 py-1 text-xs font-semibold text-[var(--imperial-text)]"
           >
             Vai
           </button>

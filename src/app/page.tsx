@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import Link from "next/link";
-import { ArrowRight, CopyPlus, Plus, ShieldCheck, Sparkles, Trophy, Users } from "lucide-react";
+import { ArrowRight, CopyPlus, Plus, ShieldCheck, Trophy, Users } from "lucide-react";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
@@ -125,14 +125,15 @@ export default function HomePage() {
       <section className="matchroom-hero rounded-[34px] border border-[var(--border)] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.38)] sm:p-8 lg:p-10">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-end">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--accent)]">
-              <Sparkles size={13} /> FUTPOLI Matchroom
+            <div className="imperial-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.24em]">
+              <img src="/cammino-imperiale-logo.png" alt="" className="h-4 w-4 object-contain" />
+              Cammino Imperiale
             </div>
-            <h1 className="mt-5 max-w-4xl text-5xl font-black tracking-[-0.09em] text-[var(--foreground)] sm:text-7xl lg:text-8xl">
-              scegli il torneo, entra nel campo.
+            <h1 className="imperial-title mt-5 max-w-4xl text-5xl font-black text-[var(--foreground)] sm:text-7xl lg:text-8xl">
+              scegli il cammino, entra in campo.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--muted)] sm:text-lg">
-              Una regia compatta per campionato, rose, classifiche, playoff e statistiche. Mobile da bordo campo, desktop da control room.
+              Una control room compatta per campionati, rose, classifiche, playoff e statistiche. Tutto pronto per il tuo cammino verso il titolo.
             </p>
           </div>
 
@@ -149,8 +150,8 @@ export default function HomePage() {
         <section className="space-y-5">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--accent)]">Competition switcher</p>
-              <h2 className="mt-1 text-2xl font-black tracking-[-0.06em] text-[var(--foreground)]">Tornei disponibili</h2>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--accent)]">Sentiero del torneo</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.06em] text-[var(--foreground)]">Arene disponibili</h2>
             </div>
             {isAdmin && <Button onClick={() => setShowCreateLeague((v) => !v)}>{showCreateLeague ? "Chiudi" : "Nuovo torneo"}</Button>}
           </div>
@@ -175,13 +176,13 @@ export default function HomePage() {
         <aside className="space-y-5">
           <Card className="turf-card">
             <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--accent)] text-black"><Trophy size={22} /></div>
+              <div className="grid h-12 w-12 place-items-center rounded-2xl border border-[rgba(210,174,114,0.32)] bg-[var(--accent-soft)] text-[var(--accent)]"><Trophy size={22} /></div>
               <div>
                 <p className="text-xs font-black uppercase tracking-widest text-[var(--muted)]">In evidenza</p>
                 <h3 className="text-xl font-black text-[var(--foreground)]">{featured?.name ?? "Nessun torneo"}</h3>
               </div>
             </div>
-            {featured && <Link href={`/leagues/${featured.id}`} className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-2 text-sm font-black text-black">Apri torneo <ArrowRight size={15} /></Link>}
+            {featured && <Link href={`/leagues/${featured.id}`} className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-[rgba(210,174,114,0.38)] bg-[linear-gradient(135deg,var(--imperial-green-2),var(--imperial-green))] px-4 py-2 text-sm font-black text-[var(--imperial-text)]">Apri torneo <ArrowRight size={15} /></Link>}
           </Card>
 
           {isAdmin && showCreateLeague && <CreateLeaguePanel name={name} setName={setName} loading={loading} create={create} existingTeams={existingTeams} teamIdsToCopy={teamIdsToCopy} setTeamIdsToCopy={setTeamIdsToCopy} playoffEnabled={playoffEnabled} setPlayoffEnabled={setPlayoffEnabled} playoffFormat={playoffFormat} setPlayoffFormat={setPlayoffFormat} playoffTeamCount={playoffTeamCount} setPlayoffTeamCount={setPlayoffTeamCount} playoffSeeded={playoffSeeded} setPlayoffSeeded={setPlayoffSeeded} />}
@@ -192,25 +193,25 @@ export default function HomePage() {
 }
 
 function HeroMetric({ label, value }: { label: string; value: string | number }) {
-  return <div className="rounded-[24px] border border-white/10 bg-black/20 px-4 py-4"><p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">{label}</p><p className="mt-1 text-2xl font-black text-[var(--foreground)]">{value}</p></div>;
+  return <div className="imperial-plate rounded-[24px] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">{label}</p><p className="mt-1 text-2xl font-black text-[var(--foreground)]">{value}</p></div>;
 }
 
 function LeagueSwitchCard({ league, featured, isAdmin, onDelete }: { league: League; featured?: boolean; isAdmin: boolean; onDelete: () => void }) {
   const teams = league.teams?.length ?? 0;
   const players = league.teams?.reduce((sum, team) => sum + (team.players?.length ?? 0), 0) ?? 0;
   return (
-    <Card className={["group turf-card transition hover:-translate-y-1 hover:border-[var(--accent)]/50", featured ? "lg:col-span-2" : ""].join(" ")}>
+    <Card className={["group turf-card transition hover:-translate-y-1 hover:border-[var(--accent)]/60", featured ? "lg:col-span-2" : ""].join(" ")}>
       <div className="flex min-h-[180px] flex-col justify-between gap-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <span className="inline-flex rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">{league.playoffFormat ? "Playoff planned" : "Regular season"}</span>
-            <h3 className="mt-4 text-2xl font-black tracking-[-0.06em] text-[var(--foreground)]">{league.name}</h3>
+            <span className="inline-flex imperial-chip rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider">{league.playoffFormat ? "Playoff previsti" : "Stagione regolare"}</span>
+            <h3 className="imperial-title mt-4 text-3xl font-black text-[var(--foreground)]">{league.name}</h3>
           </div>
           {isAdmin && <button onClick={onDelete} className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-black text-red-300">Elimina</button>}
         </div>
         <div className="flex items-end justify-between gap-4">
           <div className="flex gap-3 text-sm text-[var(--muted)]"><span><b className="text-[var(--foreground)]">{teams}</b> squadre</span><span><b className="text-[var(--foreground)]">{players}</b> giocatori</span></div>
-          <Link href={`/leagues/${league.id}`} className="inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-2 text-sm font-black text-black">Entra <ArrowRight size={15} /></Link>
+          <Link href={`/leagues/${league.id}`} className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(210,174,114,0.38)] bg-[linear-gradient(135deg,var(--imperial-green-2),var(--imperial-green))] px-4 py-2 text-sm font-black text-[var(--imperial-text)] shadow-[0_12px_34px_rgba(0,0,0,0.26)]">Entra <ArrowRight size={15} /></Link>
         </div>
       </div>
     </Card>

@@ -344,11 +344,11 @@ export default function LeagueHomePage() {
           </Link>
 
           <div className="flex items-center justify-between gap-4">
-            <h1 className="text-[31px] font-black tracking-[-0.06em] text-[var(--foreground)]">
+            <h1 className="imperial-title text-[34px] font-black text-[var(--foreground)]">
               {league?.name ?? "Coppa Primavera"}
             </h1>
 
-            <span className="rounded-full bg-[#d9f6df] px-4 py-2 text-sm font-bold text-green-800">
+            <span className="imperial-chip rounded-full px-4 py-2 text-sm font-bold">
               In corso
             </span>
           </div>
@@ -370,9 +370,9 @@ export default function LeagueHomePage() {
             </div>
           </div>
 
-          <div className="h-1 rounded-full bg-[#ece9df]">
+          <div className="h-1.5 rounded-full bg-[rgba(210,174,114,0.18)]">
             <div
-              className="h-1 rounded-full bg-[var(--accent)]"
+              className="h-1.5 rounded-full bg-[linear-gradient(90deg,var(--imperial-green-2),var(--imperial-gold))]"
               style={{
                 width: `${Math.min((currentRound / totalRounds) * 100, 100)}%`,
               }}
@@ -460,9 +460,9 @@ export default function LeagueHomePage() {
               return (
                 <div
                   key={row.teamId}
-                  className="grid grid-cols-[28px_32px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0"
+                  className="grid grid-cols-[34px_36px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 transition hover:bg-[var(--card-2)] last:border-b-0"
                 >
-                  <span className="text-sm font-medium text-[var(--muted)]">
+                  <span className="grid h-7 w-7 place-items-center rounded-lg border border-[rgba(210,174,114,0.18)] text-sm font-bold text-[var(--muted)]">
                     {index + 1}
                   </span>
 
@@ -472,9 +472,9 @@ export default function LeagueHomePage() {
                     size="sm"
                   />
 
-                  <span className="truncate font-semibold">{row.teamName}</span>
+                  <span className="truncate font-semibold text-[var(--foreground)]">{row.teamName}</span>
 
-                  <span className="text-lg font-black">{row.points}</span>
+                  <span className="text-xl font-black text-[var(--imperial-gold-2)]">{row.points}</span>
                 </div>
               );
             })}
@@ -547,7 +547,7 @@ function LeagueOverviewSkeleton() {
         </div>
         <Card className="overflow-hidden !p-0">
           {[0, 1, 2, 3, 4].map((row) => (
-            <div key={row} className="grid grid-cols-[28px_32px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0">
+            <div key={row} className="grid grid-cols-[34px_36px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 transition hover:bg-[var(--card-2)] last:border-b-0">
               <div className="h-4 w-4 animate-pulse rounded bg-[var(--card-2)]" />
               <div className="h-8 w-8 animate-pulse rounded-lg bg-[var(--card-2)]" />
               <div className="h-4 w-40 max-w-full animate-pulse rounded-full bg-[var(--card-2)]" />
@@ -586,9 +586,9 @@ function SummaryStat({
   value: number;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="text-2xl font-black tracking-[-0.05em]">{value}</div>
-      <div className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--muted)]">
+    <div className="imperial-plate rounded-2xl px-4 py-3">
+      <div className="text-3xl font-black tracking-[-0.02em] text-[var(--imperial-gold-2)]">{value}</div>
+      <div className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)]">
         {label}
       </div>
     </div>
@@ -597,40 +597,38 @@ function SummaryStat({
 
 function NextMatchCard({ match }: { match: Match }) {
   return (
-    <Card className="min-h-[136px]">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+    <Card className="turf-card min-h-[136px]">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent)]">
           {formatMatchDateTime(match.date)}
         </div>
 
         {match.isPlayoff && (
-          <span className="shrink-0 rounded-full bg-white/5 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+          <span className="imperial-chip shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide">
             {match.stageLabel ?? "Playoff"}
           </span>
         )}
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <TeamBadge
             name={match.homeTeam.name}
             badgeUrl={match.homeTeam.badgeUrl ?? null}
             size="sm"
           />
-          <span className="truncate text-sm font-semibold">
-            {match.homeTeam.name}
-          </span>
+          <span className="truncate text-sm font-semibold">{match.homeTeam.name}</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <span className="imperial-title text-lg text-[var(--imperial-gold-2)]">VS</span>
+
+        <div className="flex min-w-0 items-center justify-end gap-2 text-right">
+          <span className="truncate text-sm font-semibold">{match.awayTeam.name}</span>
           <TeamBadge
             name={match.awayTeam.name}
             badgeUrl={match.awayTeam.badgeUrl ?? null}
             size="sm"
           />
-          <span className="truncate text-sm font-semibold">
-            {match.awayTeam.name}
-          </span>
         </div>
       </div>
     </Card>

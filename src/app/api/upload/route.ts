@@ -1,4 +1,7 @@
 import { put } from "@vercel/blob";
+import { randomUUID } from "crypto";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/server-auth";
 
@@ -40,12 +43,23 @@ export async function POST(req: Request) {
     }
 
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const fileName = `${Date.now()}-${randomUUID()}-${safeName}`;
 
-    const blob = await put(`uploads/${Date.now()}-${safeName}`, file, {
-      access: "public",
-    });
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const blob = await put(`uploads/${fileName}`, file, {
+        access: "public",
+      });
 
-    return NextResponse.json({ url: blob.url });
+      return NextResponse.json({ url: blob.url });
+    }
+
+    const bytes = await file.arrayBuffer();
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+
+    await mkdir(uploadDir, { recursive: true });
+    await writeFile(path.join(uploadDir, fileName), Buffer.from(bytes));
+
+    return NextResponse.json({ url: `/uploads/${fileName}` });
   } catch (err) {
     console.error("Errore upload:", err);
 

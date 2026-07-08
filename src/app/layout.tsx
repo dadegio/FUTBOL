@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, DM_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, DM_Mono, Teko } from "next/font/google";
 import { AuthProvider } from "@/lib/client-auth";
 import "./globals.css";
 
@@ -15,10 +15,16 @@ const dmMono = DM_Mono({
   weight: ["400", "500"],
   display: "swap",
 });
+const teko = Teko({
+  variable: "--font-imperial",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "FUTBOL",
-  description: "Gestione campionati calcio",
+  title: "Cammino Imperiale",
+  description: "Control room per tornei di calcio",
     manifest: "/manifest.json",
     icons: {
     icon: "/favicon.ico",
@@ -31,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
-      <body className={`${jakartaSans.variable} ${dmMono.variable}`}>
+      <body className={`${jakartaSans.variable} ${dmMono.variable} ${teko.variable}`}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

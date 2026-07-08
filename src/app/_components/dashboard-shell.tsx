@@ -45,7 +45,7 @@ return (
         {/* Mobile top bar */}
         <div className="no-print mb-4 flex items-center justify-between rounded-[18px] bg-[var(--card)] px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.04)] lg:hidden">
           <Link href="/" className="text-lg font-extrabold tracking-tight">
-            <span className="text-[var(--accent)] italic">FUTBOL</span>
+            <span className="imperial-title text-[var(--accent)]">CAMMINO IMPERIALE</span>
           </Link>
 
           {!authLoading && (
@@ -67,7 +67,7 @@ return (
               ) : (
                 <Link
                   href="/login"
-                  className="flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-2)]"
+                  className="flex items-center gap-1.5 rounded-xl border border-[rgba(210,174,114,0.38)] bg-[var(--imperial-green-2)] px-3 py-1.5 text-xs font-semibold text-[var(--imperial-text)] transition-colors hover:bg-[var(--imperial-green)]"
                 >
                   <LogIn size={13} />
                   Accedi
@@ -126,7 +126,7 @@ return (
               <Link
                 href="/login"
                 onClick={dismissPopup}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-2)]"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[rgba(210,174,114,0.38)] bg-[var(--imperial-green-2)] text-sm font-semibold text-[var(--imperial-text)] transition-colors hover:bg-[var(--imperial-green)]"
               >
                 <LogIn size={15} />
                 Accedi
