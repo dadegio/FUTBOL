@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "db:deploy": "prisma migrate deploy",    "start": "next start"
+    "db:deploy": "prisma migrate deploy",
+    "start": "next start"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.2",

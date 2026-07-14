@@ -52,7 +52,7 @@ export default async function VideosPage({ params, searchParams }: VideosPagePro
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--accent)]">Cammino TV</p>
-              <h1 className="imperial-title mt-2 text-5xl font-black text-[var(--foreground)] sm:text-6xl">
+              <h1 className="imperial-title mt-2 break-words text-4xl font-black text-[var(--foreground)] sm:text-6xl">
                 Archivio video
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
@@ -74,7 +74,7 @@ export default async function VideosPage({ params, searchParams }: VideosPagePro
         </header>
 
         <Card className="turf-card overflow-hidden !p-0">
-          <div className="grid gap-0 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
+          <div className="grid min-w-0 gap-0 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
             <section className="min-w-0 border-b border-[rgba(210,174,114,0.18)] xl:border-b-0 xl:border-r">
               <div className="border-b border-[rgba(210,174,114,0.18)] p-5 sm:p-6">
                 <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-[var(--accent)]">
@@ -136,7 +136,7 @@ export default async function VideosPage({ params, searchParams }: VideosPagePro
                         <Link
                           key={video.id}
                           href={`/leagues/${leagueId}/videos?v=${video.id}`}
-                          className={`group grid grid-cols-[112px_minmax(0,1fr)] gap-3 rounded-[20px] border p-2 transition ${
+                          className={`group grid min-w-0 grid-cols-[96px_minmax(0,1fr)] gap-3 rounded-[20px] border p-2 transition sm:grid-cols-[112px_minmax(0,1fr)] ${
                             isActive
                               ? "border-[rgba(210,174,114,0.48)] bg-[rgba(210,174,114,0.10)]"
                               : "border-transparent hover:border-[rgba(210,174,114,0.22)] hover:bg-white/[0.03]"

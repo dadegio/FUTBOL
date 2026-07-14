@@ -21,8 +21,10 @@ export type YouTubePlaylistVideo = {
   publishedAt: string | null;
 };
 
+const OFFICIAL_PRESENTATION_VIDEO_URL = "https://www.youtube.com/watch?v=pYVsgPBBwEM";
+
 const channelUrl =
-  process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_URL || "https://www.youtube.com/";
+  process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_URL || "https://www.youtube.com/@camminoimperiale";
 
 export const youtubePresentationConfig: YouTubeVideoConfig = {
   title:
@@ -34,7 +36,7 @@ export const youtubePresentationConfig: YouTubeVideoConfig = {
   url:
     process.env.NEXT_PUBLIC_PRESENTATION_VIDEO_URL ||
     process.env.NEXT_PUBLIC_FEATURED_VIDEO_URL ||
-    "",
+    OFFICIAL_PRESENTATION_VIDEO_URL,
   channelUrl,
 };
 
@@ -45,7 +47,7 @@ export const youtubeFeaturedConfig: YouTubeVideoConfig = {
   subtitle:
     process.env.NEXT_PUBLIC_FEATURED_VIDEO_SUBTITLE ||
     "Highlights, replay e contenuti ufficiali del torneo.",
-  url: process.env.NEXT_PUBLIC_FEATURED_VIDEO_URL || "",
+  url: process.env.NEXT_PUBLIC_FEATURED_VIDEO_URL || OFFICIAL_PRESENTATION_VIDEO_URL,
   channelUrl,
 };
 

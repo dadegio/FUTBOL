@@ -255,3 +255,50 @@ body::after {
     grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
   }
 }
+
+
+@media (max-width: 768px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  main,
+  section,
+  article,
+  header,
+  aside,
+  nav,
+  .turf-card,
+  .matchroom-hero,
+  .imperial-plate {
+    min-width: 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  p,
+  a,
+  span,
+  button {
+    overflow-wrap: anywhere;
+  }
+
+  img,
+  iframe,
+  video {
+    max-width: 100%;
+  }
+
+  .matchroom-hero::after {
+    width: 80vw;
+    right: -22vw;
+    opacity: 0.08;
+  }
+
+  .desktop-control-grid {
+    min-width: 0;
+  }
+}

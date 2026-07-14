@@ -40,16 +40,16 @@ export default function DashboardShell({
   }
 
 return (
-    <div className="min-h-screen px-3 py-3 sm:px-4 sm:py-4 md:px-5 md:py-5 lg:px-7 lg:py-7 xl:px-9 2xl:px-12">
-      <div className="w-full">
+    <div className="min-h-screen max-w-full overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4 md:px-5 md:py-5 lg:px-7 lg:py-7 xl:px-9 2xl:px-12">
+      <div className="w-full min-w-0">
         {/* Mobile top bar */}
-        <div className="no-print mb-4 flex items-center justify-between rounded-[18px] bg-[var(--card)] px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.04)] lg:hidden">
-          <Link href="/" className="text-lg font-extrabold tracking-tight">
-            <span className="imperial-title text-[var(--accent)]">CAMMINO IMPERIALE</span>
+        <div className="no-print mb-4 flex min-w-0 items-center justify-between gap-3 rounded-[18px] bg-[var(--card)] px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.04)] lg:hidden">
+          <Link href="/" className="min-w-0 text-base font-extrabold tracking-tight sm:text-lg">
+            <span className="imperial-title block truncate text-[var(--accent)]">CAMMINO IMPERIALE</span>
           </Link>
 
           {!authLoading && (
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {user ? (
                 <>
                   <span className="flex items-center gap-1.5 text-xs text-[var(--foreground)]/60">
@@ -77,7 +77,7 @@ return (
           )}
         </div>
 
-        <div className="flex w-full gap-4 md:gap-6">
+        <div className="flex w-full min-w-0 gap-4 md:gap-6">
           <Sidebar leagueId={leagueId} />
 
           <main className="min-w-0 flex-1 pb-20 lg:pb-0">

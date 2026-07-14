@@ -344,8 +344,8 @@ export default function LeagueHomePage() {
             <span>{league?.name ?? "Torneo"}</span>
           </Link>
 
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="imperial-title text-[34px] font-black text-[var(--foreground)]">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <h1 className="imperial-title max-w-full break-words text-[30px] font-black leading-tight text-[var(--foreground)] sm:text-[34px]">
               {league?.name ?? "Coppa Primavera"}
             </h1>
 
@@ -362,7 +362,7 @@ export default function LeagueHomePage() {
         )}
 
         <Card className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
             <div className="text-base font-semibold">Stagione regolare</div>
             <div className="text-sm font-semibold text-[var(--muted)]">
               G{currentRound}
@@ -380,7 +380,7 @@ export default function LeagueHomePage() {
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4 pt-1">
+          <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3">
             <SummaryStat label="Squadre" value={teams.length} />
             <SummaryStat label="Partite" value={matches.length} />
             <SummaryStat label="Goal" value={totalGoals} />
@@ -410,7 +410,7 @@ export default function LeagueHomePage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                 <div className="flex min-w-0 flex-col items-center gap-2 text-center">
                   <TeamBadge
                     name={liveMatch.homeTeam.name}
@@ -421,7 +421,7 @@ export default function LeagueHomePage() {
                   </span>
                 </div>
 
-                <div className="whitespace-nowrap px-1 text-center text-[36px] font-black tracking-[-0.06em]">
+                <div className="whitespace-nowrap px-1 text-center text-[28px] font-black tracking-[-0.06em] sm:text-[36px]">
                   {liveMatch.homeGoals ?? 0}
                   <span className="mx-2 text-[var(--muted)]">-</span>
                   {liveMatch.awayGoals ?? 0}
@@ -444,7 +444,7 @@ export default function LeagueHomePage() {
 
 
         <section className="space-y-3">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-lg font-semibold tracking-[-0.03em]">Cammino TV</h2>
               <p className="mt-1 text-sm text-[var(--muted)]">Video ufficiale di presentazione del torneo.</p>
@@ -480,7 +480,7 @@ export default function LeagueHomePage() {
               return (
                 <div
                   key={row.teamId}
-                  className="grid grid-cols-[34px_36px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 transition hover:bg-[var(--card-2)] last:border-b-0"
+                  className="grid min-w-0 grid-cols-[28px_32px_minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--border)] px-3 py-4 transition hover:bg-[var(--card-2)] last:border-b-0 sm:grid-cols-[34px_36px_minmax(0,1fr)_auto] sm:gap-3 sm:px-4"
                 >
                   <span className="grid h-7 w-7 place-items-center rounded-lg border border-[rgba(210,174,114,0.18)] text-sm font-bold text-[var(--muted)]">
                     {index + 1}
@@ -492,7 +492,7 @@ export default function LeagueHomePage() {
                     size="sm"
                   />
 
-                  <span className="truncate font-semibold text-[var(--foreground)]">{row.teamName}</span>
+                  <span className="min-w-0 break-words text-sm font-semibold text-[var(--foreground)] sm:truncate sm:text-base">{row.teamName}</span>
 
                   <span className="text-xl font-black text-[var(--imperial-gold-2)]">{row.points}</span>
                 </div>
@@ -567,7 +567,7 @@ function LeagueOverviewSkeleton() {
         </div>
         <Card className="overflow-hidden !p-0">
           {[0, 1, 2, 3, 4].map((row) => (
-            <div key={row} className="grid grid-cols-[34px_36px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 transition hover:bg-[var(--card-2)] last:border-b-0">
+            <div key={row} className="grid min-w-0 grid-cols-[28px_32px_minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--border)] px-3 py-4 transition hover:bg-[var(--card-2)] last:border-b-0 sm:grid-cols-[34px_36px_minmax(0,1fr)_auto] sm:gap-3 sm:px-4">
               <div className="h-4 w-4 animate-pulse rounded bg-[var(--card-2)]" />
               <div className="h-8 w-8 animate-pulse rounded-lg bg-[var(--card-2)]" />
               <div className="h-4 w-40 max-w-full animate-pulse rounded-full bg-[var(--card-2)]" />
@@ -630,7 +630,7 @@ function NextMatchCard({ match }: { match: Match }) {
         )}
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
         <div className="flex min-w-0 items-center gap-2">
           <TeamBadge
             name={match.homeTeam.name}
@@ -642,7 +642,7 @@ function NextMatchCard({ match }: { match: Match }) {
 
         <span className="imperial-title text-lg text-[var(--imperial-gold-2)]">VS</span>
 
-        <div className="flex min-w-0 items-center justify-end gap-2 text-right">
+        <div className="flex min-w-0 items-center gap-2 sm:justify-end sm:text-right">
           <span className="truncate text-sm font-semibold">{match.awayTeam.name}</span>
           <TeamBadge
             name={match.awayTeam.name}
