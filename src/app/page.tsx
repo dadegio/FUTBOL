@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import Link from "next/link";
-import { ArrowRight, CopyPlus, Plus, ShieldCheck, Trophy, Users } from "lucide-react";
+import { ArrowRight, CopyPlus, Plus } from "lucide-react";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
@@ -116,7 +116,6 @@ export default function HomePage() {
   }, [leagues]);
 
   const totalTeams = leagues.reduce((sum, league) => sum + (league.teams?.length ?? 0), 0);
-  const featured = leagues[0] ?? null;
 
   return (
     <div className="w-full space-y-6 px-4 py-5 sm:px-6 lg:px-10 lg:py-8 2xl:px-14">
@@ -146,8 +145,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      <div className="desktop-control-grid gap-6">
-        <section className="space-y-5">
+        <div className={isAdmin && showCreateLeague ? "desktop-control-grid gap-6" : "space-y-6"}>
+          <section className="space-y-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--accent)]">Sentiero del torneo</p>
@@ -168,24 +167,39 @@ export default function HomePage() {
             </Card>
           ) : (
             <div className="grid gap-4 xl:grid-cols-2">
-              {leagues.map((league, index) => <LeagueSwitchCard key={league.id} league={league} featured={index === 0} isAdmin={isAdmin} onDelete={() => removeLeague(league.id, league.name)} />)}
+              {leagues.map((league) => (
+                <LeagueSwitchCard
+                  key={league.id}
+                  league={league}
+                  isAdmin={isAdmin}
+                  onDelete={() => removeLeague(league.id, league.name)}
+                />
+              ))}
             </div>
           )}
         </section>
 
-        <aside className="space-y-5">
-          <Card className="turf-card">
-            <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl border border-[rgba(210,174,114,0.32)] bg-[var(--accent-soft)] text-[var(--accent)]"><Trophy size={22} /></div>
-              <div>
-                <p className="text-xs font-black uppercase tracking-widest text-[var(--muted)]">In evidenza</p>
-                <h3 className="text-xl font-black text-[var(--foreground)]">{featured?.name ?? "Nessun torneo"}</h3>
-              </div>
-            </div>
-            {featured && <Link href={`/leagues/${featured.id}`} className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-[rgba(210,174,114,0.38)] bg-[linear-gradient(135deg,var(--imperial-green-2),var(--imperial-green))] px-4 py-2 text-sm font-black text-[var(--imperial-text)]">Apri torneo <ArrowRight size={15} /></Link>}
-          </Card>
-          {isAdmin && showCreateLeague && <CreateLeaguePanel name={name} setName={setName} loading={loading} create={create} existingTeams={existingTeams} teamIdsToCopy={teamIdsToCopy} setTeamIdsToCopy={setTeamIdsToCopy} playoffEnabled={playoffEnabled} setPlayoffEnabled={setPlayoffEnabled} playoffFormat={playoffFormat} setPlayoffFormat={setPlayoffFormat} playoffTeamCount={playoffTeamCount} setPlayoffTeamCount={setPlayoffTeamCount} playoffSeeded={playoffSeeded} setPlayoffSeeded={setPlayoffSeeded} />}
-        </aside>
+        {isAdmin && showCreateLeague && (
+          <aside className="space-y-5">
+            <CreateLeaguePanel
+              name={name}
+              setName={setName}
+              loading={loading}
+              create={create}
+              existingTeams={existingTeams}
+              teamIdsToCopy={teamIdsToCopy}
+              setTeamIdsToCopy={setTeamIdsToCopy}
+              playoffEnabled={playoffEnabled}
+              setPlayoffEnabled={setPlayoffEnabled}
+              playoffFormat={playoffFormat}
+              setPlayoffFormat={setPlayoffFormat}
+              playoffTeamCount={playoffTeamCount}
+              setPlayoffTeamCount={setPlayoffTeamCount}
+              playoffSeeded={playoffSeeded}
+              setPlayoffSeeded={setPlayoffSeeded}
+            />
+          </aside>
+        )}
       </div>
     </div>
   );
@@ -195,12 +209,20 @@ function HeroMetric({ label, value }: { label: string; value: string | number })
   return <div className="imperial-plate rounded-[24px] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">{label}</p><p className="mt-1 text-2xl font-black text-[var(--foreground)]">{value}</p></div>;
 }
 
-function LeagueSwitchCard({ league, featured, isAdmin, onDelete }: { league: League; featured?: boolean; isAdmin: boolean; onDelete: () => void }) {
+function LeagueSwitchCard({
+  league,
+  isAdmin,
+  onDelete,
+}: {
+  league: League;
+  isAdmin: boolean;
+  onDelete: () => void;
+}) {
   const teams = league.teams?.length ?? 0;
   const players = league.teams?.reduce((sum, team) => sum + (team.players?.length ?? 0), 0) ?? 0;
   return (
-    <Card className={["group turf-card transition hover:-translate-y-1 hover:border-[var(--accent)]/60", featured ? "lg:col-span-2" : ""].join(" ")}>
-      <div className="flex min-h-[180px] flex-col justify-between gap-6">
+  <Card className="group turf-card transition hover:-translate-y-1 hover:border-[var(--accent)]/60">
+  <div className="flex min-h-[180px] flex-col justify-between gap-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <span className="inline-flex imperial-chip rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider">{league.playoffFormat ? "Playoff previsti" : "Stagione regolare"}</span>
