@@ -22,6 +22,8 @@ export type YouTubePlaylistVideo = {
 };
 
 const OFFICIAL_PRESENTATION_VIDEO_URL = "https://www.youtube.com/watch?v=pYVsgPBBwEM";
+const OFFICIAL_PLAYLIST_URL =
+  "https://www.youtube.com/playlist?list=PLYTJHd2_3eRk";
 
 const channelUrl =
   process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_URL || "https://www.youtube.com/@camminoimperiale";
@@ -61,8 +63,15 @@ export const youtubePlaylistConfig: YouTubePlaylistConfig = {
   subtitle:
     process.env.NEXT_PUBLIC_YOUTUBE_PLAYLIST_SUBTITLE ||
     "Tutti gli highlights, i replay e le clip pubblicate nella playlist ufficiale.",
-  url: process.env.NEXT_PUBLIC_YOUTUBE_PLAYLIST_URL || "",
-  id: process.env.NEXT_PUBLIC_YOUTUBE_PLAYLIST_ID || "",
+  url:
+    process.env.NEXT_PUBLIC_YOUTUBE_PLAYLIST_URL ||
+    OFFICIAL_PLAYLIST_URL,
+  id:
+    getYouTubePlaylistId(
+      process.env.NEXT_PUBLIC_YOUTUBE_PLAYLIST_ID ||
+        process.env.NEXT_PUBLIC_YOUTUBE_PLAYLIST_URL ||
+        OFFICIAL_PLAYLIST_URL
+    ) || "",
   channelUrl,
 };
 
@@ -116,14 +125,21 @@ export function getYouTubeThumbnailFromId(id: string) {
 
 export function getYouTubePlaylistId(input: string) {
   if (!input) return null;
+  const value = input.trim();
 
-  // Accetta direttamente l'ID playlist, ad esempio PLxxxx.
-  if (/^[a-zA-Z0-9_-]{8,}$/.test(input) && !input.includes("http")) {
-    return input;
+  // Accetta anche un ID copiato insieme ai parametri "&si=...".
+  if (!/^https?:\/\//i.test(value)) {
+    const directId = value.split(/[?&]/, 1)[0]?.trim();
+    if (directId && /^[a-zA-Z0-9_-]{8,}$/.test(directId)) {
+      return directId;
+    }
+
+    const queryList = value.match(/(?:^|[?&])list=([^&]+)/i)?.[1];
+    if (queryList) return decodeURIComponent(queryList);
   }
 
   try {
-    const parsed = new URL(input);
+    const parsed = new URL(value);
     const list = parsed.searchParams.get("list");
     if (list) return list;
   } catch {

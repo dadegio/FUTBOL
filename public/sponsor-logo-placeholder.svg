@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" role="img" aria-labelledby="title desc">
+  <title id="title">Logo sponsor da inserire</title>
+  <desc id="desc">Segnaposto sostituibile con il logo dello sponsor ufficiale.</desc>
+  <rect width="640" height="180" rx="28" fill="#f4ead8"/>
+  <rect x="5" y="5" width="630" height="170" rx="23" fill="none" stroke="#c9a766" stroke-width="6" stroke-dasharray="18 12"/>
+  <path d="M88 124V56h45c24 0 39 12 39 32s-15 33-39 33h-20v3H88zm25-24h18c10 0 16-4 16-12 0-7-6-11-16-11h-18v23z" fill="#183524"/>
+  <text x="195" y="87" fill="#183524" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="800">SPONSOR UFFICIALE</text>
+  <text x="195" y="126" fill="#8f6d3e" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="2">INSERIRE IL LOGO QUI</text>
+</svg>

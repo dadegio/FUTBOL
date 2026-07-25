@@ -15,6 +15,12 @@ export default async function MatchPage({
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
+      referee: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       homeTeam: { include: { players: { orderBy: { number: "asc" } } } },
       awayTeam: { include: { players: { orderBy: { number: "asc" } } } },
       stats: true,

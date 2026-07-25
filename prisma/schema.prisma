@@ -15,6 +15,7 @@ enum PlayoffFormat {
 enum Role {
   ADMIN
   CAPTAIN
+  REFEREE
 }
 
 enum PlayerStatus {
@@ -32,8 +33,12 @@ model User {
   passwordHash String
   role         Role
   teamId       String?  @unique
+  refereeId    String?  @unique
   team         Team?    @relation("TeamCaptain", fields: [teamId], references: [id], onDelete: SetNull)
+  referee      Referee? @relation("RefereeAccount", fields: [refereeId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
+
+  bookedMatches Match[] @relation("MatchBookedBy")
 }
 
 model League {
@@ -43,11 +48,12 @@ model League {
 
   playoffFormat    PlayoffFormat?
   playoffTeamCount Int?
-  playoffSeeded    Boolean @default(true)
+  playoffSeeded    Boolean        @default(true)
 
-  teams          Team[]
-  matches        Match[]
-  playoffSeries  PlayoffSeries[]
+  teams         Team[]
+  matches       Match[]
+  playoffSeries PlayoffSeries[]
+  referees      Referee[]
 }
 
 model Team {
@@ -57,25 +63,25 @@ model Team {
   description String?
   createdAt   DateTime @default(now())
 
-  leagueId    String
-  league      League   @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  leagueId String
+  league   League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
 
-  players     Player[]
+  players      Player[]
   sheetPlayers MatchSheetPlayer[]
-  homeMatches Match[]  @relation("HomeTeam")
-  awayMatches Match[]  @relation("AwayTeam")
+  homeMatches  Match[]            @relation("HomeTeam")
+  awayMatches  Match[]            @relation("AwayTeam")
 
-  homeSeries  PlayoffSeries[] @relation("SeriesHome")
-  awaySeries  PlayoffSeries[] @relation("SeriesAway")
-  wonSeries   PlayoffSeries[] @relation("SeriesWinner")
+  homeSeries PlayoffSeries[] @relation("SeriesHome")
+  awaySeries PlayoffSeries[] @relation("SeriesAway")
+  wonSeries  PlayoffSeries[] @relation("SeriesWinner")
 
-  captain     User?           @relation("TeamCaptain")
+  captain User? @relation("TeamCaptain")
 
   @@unique([leagueId, name])
 }
 
 model Player {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
   firstName String
   lastName  String
@@ -83,82 +89,113 @@ model Player {
   position  String?
   photoUrl  String?
 
-  fiscalCode String?
-  birthDate  DateTime?
-  documentSigned Boolean @default(false)
-  signedAt DateTime?
-  privacyConsent Boolean @default(false)
-  internalPhotoConsent Boolean @default(false)
-  publicPhotoConsent Boolean @default(false)
-  mediaConsent Boolean @default(false)
-  healthDeclaration Boolean @default(false)
-  wildcardUsed Boolean @default(false)
-  status PlayerStatus @default(PENDING)
-  statusNote String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  fiscalCode           String?
+  birthDate            DateTime?
+  documentSigned       Boolean      @default(false)
+  signedAt             DateTime?
+  privacyConsent       Boolean      @default(false)
+  internalPhotoConsent Boolean      @default(false)
+  publicPhotoConsent   Boolean      @default(false)
+  mediaConsent         Boolean      @default(false)
+  healthDeclaration    Boolean      @default(false)
+  wildcardUsed         Boolean      @default(false)
+  status               PlayerStatus @default(PENDING)
+  statusNote           String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
-  teamId    String
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  stats     MatchPlayerStat[]
+  stats        MatchPlayerStat[]
   sheetEntries MatchSheetPlayer[]
 
-  @@index([teamId])
   @@unique([teamId, number])
+  @@index([teamId])
 }
 
 model Match {
-  id         String   @id @default(cuid())
-  leagueId   String
-  round      Int
-  date       DateTime?
+  id       String    @id @default(cuid())
+  leagueId String
+  round    Int
+  date     DateTime?
+  slotEnd  DateTime?
+  slotWeekStart DateTime?
+
+  venueKey       String?
+  venueName      String?
+  venueAddress   String?
+  bookedByUserId String?
+  bookedAt       DateTime?
 
   homeTeamId String
   awayTeamId String
 
-  homeGoals  Int?
-  awayGoals  Int?
+  homeGoals Int?
+  awayGoals Int?
 
-  seriesId   String?
-  leg        Int?
+  seriesId String?
+  leg      Int?
 
   refereeCostCents Int @default(2000)
+  refereeId        String?
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  league     League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  homeTeam   Team   @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeam   Team   @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  series     PlayoffSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  league   League         @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  homeTeam Team           @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam Team           @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  series   PlayoffSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  bookedBy User?          @relation("MatchBookedBy", fields: [bookedByUserId], references: [id], onDelete: SetNull)
+  referee  Referee?       @relation(fields: [refereeId], references: [id], onDelete: SetNull)
 
-  stats      MatchPlayerStat[]
+  stats        MatchPlayerStat[]
   sheetPlayers MatchSheetPlayer[]
 
-  @@index([leagueId, round])
-  @@index([seriesId])
+  @@unique([venueKey, date])
   @@unique([seriesId, leg])
+  @@index([leagueId, round])
+  @@index([leagueId, date])
+  @@index([leagueId, slotWeekStart])
+  @@index([bookedByUserId])
+  @@index([refereeId])
+  @@index([seriesId])
+}
+
+model Referee {
+  id        String   @id @default(cuid())
+  leagueId  String
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  league  League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  matches Match[]
+  account User?  @relation("RefereeAccount")
+
+  @@unique([leagueId, name])
+  @@index([leagueId, active])
 }
 
 model MatchPlayerStat {
-  id       String @id @default(cuid())
+  id String @id @default(cuid())
 
   matchId  String
   playerId String
 
-  goals    Int    @default(0)
-  assists  Int    @default(0)
+  goals   Int @default(0)
+  assists Int @default(0)
 
-  match    Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@unique([matchId, playerId])
   @@index([playerId])
 }
 
-
 model MatchSheetPlayer {
-  id       String @id @default(cuid())
+  id String @id @default(cuid())
 
   matchId  String
   playerId String
@@ -166,9 +203,9 @@ model MatchSheetPlayer {
 
   createdAt DateTime @default(now())
 
-  match    Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  team     Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@unique([matchId, playerId])
   @@index([playerId])
@@ -176,30 +213,30 @@ model MatchSheetPlayer {
 }
 
 model PlayoffSeries {
-  id          String   @id @default(cuid())
-  leagueId    String
+  id       String @id @default(cuid())
+  leagueId String
 
-  bracketRound  Int
-  position      Int
+  bracketRound Int
+  position     Int
 
-  homeTeamId    String?
-  awayTeamId    String?
+  homeTeamId String?
+  awayTeamId String?
 
-  homeSeed      Int?
-  awaySeed      Int?
+  homeSeed Int?
+  awaySeed Int?
 
   penaltiesHome Int?
   penaltiesAway Int?
 
-  winnerId      String?
+  winnerId String?
 
   feedsIntoSeriesId String?
 
-  league     League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  homeTeam   Team?  @relation("SeriesHome", fields: [homeTeamId], references: [id])
-  awayTeam   Team?  @relation("SeriesAway", fields: [awayTeamId], references: [id])
-  winner     Team?  @relation("SeriesWinner", fields: [winnerId], references: [id])
-  feedsInto  PlayoffSeries? @relation("BracketProgression", fields: [feedsIntoSeriesId], references: [id])
+  league    League         @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  homeTeam  Team?          @relation("SeriesHome", fields: [homeTeamId], references: [id])
+  awayTeam  Team?          @relation("SeriesAway", fields: [awayTeamId], references: [id])
+  winner    Team?          @relation("SeriesWinner", fields: [winnerId], references: [id])
+  feedsInto PlayoffSeries? @relation("BracketProgression", fields: [feedsIntoSeriesId], references: [id])
 
   feederSeries PlayoffSeries[] @relation("BracketProgression")
   matches      Match[]

@@ -1,15 +1,16 @@
 export const runtime = "nodejs";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdminOrCaptainOfMatch } from "@/lib/server-auth";
+import { requireAdmin } from "@/lib/server-auth";
 import { NextResponse } from "next/server";
+import { getSlotWeekWindow } from "@/lib/field-slots";
 
 type Ctx = { params: Promise<{ matchId: string }> };
 
 export async function PATCH(req: Request, ctx: Ctx) {
   const { matchId } = await ctx.params;
 
-  const authErr = await requireAdminOrCaptainOfMatch(matchId);
+  const authErr = await requireAdmin();
   if (authErr) return authErr;
 
   const body = await req.json().catch(() => ({}));
@@ -32,7 +33,18 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
   await prisma.match.update({
     where: { id: matchId },
-    data: { date },
+    data: {
+      date,
+      slotEnd: null,
+      venueKey: null,
+      venueName: null,
+      venueAddress: null,
+      bookedByUserId: null,
+      bookedAt: null,
+      ...(date
+        ? { slotWeekStart: getSlotWeekWindow(date).startsAt }
+        : {}),
+    },
   });
 
   return NextResponse.json({ ok: true });

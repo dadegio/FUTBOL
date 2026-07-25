@@ -10,6 +10,12 @@ export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }
   const match = await prisma.match.findUnique({
     where: { id: matchId },
     include: {
+      referee: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       homeTeam: {
         select: {
           id: true,
