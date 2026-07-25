@@ -8,7 +8,7 @@ type SponsorBannerProps = {
 const sponsorName =
   process.env.NEXT_PUBLIC_SPONSOR_NAME?.trim() || "Sponsor ufficiale";
 const sponsorLogo =
-  process.env.NEXT_PUBLIC_SPONSOR_LOGO_URL?.trim() || "/sponsor-logo.jpg";
+  process.env.NEXT_PUBLIC_SPONSOR_LOGO_URL?.trim() || "/sponsor-logo.png";
 const sponsorUrl =
   process.env.NEXT_PUBLIC_SPONSOR_URL?.trim() || "https://campingbar.it/";
 
