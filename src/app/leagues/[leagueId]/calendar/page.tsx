@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, RefreshCw, Wand2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  RefreshCw,
+  UsersRound,
+  Wand2,
+} from "lucide-react";
 import { useParams } from "next/navigation";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
@@ -10,7 +17,9 @@ import Badge from "src/app/_components/ui/badge";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
 import Select from "src/app/_components/ui/select";
+import SponsorBanner from "src/app/_components/sponsor-banner";
 import { authFetch, useAuth } from "@/lib/client-auth";
+import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 type Team = {
   id: string;
@@ -23,6 +32,14 @@ type Match = {
   leagueId: string;
   round: number;
   date: string | null;
+  slotEnd: string | null;
+  venueKey: string | null;
+  venueName: string | null;
+  venueAddress: string | null;
+  referee: {
+    id: string;
+    name: string;
+  } | null;
   homeGoals: number | null;
   awayGoals: number | null;
   homeTeam: Team;
@@ -35,6 +52,7 @@ type GeneratorResult = {
   created: number;
   rounds: number;
   scheduled: boolean;
+  schedulingMode: "captain_booking" | "fixed_slots";
 };
 
 async function getJSON<T>(url: string): Promise<T> {
@@ -164,15 +182,15 @@ export default function CalendarPage() {
   const [random, setRandom] = useState(true);
   const [alternateHomeAway, setAlternateHomeAway] = useState(true);
   const [seed, setSeed] = useState("");
+  const [schedulingMode, setSchedulingMode] = useState<
+    "captain_booking" | "fixed_slots"
+  >("captain_booking");
   const [firstDateTime, setFirstDateTime] = useState(() => {
     const next = new Date();
     next.setDate(next.getDate() + 7);
     next.setHours(20, 0, 0, 0);
     return toDatetimeLocalValue(next);
   });
-  const [roundIntervalDays, setRoundIntervalDays] = useState("7");
-  const [slotMinutes, setSlotMinutes] = useState("70");
-  const [pitchCount, setPitchCount] = useState("1");
   const [generating, setGenerating] = useState(false);
 
   const load = useCallback(async () => {
@@ -288,10 +306,10 @@ export default function CalendarPage() {
           random,
           alternateHomeAway,
           seed: seed.trim() || null,
-          firstDateTime: firstDateTime || null,
-          roundIntervalDays: Number(roundIntervalDays),
-          slotMinutes: Number(slotMinutes),
-          pitchCount: Number(pitchCount),
+          schedulingMode,
+          firstDateTime: firstDateTime
+            ? new Date(firstDateTime).toISOString()
+            : null,
         }),
       });
 
@@ -304,7 +322,9 @@ export default function CalendarPage() {
       const result = data as GeneratorResult;
       setMsg(
         `Calendario generato: ${result.created} partite in ${result.rounds} giornate${
-          result.scheduled ? " con date automatiche" : ""
+          result.scheduled
+            ? " con campi e orari assegnati automaticamente"
+            : "; i capitani possono ora prenotare gli slot liberi"
         }.`
       );
       setSelectedRound(null);
@@ -381,6 +401,8 @@ export default function CalendarPage() {
           </div>
         </header>
 
+        <SponsorBanner compact />
+
         {isAdmin && (
           <Card className="space-y-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -392,7 +414,11 @@ export default function CalendarPage() {
                   </h2>
                 </div>
                 <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
-                  Crea automaticamente il round-robin della regular season. La rigenerazione è bloccata se esistono risultati, statistiche o distinte già compilate.
+                  Crea il calendario per {FUTPOLI_RULES.teamCount} squadre:
+                  {" "}{FUTPOLI_RULES.matchesPerRound} partite per giornata e
+                  {" "}{FUTPOLI_RULES.roundsPerLeg} giornate per girone. La
+                  rigenerazione è bloccata se esistono risultati, statistiche o
+                  distinte già compilate.
                 </p>
               </div>
 
@@ -415,40 +441,37 @@ export default function CalendarPage() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)] md:col-span-2">
+                Assegnazione campi
+                <Select
+                  value={schedulingMode}
+                  onChange={(event) =>
+                    setSchedulingMode(
+                      event.target.value as "captain_booking" | "fixed_slots"
+                    )
+                  }
+                >
+                  <option value="captain_booking" className="text-black">
+                    I capitani prenotano gli slot liberi
+                  </option>
+                  <option value="fixed_slots" className="text-black">
+                    Assegna automaticamente i campi fissi
+                  </option>
+                </Select>
+              </label>
+
               <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
-                Primo kickoff
+                Inizio programmazione
                 <Input
                   type="datetime-local"
                   value={firstDateTime}
                   onChange={(event) => setFirstDateTime(event.target.value)}
+                  required
                 />
-              </label>
-
-              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
-                Giorni tra giornate
-                <Input
-                  value={roundIntervalDays}
-                  onChange={(event) => setRoundIntervalDays(event.target.value.replace(/[^0-9]/g, ""))}
-                  inputMode="numeric"
-                />
-              </label>
-
-              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
-                Minuti tra slot
-                <Input
-                  value={slotMinutes}
-                  onChange={(event) => setSlotMinutes(event.target.value.replace(/[^0-9]/g, ""))}
-                  inputMode="numeric"
-                />
-              </label>
-
-              <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
-                Campi disponibili
-                <Input
-                  value={pitchCount}
-                  onChange={(event) => setPitchCount(event.target.value.replace(/[^0-9]/g, ""))}
-                  inputMode="numeric"
-                />
+                <span className="block text-xs font-normal text-[var(--muted)]">
+                  Definisce la settimana della giornata 1 anche quando
+                  prenotano i capitani.
+                </span>
               </label>
 
               <label className="space-y-1.5 text-sm font-semibold text-[var(--foreground)]">
@@ -491,6 +514,17 @@ export default function CalendarPage() {
                 />
                 Alterna casa/trasferta
               </label>
+            </div>
+
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card-2)] px-4 py-3">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent)]">
+                Slot settimanali configurati
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+                Martedì 21:00 · Anastasio Germonio — Mercoledì 20:00 e 21:00 ·
+                Anastasio Germonio e Sant&apos;Ignazio — Mercoledì 21:00 e
+                giovedì 21:00 · Circolo della Stampa.
+              </p>
             </div>
           </Card>
         )}
@@ -620,6 +654,22 @@ function CalendarMatchRow({ leagueId, match }: { leagueId: string; match: Match 
       <div className="min-w-0 space-y-2">
         <TeamLine team={match.homeTeam} muted={played && !live} />
         <TeamLine team={match.awayTeam} muted={played && !live} />
+        <div className="flex min-w-0 flex-col gap-1 pt-1 text-[11px] font-semibold text-[var(--muted)] sm:flex-row sm:flex-wrap sm:gap-x-4">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <MapPin size={12} className="shrink-0 text-[var(--accent)]" />
+            <span className="truncate">
+              {match.venueName
+                ? `${match.venueName}${match.venueAddress ? ` · ${match.venueAddress}` : ""}`
+                : "Campo da prenotare"}
+            </span>
+          </span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <UsersRound size={12} className="shrink-0 text-[var(--accent)]" />
+            <span className="truncate">
+              Arbitro: {match.referee?.name ?? "da assegnare"}
+            </span>
+          </span>
+        </div>
       </div>
 
       <div className="w-6 space-y-2 text-right text-sm font-black text-[var(--foreground)]">

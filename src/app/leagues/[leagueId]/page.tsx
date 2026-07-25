@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import YouTubeVideoCard from "src/app/_components/youtube-video-card";
+import SponsorBanner from "src/app/_components/sponsor-banner";
 
 type League = {
   id: string;
@@ -23,6 +24,12 @@ type Match = {
   leagueId: string;
   round: number;
   date: string | null;
+  venueName?: string | null;
+  venueAddress?: string | null;
+  referee?: {
+    id: string;
+    name: string;
+  } | null;
   homeGoals: number | null;
   awayGoals: number | null;
   homeTeam: Team;
@@ -361,6 +368,8 @@ export default function LeagueHomePage() {
           </div>
         )}
 
+        <SponsorBanner compact />
+
         <Card className="space-y-4">
           <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
             <div className="text-base font-semibold">Stagione regolare</div>
@@ -628,6 +637,11 @@ function NextMatchCard({ match }: { match: Match }) {
             {match.stageLabel ?? "Playoff"}
           </span>
         )}
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-semibold text-[var(--muted)]">
+        <span>{match.venueName ?? "Campo da prenotare"}</span>
+        <span>Arbitro: {match.referee?.name ?? "da assegnare"}</span>
       </div>
 
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">

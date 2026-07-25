@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdminOrCaptainOfMatch } from "@/lib/server-auth";
+import { requireMatchEditor } from "@/lib/server-auth";
 import { syncPlayoffSeriesWinner } from "@/lib/playoff-progress";
 import {
   FUTPOLI_RULES,
@@ -44,7 +44,7 @@ export async function POST(
 ) {
   const { matchId } = await ctx.params;
 
-  const authErr = await requireAdminOrCaptainOfMatch(matchId);
+  const authErr = await requireMatchEditor(matchId);
   if (authErr) return authErr;
 
   const body = (await req.json().catch(() => ({}))) as Body;

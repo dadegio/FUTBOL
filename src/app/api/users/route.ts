@@ -21,7 +21,14 @@ export async function GET() {
       username: true,
       role: true,
       teamId: true,
+      refereeId: true,
       team: { select: { name: true } },
+      referee: {
+        select: {
+          name: true,
+          league: { select: { name: true } },
+        },
+      },
       createdAt: true,
     },
     orderBy: [{ role: "asc" }, { username: "asc" }],
@@ -36,11 +43,12 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
 
   const body = await req.json().catch(() => ({}));
-  const { username, password, role, teamId } = body as {
+  const { username, password, role, teamId, refereeId } = body as {
     username?: string;
     password?: string;
     role?: string;
     teamId?: string | null;
+    refereeId?: string | null;
   };
 
   if (!username?.trim()) {
@@ -49,11 +57,24 @@ export async function POST(req: NextRequest) {
   if (!password || password.length < 4) {
     return NextResponse.json({ error: "Password minimo 4 caratteri" }, { status: 400 });
   }
-  if (role !== "ADMIN" && role !== "CAPTAIN") {
-    return NextResponse.json({ error: "Ruolo non valido (ADMIN o CAPTAIN)" }, { status: 400 });
+  if (
+    role !== "ADMIN" &&
+    role !== "CAPTAIN" &&
+    role !== "REFEREE"
+  ) {
+    return NextResponse.json(
+      { error: "Ruolo non valido (ADMIN, CAPTAIN o REFEREE)" },
+      { status: 400 }
+    );
   }
   if (role === "CAPTAIN" && !teamId) {
     return NextResponse.json({ error: "Specifica teamId per un capitano" }, { status: 400 });
+  }
+  if (role === "REFEREE" && !refereeId) {
+    return NextResponse.json(
+      { error: "Seleziona l'arbitro da collegare all'account" },
+      { status: 400 }
+    );
   }
 
   const existing = await prisma.user.findUnique({ where: { username } });
@@ -61,17 +82,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Username già in uso" }, { status: 409 });
   }
 
-  const user = await prisma.user.create({
-    data: {
-      username: username.trim(),
-      passwordHash: hashPassword(password),
-      role: role as "ADMIN" | "CAPTAIN",
-      teamId: role === "CAPTAIN" ? teamId : null,
-    },
-    select: { id: true, username: true, role: true, teamId: true, createdAt: true },
-  });
+  try {
+    const user = await prisma.user.create({
+      data: {
+        username: username.trim(),
+        passwordHash: hashPassword(password),
+        role: role as "ADMIN" | "CAPTAIN" | "REFEREE",
+        teamId: role === "CAPTAIN" ? teamId : null,
+        refereeId: role === "REFEREE" ? refereeId : null,
+      },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        teamId: true,
+        refereeId: true,
+        createdAt: true,
+      },
+    });
 
-  return NextResponse.json(user, { status: 201 });
+    return NextResponse.json(user, { status: 201 });
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") {
+      return NextResponse.json(
+        {
+          error:
+            role === "REFEREE"
+              ? "Questo arbitro ha già un account"
+              : "Squadra o username già associati a un account",
+        },
+        { status: 409 }
+      );
+    }
+    throw error;
+  }
 }
 
 // ── PATCH /api/users?id=… ─────────────────────────────────────────────────────

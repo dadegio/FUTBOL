@@ -46,7 +46,11 @@ export default function AuthButton() {
             {user.username}
           </div>
           <div className="text-[10px] font-medium text-[var(--muted)]">
-            {isAdmin ? "Admin" : "Capitano"}
+            {isAdmin
+              ? "Admin"
+              : user.role === "REFEREE"
+                ? "Arbitro"
+                : "Capitano"}
           </div>
         </div>
       </div>

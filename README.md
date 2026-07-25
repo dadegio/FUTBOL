@@ -5,7 +5,8 @@ Applicazione Next.js per la gestione del torneo amatoriale FUTPOLI: leghe, squad
 ## Regole FUTPOLI recepite nel codice
 
 - Formula campionato: girone unico con andata e ritorno.
-- Con 16 squadre vengono generate 30 giornate e 240 partite.
+- Con 14 squadre vengono generate 26 giornate, 7 partite per giornata e 182
+  partite totali. Ogni squadra disputa 13 partite di andata e 13 di ritorno.
 - Rosa massima: 14 giocatori per squadra.
 - Distinta gara obbligatoria: ogni squadra deve avere almeno 8 giocatori autorizzati.
 - Un giocatore è utilizzabile in distinta solo se risulta autorizzato e con documentazione minima completa.
@@ -84,6 +85,51 @@ La migration `20260626211500_futpoli_admin_rules` aggiunge:
 - campi documentali/admin sul giocatore;
 - campo `refereeCostCents` sulla partita;
 - tabella `MatchSheetPlayer` per la distinta gara.
+
+## Campi, prenotazioni, arbitri e sponsor
+
+Gli slot settimanali sono definiti in `lib/field-slots.ts`. Gli intervalli
+20:00–22:00 sono configurati come due partite da un'ora, con inizio alle 20:00
+e alle 21:00.
+
+La generazione del calendario offre due modalità:
+
+- solo accoppiamenti, con prenotazione successiva da parte dei capitani;
+- assegnazione automatica dei campi fissi a partire da data e ora selezionate.
+
+La data di inizio è modificabile in entrambe le modalità. Ogni giornata viene
+collegata a una specifica settimana e, dalla pagina di una partita, sono
+mostrati esclusivamente i sette slot di quella settimana. Admin e capitani
+delle due squadre possono prenotare o cambiare uno slot; il server rifiuta sia
+gli slot di settimane diverse sia le doppie prenotazioni.
+
+Ogni partita ha un solo arbitro, selezionato dall'elenco gestito nella pagina
+admin del torneo. Sebastiano Marcato viene aggiunto automaticamente come primo
+nominativo. L'admin può aggiungere o disattivare arbitri e generare credenziali
+temporanee casuali. Il ruolo `REFEREE` può modificare risultato, distinta, gol
+e assist soltanto per le partite che gli sono state assegnate; non può gestire
+calendario, campi, utenti o impostazioni.
+
+Per il logo sponsor è sufficiente aggiungere `public/sponsor-logo.png`. In
+alternativa si possono impostare:
+
+```env
+NEXT_PUBLIC_SPONSOR_NAME="Nome sponsor"
+NEXT_PUBLIC_SPONSOR_LOGO_URL="/sponsor-logo.png"
+NEXT_PUBLIC_SPONSOR_URL="https://campingbar.it/"
+```
+
+Se il file non è ancora presente, il sito mostra automaticamente un segnaposto.
+Il logo compare nella home, nell'overview del torneo, nel calendario e nel
+Match Center. In assenza della variabile URL, il collegamento usa direttamente
+`https://campingbar.it/`.
+
+## Playlist YouTube
+
+La sezione Video accetta sia l'URL completo sia il solo ID della playlist.
+Anche un valore copiato da YouTube con il parametro `&si=...` viene ripulito
+automaticamente. Il player della playlist resta disponibile anche quando il
+feed XML usato per costruire l'elenco laterale non risponde.
 
 ## Sviluppo
 

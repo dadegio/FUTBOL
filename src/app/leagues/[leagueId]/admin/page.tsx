@@ -8,6 +8,7 @@ import Card from "src/app/_components/ui/card";
 import Badge from "src/app/_components/ui/badge";
 import Button from "src/app/_components/ui/button";
 import { authFetch } from "@/lib/client-auth";
+import RefereeManager from "./referee-manager";
 
 type LeagueSettings = {
   id: string;
@@ -182,6 +183,8 @@ export default function LeagueAdminPage() {
             </div>
           </Card>
         )}
+
+        <RefereeManager leagueId={leagueId} />
 
         {summary && (
           <>

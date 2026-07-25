@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateRoundRobin } from "@/lib/scheduler";
 import { requireAdmin } from "@/lib/server-auth";
+import {
+  getFirstFullSlotWeek,
+  getFixedFieldSlotOccurrences,
+  getRoundSlotWeek,
+  getSlotWeekWindow,
+} from "@/lib/field-slots";
+import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 export async function GET(
   req: Request,
@@ -27,6 +34,17 @@ export async function GET(
       leagueId: true,
       round: true,
       date: true,
+      slotEnd: true,
+      slotWeekStart: true,
+      venueKey: true,
+      venueName: true,
+      venueAddress: true,
+      referee: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       homeGoals: true,
       awayGoals: true,
       seriesId: true,
@@ -114,6 +132,21 @@ export async function POST(
       );
     }
 
+    const defaultReferee = await prisma.referee.upsert({
+      where: {
+        leagueId_name: {
+          leagueId,
+          name: "Sebastiano Marcato",
+        },
+      },
+      update: { active: true },
+      create: {
+        leagueId,
+        name: "Sebastiano Marcato",
+      },
+      select: { id: true },
+    });
+
     try {
       const match = await prisma.match.create({
         data: {
@@ -121,7 +154,13 @@ export async function POST(
           round,
           homeTeamId,
           awayTeamId,
-          ...(date ? { date } : {}),
+          refereeId: defaultReferee.id,
+          ...(date
+            ? {
+                date,
+                slotWeekStart: getSlotWeekWindow(date).startsAt,
+              }
+            : {}),
         },
       });
 
@@ -138,6 +177,10 @@ export async function POST(
   const doubleRound = body?.doubleRound !== false;
   const replace = body?.replace === true;
   const alternateHomeAway = body?.alternateHomeAway !== false;
+  const schedulingMode =
+    body?.schedulingMode === "fixed_slots"
+      ? "fixed_slots"
+      : "captain_booking";
 
   const seed =
     body?.seed === undefined ||
@@ -155,35 +198,6 @@ export async function POST(
       ? null
       : String(body.firstDateTime).trim();
 
-  const roundIntervalDays = Number(body?.roundIntervalDays ?? 7);
-  const slotMinutes = Number(body?.slotMinutes ?? 70);
-  const pitchCount = Number(body?.pitchCount ?? 1);
-
-  if (
-    !Number.isInteger(roundIntervalDays) ||
-    roundIntervalDays < 1 ||
-    roundIntervalDays > 30
-  ) {
-    return NextResponse.json(
-      { error: "Intervallo tra giornate non valido" },
-      { status: 400 }
-    );
-  }
-
-  if (!Number.isInteger(slotMinutes) || slotMinutes < 30 || slotMinutes > 240) {
-    return NextResponse.json(
-      { error: "Durata slot non valida" },
-      { status: 400 }
-    );
-  }
-
-  if (!Number.isInteger(pitchCount) || pitchCount < 1 || pitchCount > 8) {
-    return NextResponse.json(
-      { error: "Numero campi non valido" },
-      { status: 400 }
-    );
-  }
-
   let firstKickoff: Date | null = null;
 
   if (firstDateTime) {
@@ -197,6 +211,18 @@ export async function POST(
     }
   }
 
+  if (!firstKickoff) {
+    return NextResponse.json(
+      {
+        error:
+          "Seleziona data e ora di inizio: serve per collegare ogni giornata alla propria settimana",
+      },
+      { status: 400 }
+    );
+  }
+
+  const firstSlotWeek = getFirstFullSlotWeek(firstKickoff);
+
   const teams = await prisma.team.findMany({
     where: { leagueId },
     orderBy: [{ createdAt: "asc" }, { name: "asc" }],
@@ -205,9 +231,11 @@ export async function POST(
 
   const teamIds = teams.map((team) => team.id);
 
-  if (teamIds.length < 2) {
+  if (teamIds.length !== FUTPOLI_RULES.teamCount) {
     return NextResponse.json(
-      { error: "Servono almeno 2 squadre" },
+      {
+        error: `Il torneo richiede esattamente ${FUTPOLI_RULES.teamCount} squadre. Al momento ne risultano ${teamIds.length}.`,
+      },
       { status: 400 }
     );
   }
@@ -265,12 +293,6 @@ export async function POST(
     );
   }
 
-  if (replace) {
-    await prisma.match.deleteMany({
-      where: { leagueId, seriesId: null },
-    });
-  }
-
   const pairings = generateRoundRobin(teamIds, {
     random,
     seed,
@@ -278,35 +300,128 @@ export async function POST(
     doubleRound,
   });
 
-  const matchIndexByRound = new Map<number, number>();
+  const assignedSlots = new Map<
+    string,
+    ReturnType<typeof getFixedFieldSlotOccurrences>[number]
+  >();
 
-  await prisma.match.createMany({
-    data: pairings.map((pairing) => {
-      const roundMatchIndex = matchIndexByRound.get(pairing.round) ?? 0;
-      matchIndexByRound.set(pairing.round, roundMatchIndex + 1);
+  if (schedulingMode === "fixed_slots") {
+    const rounds = [...new Set(pairings.map((pairing) => pairing.round))];
 
-      let date: Date | undefined;
+    for (const round of rounds) {
+      const week = getRoundSlotWeek(firstSlotWeek.startsAt, round);
+      const roundPairings = pairings
+        .map((pairing, index) => ({ pairing, index }))
+        .filter(({ pairing }) => pairing.round === round);
+      const occurrences = getFixedFieldSlotOccurrences({
+        from: week.startsAt,
+        weeks: 1,
+      }).filter((slot) => slot.startsAt.getTime() < week.endsAt.getTime());
 
-      if (firstKickoff) {
-        date = new Date(firstKickoff);
-        date.setDate(
-          date.getDate() + (pairing.round - 1) * roundIntervalDays
-        );
-        date.setMinutes(
-          date.getMinutes() +
-            Math.floor(roundMatchIndex / pitchCount) * slotMinutes
+      const occupied = await prisma.match.findMany({
+        where: {
+          venueKey: { not: null },
+          date: {
+            gte: week.startsAt,
+            lt: week.endsAt,
+          },
+          ...(existingMatchIds.length
+            ? { id: { notIn: existingMatchIds } }
+            : {}),
+        },
+        select: { venueKey: true, date: true },
+      });
+      const occupiedKeys = new Set(
+        occupied
+          .filter((match) => match.venueKey && match.date)
+          .map((match) => `${match.venueKey}:${match.date!.toISOString()}`)
+      );
+      const available = occurrences.filter(
+        (slot) =>
+          !occupiedKeys.has(`${slot.venueKey}:${slot.startsAt.toISOString()}`)
+      );
+
+      if (available.length < roundPairings.length) {
+        return NextResponse.json(
+          {
+            error: `La settimana della giornata ${round} non ha abbastanza slot liberi (${available.length}/${roundPairings.length})`,
+            round,
+          },
+          { status: 409 }
         );
       }
 
-      return {
+      roundPairings.forEach(({ pairing, index }, slotIndex) => {
+        const pairingKey = `${pairing.round}:${pairing.homeTeamId}:${pairing.awayTeamId}:${index}`;
+        assignedSlots.set(pairingKey, available[slotIndex]);
+      });
+    }
+  }
+
+  const defaultReferee = await prisma.referee.upsert({
+    where: {
+      leagueId_name: {
         leagueId,
-        round: pairing.round,
-        homeTeamId: pairing.homeTeamId,
-        awayTeamId: pairing.awayTeamId,
-        ...(date ? { date } : {}),
-      };
-    }),
+        name: "Sebastiano Marcato",
+      },
+    },
+    update: { active: true },
+    create: {
+      leagueId,
+      name: "Sebastiano Marcato",
+    },
+    select: { id: true },
   });
+
+  const matchData = pairings.map((pairing, index) => {
+    const pairingKey = `${pairing.round}:${pairing.homeTeamId}:${pairing.awayTeamId}:${index}`;
+    const slot = assignedSlots.get(pairingKey);
+    const slotWeek = getRoundSlotWeek(firstSlotWeek.startsAt, pairing.round);
+
+    return {
+      leagueId,
+      round: pairing.round,
+      homeTeamId: pairing.homeTeamId,
+      awayTeamId: pairing.awayTeamId,
+      slotWeekStart: slotWeek.startsAt,
+      refereeId: defaultReferee.id,
+      ...(slot
+        ? {
+            date: slot.startsAt,
+            slotEnd: slot.endsAt,
+            venueKey: slot.venueKey,
+            venueName: slot.venueName,
+            venueAddress: slot.address,
+            bookedAt: new Date(),
+          }
+        : {}),
+    };
+  });
+
+  try {
+    await prisma.$transaction([
+      ...(replace
+        ? [
+            prisma.match.deleteMany({
+              where: { leagueId, seriesId: null },
+            }),
+          ]
+        : []),
+      prisma.match.createMany({ data: matchData }),
+    ]);
+  } catch (error) {
+    if ((error as { code?: string }).code === "P2002") {
+      return NextResponse.json(
+        {
+          error:
+            "Uno degli slot è stato occupato durante la generazione. Riprova per ricalcolare il calendario.",
+        },
+        { status: 409 }
+      );
+    }
+
+    throw error;
+  }
 
   const rounds = pairings.length
     ? Math.max(...pairings.map((pairing) => pairing.round))
@@ -315,6 +430,8 @@ export async function POST(
   return NextResponse.json({
     created: pairings.length,
     rounds,
-    scheduled: Boolean(firstKickoff),
+    scheduled: assignedSlots.size === pairings.length && pairings.length > 0,
+    schedulingMode,
+    programStartsAt: firstSlotWeek.startsAt,
   });
 }

@@ -8,6 +8,7 @@ import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
 import Badge from "src/app/_components/ui/badge";
+import SponsorBanner from "src/app/_components/sponsor-banner";
 import { useIsAdmin, authFetch } from "@/lib/client-auth";
 
 type League = {
@@ -144,6 +145,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <SponsorBanner />
 
         <div className={isAdmin && showCreateLeague ? "desktop-control-grid gap-6" : "space-y-6"}>
           <section className="space-y-5">

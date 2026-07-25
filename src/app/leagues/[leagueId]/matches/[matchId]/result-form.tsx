@@ -1,15 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, CircleDot, ShieldCheck } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  CircleDot,
+  MapPin,
+  ShieldCheck,
+  UsersRound,
+} from "lucide-react";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Badge from "src/app/_components/ui/badge";
+import Select from "src/app/_components/ui/select";
+import SponsorBanner from "src/app/_components/sponsor-banner";
 import { useAuth, authFetch } from "@/lib/client-auth";
 import { FUTPOLI_RULES } from "@/lib/tournament-rules";
+import MatchSlotBooking from "./slot-booking";
 
 type Player = {
   id: string;
@@ -39,10 +49,22 @@ type StatRow = {
   assists: number;
 };
 
+type Referee = {
+  id: string;
+  name: string;
+  active?: boolean;
+};
+
 type Match = {
   id: string;
   round: number;
   date: string | null;
+  slotEnd: string | null;
+  venueKey: string | null;
+  venueName: string | null;
+  venueAddress: string | null;
+  refereeId: string | null;
+  referee: Referee | null;
   homeGoals: number | null;
   awayGoals: number | null;
   homeTeam: Team;
@@ -52,24 +74,35 @@ type Match = {
   leagueId: string;
 };
 
-function TeamCrest({ name, badgeUrl, size = 44 }: { name: string; badgeUrl?: string | null; size?: number }) {
+function TeamCrest({
+  name,
+  badgeUrl,
+  large = false,
+}: {
+  name: string;
+  badgeUrl?: string | null;
+  large?: boolean;
+}) {
   const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  const sizeClasses = large
+    ? "h-[72px] w-[72px] rounded-[20px] sm:h-28 sm:w-28 sm:rounded-[30px]"
+    : "h-11 w-11 rounded-xl";
 
   if (badgeUrl) {
     return (
       <img
         src={badgeUrl}
         alt={`Logo ${name}`}
-        className="shrink-0 object-contain"
-        style={{ width: size, height: size, borderRadius: size * 0.28 }}
+        className={`shrink-0 object-contain ${sizeClasses}`}
       />
     );
   }
 
   return (
     <div
-      className="flex shrink-0 items-center justify-center bg-[var(--card-2)] font-black text-[var(--accent)]"
-      style={{ width: size, height: size, borderRadius: size * 0.28, fontSize: size * 0.34 }}
+      className={`flex shrink-0 items-center justify-center bg-[var(--card-2)] font-black text-[var(--accent)] ${sizeClasses} ${
+        large ? "text-2xl sm:text-4xl" : "text-sm"
+      }`}
     >
       {initials || "?"}
     </div>
@@ -91,11 +124,18 @@ function playerEligibilityLabel(player: Player, admin = false) {
 export default function MatchResultForm({ match }: { match: Match }) {
   const { user, loading: authLoading } = useAuth();
   const isAdmin = user?.role === "ADMIN";
-  const canEdit =
+  const isCaptainOfMatch =
+    user?.role === "CAPTAIN" &&
+    (user.teamId === match.homeTeam?.id || user.teamId === match.awayTeam?.id);
+  const isAssignedReferee =
+    user?.role === "REFEREE" &&
+    Boolean(user.refereeId) &&
+    user.refereeId === match.referee?.id;
+  const canEditResult =
     !authLoading &&
-    (user?.role === "ADMIN" ||
-      (user?.role === "CAPTAIN" &&
-        (user.teamId === match.homeTeam?.id || user.teamId === match.awayTeam?.id)));
+    (isAdmin || isCaptainOfMatch || isAssignedReferee);
+  const canBook =
+    !authLoading && (isAdmin || isCaptainOfMatch);
 
   const router = useRouter();
 
@@ -117,6 +157,35 @@ export default function MatchResultForm({ match }: { match: Match }) {
   const [savingDate, setSavingDate] = useState(false);
   const [dateMsg, setDateMsg] = useState<string | null>(null);
   const [dateErr, setDateErr] = useState<string | null>(null);
+  const [refereeId, setRefereeId] = useState(match.referee?.id ?? "");
+  const [referees, setReferees] = useState<Referee[]>(
+    match.referee ? [match.referee] : []
+  );
+  const [savingOfficials, setSavingOfficials] = useState(false);
+  const [officialsMsg, setOfficialsMsg] = useState<string | null>(null);
+  const [officialsErr, setOfficialsErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    authFetch(`/api/leagues/${match.leagueId}/referees`, {
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => []);
+        if (!response.ok) {
+          throw new Error(data?.error ?? "Errore caricamento arbitri");
+        }
+        setReferees(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => {
+        setOfficialsErr(
+          error instanceof Error
+            ? error.message
+            : "Errore caricamento arbitri"
+        );
+      });
+  }, [isAdmin, match.leagueId]);
 
   const initial = useMemo(() => {
     const m = new Map<string, { goals: number; assists: number }>();
@@ -246,9 +315,40 @@ export default function MatchResultForm({ match }: { match: Match }) {
     }
   }
 
+  async function saveOfficials() {
+    setOfficialsMsg(null);
+    setOfficialsErr(null);
+    setSavingOfficials(true);
+
+    try {
+      const res = await authFetch(`/api/matches/${match.id}/officials`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          refereeId: refereeId || null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Errore salvataggio arbitro");
+
+      setOfficialsMsg("Arbitro aggiornato");
+      router.refresh();
+    } catch (error) {
+      setOfficialsErr(
+        error instanceof Error ? error.message : "Errore salvataggio arbitro"
+      );
+    } finally {
+      setSavingOfficials(false);
+    }
+  }
+
   const played = homeGoals !== "" && awayGoals !== "";
   const hg = Number(homeGoals);
   const ag = Number(awayGoals);
+  const selectedRefereeName =
+    referees.find((referee) => referee.id === refereeId)?.name ??
+    match.referee?.name ??
+    "Da assegnare";
 
   return (
     <DashboardShell leagueId={match.leagueId}>
@@ -282,9 +382,9 @@ export default function MatchResultForm({ match }: { match: Match }) {
               <TeamScoreBlock team={match.homeTeam} faded={played && hg < ag} />
               <div className="flex flex-col items-center gap-3">
                 <div className="flex items-center gap-2 rounded-[28px] border border-white/10 bg-black/30 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                  <ScoreInput value={homeGoals} setValue={setHomeGoals} readOnly={!canEdit} />
+                  <ScoreInput value={homeGoals} setValue={setHomeGoals} readOnly={!canEditResult} />
                   <span className="text-2xl font-black text-[var(--muted)]">:</span>
-                  <ScoreInput value={awayGoals} setValue={setAwayGoals} readOnly={!canEdit} />
+                  <ScoreInput value={awayGoals} setValue={setAwayGoals} readOnly={!canEditResult} />
                 </div>
                 {played && (
                   <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-black text-[var(--accent)]">
@@ -295,14 +395,125 @@ export default function MatchResultForm({ match }: { match: Match }) {
               <TeamScoreBlock team={match.awayTeam} faded={played && ag < hg} />
             </div>
           </div>
+
+          <div className="grid gap-3 border-t border-[var(--border)] bg-black/10 px-5 py-4 text-sm sm:grid-cols-3 sm:px-7">
+            <div className="flex min-w-0 items-start gap-2">
+              <CalendarDays size={16} className="mt-0.5 shrink-0 text-[var(--accent)]" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">Data</p>
+                <p className="mt-0.5 truncate font-bold text-[var(--foreground)]">
+                  {match.date
+                    ? new Date(match.date).toLocaleString("it-IT", {
+                        weekday: "short",
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Da prenotare"}
+                </p>
+              </div>
+            </div>
+            <div className="flex min-w-0 items-start gap-2">
+              <MapPin size={16} className="mt-0.5 shrink-0 text-[var(--accent)]" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">Campo</p>
+                <p className="mt-0.5 break-words font-bold text-[var(--foreground)]">
+                  {match.venueName
+                    ? `${match.venueName}${match.venueAddress ? ` · ${match.venueAddress}` : ""}`
+                    : "Da prenotare"}
+                </p>
+              </div>
+            </div>
+            <div className="flex min-w-0 items-start gap-2">
+              <UsersRound size={16} className="mt-0.5 shrink-0 text-[var(--accent)]" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">Arbitro</p>
+                <p className="mt-0.5 break-words font-bold text-[var(--foreground)]">
+                  {selectedRefereeName}
+                </p>
+              </div>
+            </div>
+          </div>
         </Card>
 
-        {canEdit && (
+        <SponsorBanner compact />
+
+        <MatchSlotBooking
+          leagueId={match.leagueId}
+          matchId={match.id}
+          canBook={canBook}
+          initialBooking={
+            match.date && match.venueKey
+              ? {
+                  startsAt: match.date,
+                  endsAt: match.slotEnd,
+                  venueKey: match.venueKey,
+                  venueName: match.venueName,
+                  address: match.venueAddress,
+                }
+              : null
+          }
+        />
+
+        <Card>
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                Arbitro
+              </p>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Direzione di gara:{" "}
+                <b className="text-[var(--foreground)]">
+                  {selectedRefereeName}
+                </b>
+              </p>
+            </div>
+
+            {isAdmin && (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Select
+                  value={refereeId}
+                  onChange={(event) => setRefereeId(event.target.value)}
+                  className="flex-1"
+                >
+                  <option value="" className="text-black">
+                    Nessun arbitro assegnato
+                  </option>
+                  {referees
+                    .filter(
+                      (referee) =>
+                        referee.active !== false || referee.id === refereeId
+                    )
+                    .map((referee) => (
+                      <option
+                        key={referee.id}
+                        value={referee.id}
+                        className="text-black"
+                      >
+                        {referee.name}
+                      </option>
+                    ))}
+                </Select>
+                <Button
+                  onClick={saveOfficials}
+                  disabled={savingOfficials}
+                >
+                  {savingOfficials ? "Salvataggio…" : "Salva arbitro"}
+                </Button>
+              </div>
+            )}
+            {officialsMsg && <Badge variant="success">{officialsMsg}</Badge>}
+            {officialsErr && <Badge variant="error">{officialsErr}</Badge>}
+          </div>
+        </Card>
+
+        {isAdmin && (
           <Card>
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">Data e ora</p>
-                <p className="mt-1 text-sm text-[var(--muted)]">Programma la gara o rimuovi la data dal calendario.</p>
+                <p className="mt-1 text-sm text-[var(--muted)]">Override amministrativo: imposta una data libera fuori dagli slot standard.</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <input
@@ -320,14 +531,14 @@ export default function MatchResultForm({ match }: { match: Match }) {
           </Card>
         )}
 
-        {!canEdit && !authLoading && <p className="px-1 text-sm text-[var(--muted)]">Sola lettura — accedi come admin o capitano per modificare.</p>}
+        {!canEditResult && !authLoading && <p className="px-1 text-sm text-[var(--muted)]">Sola lettura — possono modificare distinta e risultato l&apos;admin, i capitani coinvolti e l&apos;arbitro assegnato.</p>}
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <TeamStatsCard title={match.homeTeam.name} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEdit} isAdmin={isAdmin} />
-          <TeamStatsCard title={match.awayTeam.name} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEdit} isAdmin={isAdmin} />
+          <TeamStatsCard title={match.homeTeam.name} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
+          <TeamStatsCard title={match.awayTeam.name} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
         </div>
 
-        {canEdit && (
+        {canEditResult && (
           <div className="sticky bottom-20 z-20 flex flex-col gap-3 rounded-[24px] border border-[var(--border)] bg-[var(--tabbar-bg)] px-4 py-3 shadow-[0_20px_70px_rgba(0,0,0,0.38)] backdrop-blur-xl lg:bottom-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap gap-3 text-sm text-[var(--muted)]">
               <span><b className="text-[var(--foreground)]">{totals.goalsSum}</b> gol</span>
@@ -346,7 +557,7 @@ export default function MatchResultForm({ match }: { match: Match }) {
 function TeamScoreBlock({ team, faded }: { team: Team; faded?: boolean }) {
   return (
     <div className={["flex min-w-0 flex-col items-center gap-2 text-center", faded ? "opacity-55" : ""].join(" ")}>
-      <TeamCrest name={team.name} badgeUrl={team.badgeUrl ?? null} size={52} />
+      <TeamCrest name={team.name} badgeUrl={team.badgeUrl ?? null} large />
       <span className="max-w-full truncate text-sm font-black text-[var(--foreground)] sm:text-base">{team.name}</span>
     </div>
   );

@@ -61,13 +61,13 @@ export default async function VideosPage({ params, searchParams }: VideosPagePro
             </div>
 
             <a
-              href={youtubePlaylistConfig.channelUrl}
+              href={youtubePlaylistConfig.url || youtubePlaylistConfig.channelUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[rgba(210,174,114,0.38)] bg-[linear-gradient(135deg,var(--imperial-green-2),var(--imperial-green))] px-4 py-2 text-sm font-black text-[var(--imperial-text)]"
             >
               <Youtube size={17} />
-              Apri canale
+              Apri playlist
               <ExternalLink size={15} />
             </a>
           </div>
@@ -172,8 +172,21 @@ export default async function VideosPage({ params, searchParams }: VideosPagePro
                   </div>
                 </div>
               ) : (
-                <div className="p-5 text-sm leading-relaxed text-[var(--muted)]">
-                  Non riesco ancora a leggere i video della playlist. Controlla che la playlist sia pubblica o non in elenco e che l’ID sia corretto.
+                <div className="space-y-3 p-5 text-sm leading-relaxed text-[var(--muted)]">
+                  <p>
+                    Il player usa direttamente la playlist. L&apos;elenco laterale
+                    non è disponibile finché YouTube non restituisce il feed
+                    pubblico.
+                  </p>
+                  <a
+                    href={youtubePlaylistConfig.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 font-black text-[var(--accent)]"
+                  >
+                    Apri tutti i video su YouTube
+                    <ExternalLink size={14} />
+                  </a>
                 </div>
               )}
             </aside>

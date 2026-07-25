@@ -58,6 +58,51 @@ export async function requireAdminOrCaptainOfMatch(
   return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
 }
 
+export async function requireMatchEditor(
+  matchId: string
+): Promise<NextResponse | null> {
+  const session = await getServerSession();
+  if (!session) {
+    return NextResponse.json(
+      { error: "Devi effettuare il login" },
+      { status: 401 }
+    );
+  }
+  if (session.role === "ADMIN") return null;
+
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: {
+      homeTeamId: true,
+      awayTeamId: true,
+      refereeId: true,
+    },
+  });
+
+  if (!match) {
+    return NextResponse.json(
+      { error: "Partita non trovata" },
+      { status: 404 }
+    );
+  }
+
+  const isCaptain =
+    session.role === "CAPTAIN" &&
+    (session.teamId === match.homeTeamId ||
+      session.teamId === match.awayTeamId);
+  const isAssignedReferee =
+    session.role === "REFEREE" &&
+    Boolean(session.refereeId) &&
+    session.refereeId === match.refereeId;
+
+  if (isCaptain || isAssignedReferee) return null;
+
+  return NextResponse.json(
+    { error: "Puoi modificare soltanto le partite che ti sono assegnate" },
+    { status: 403 }
+  );
+}
+
 export async function requireAdminOrCaptainOfPlayer(
   playerId: string
 ): Promise<NextResponse | null> {

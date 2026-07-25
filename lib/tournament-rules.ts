@@ -1,4 +1,9 @@
 export const FUTPOLI_RULES = {
+  teamCount: 14,
+  matchesPerRound: 7,
+  roundsPerLeg: 13,
+  matchesPerTeamDoubleRound: 26,
+  totalMatchesDoubleRound: 182,
   maxPlayersPerTeam: 14,
   minPlayersInMatchSheet: 8,
   playerFeeCentsPerAppearance: 50,
