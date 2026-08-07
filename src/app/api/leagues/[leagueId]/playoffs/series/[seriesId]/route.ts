@@ -33,7 +33,7 @@ export async function PUT(req: Request, ctx: Ctx) {
   const teamIds = [homeTeamId, awayTeamId].filter(Boolean);
   if (teamIds.length > 0) {
     const teams = await prisma.team.findMany({
-      where: { leagueId, id: { in: teamIds } },
+      where: { leagueId, activeInLeague: true, id: { in: teamIds } },
       select: { id: true },
     });
     if (teams.length !== teamIds.length) {

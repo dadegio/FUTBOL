@@ -18,7 +18,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ leagueId: strin
 
   const players = await prisma.player.findMany({
     where: {
-      team: { leagueId },
+      team: { leagueId, activeInLeague: true },
       ...(qRaw
         ? {
             OR: [
@@ -57,7 +57,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ leagueId: strin
   const sanitized = players.map((player) => sanitizePlayerForRole(player, session));
 
   const filtered = statusFilter
-    ? sanitized.filter((player: any) => {
+    ? sanitized.filter((player) => {
         if (statusFilter === "ok") return player.isEligibleForMatchSheet === true;
         if (statusFilter === "todo") return player.isEligibleForMatchSheet !== true;
         return true;

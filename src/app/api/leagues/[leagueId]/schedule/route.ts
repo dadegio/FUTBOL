@@ -111,6 +111,7 @@ export async function POST(
     const teams = await prisma.team.findMany({
       where: {
         leagueId,
+        activeInLeague: true,
         id: { in: [homeTeamId, awayTeamId] },
       },
       select: { id: true },
@@ -224,7 +225,7 @@ export async function POST(
   const firstSlotWeek = getFirstFullSlotWeek(firstKickoff);
 
   const teams = await prisma.team.findMany({
-    where: { leagueId },
+    where: { leagueId, activeInLeague: true },
     orderBy: [{ createdAt: "asc" }, { name: "asc" }],
     select: { id: true },
   });

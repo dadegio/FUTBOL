@@ -86,6 +86,26 @@ La migration `20260626211500_futpoli_admin_rules` aggiunge:
 - campo `refereeCostCents` sulla partita;
 - tabella `MatchSheetPlayer` per la distinta gara.
 
+## Riutilizzo e rimozione delle squadre
+
+Durante la creazione di un torneo l'admin può cercare e selezionare tutte le
+squadre già registrate, comprese quelle rimosse da un torneo precedente. Nel
+nuovo torneo vengono copiati profilo, stemma, descrizione e rosa completa; lo
+storico delle partite resta invece nel torneo di origine.
+
+Dalla pagina Squadre l'admin può rimuovere una squadra dal torneo:
+
+- una squadra completamente vuota viene eliminata definitivamente;
+- una squadra con profilo, rosa, account o storico viene solo disattivata e
+  resta disponibile per un riutilizzo successivo;
+- gli incontri futuri ancora vuoti vengono rimossi automaticamente;
+- se la squadra è già collegata a un tabellone playoff, occorre prima eliminare
+  o reimpostare i playoff per non compromettere il bracket.
+
+La migration `20260807150000_add_team_tournament_membership` aggiunge il campo
+`Team.activeInLeague`, usato per distinguere le squadre attive da quelle
+conservate nel catalogo.
+
 ## Campi, prenotazioni, arbitri e sponsor
 
 Gli slot settimanali sono definiti in `lib/field-slots.ts`. Gli intervalli

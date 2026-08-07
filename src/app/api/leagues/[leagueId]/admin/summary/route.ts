@@ -13,9 +13,12 @@ export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string 
 
   const [league, teams, players, sheetCount, matches] = await Promise.all([
     prisma.league.findUnique({ where: { id: leagueId }, select: { id: true, name: true } }),
-    prisma.team.findMany({ where: { leagueId }, select: { id: true, name: true } }),
+    prisma.team.findMany({
+      where: { leagueId, activeInLeague: true },
+      select: { id: true, name: true },
+    }),
     prisma.player.findMany({
-      where: { team: { leagueId } },
+      where: { team: { leagueId, activeInLeague: true } },
       select: {
         id: true,
         teamId: true,

@@ -47,7 +47,10 @@ export async function GET(
     prisma.matchPlayerStat.groupBy({
       by: ["playerId"],
       _sum: { goals: true },
-      where: { match: { leagueId } },
+      where: {
+        match: { leagueId },
+        player: { team: { activeInLeague: true } },
+      },
       orderBy: { _sum: { goals: "desc" } },
       take: 10,
     }),
@@ -55,13 +58,16 @@ export async function GET(
     prisma.matchPlayerStat.groupBy({
       by: ["playerId"],
       _sum: { assists: true },
-      where: { match: { leagueId } },
+      where: {
+        match: { leagueId },
+        player: { team: { activeInLeague: true } },
+      },
       orderBy: { _sum: { assists: "desc" } },
       take: 10,
     }),
 
     prisma.player.findMany({
-      where: { team: { leagueId } },
+      where: { team: { leagueId, activeInLeague: true } },
       select: {
         id: true,
         firstName: true,

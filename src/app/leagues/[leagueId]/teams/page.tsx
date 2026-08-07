@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Trash2, X } from "lucide-react";
 import { useParams } from "next/navigation";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
 import Badge from "src/app/_components/ui/badge";
-import { authFetch } from "@/lib/client-auth";
+import { authFetch, useIsAdmin } from "@/lib/client-auth";
 import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 type TeamRow = {
@@ -21,8 +21,19 @@ type TeamRow = {
   _count?: { players: number };
 };
 
+function getApiText(data: unknown, key: "error" | "message", fallback: string) {
+  if (typeof data !== "object" || data === null) return fallback;
+  const value = (data as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 export default function TeamsPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
+  const isAdmin = useIsAdmin();
 
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [name, setName] = useState("");
@@ -32,8 +43,9 @@ export default function TeamsPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateTeam, setShowCreateTeam] = useState(false);
+  const [removingTeamId, setRemovingTeamId] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setErr(null);
     setLoading(true);
 
@@ -46,22 +58,22 @@ export default function TeamsPage() {
 
       if (!res.ok) {
         throw new Error(
-          (data as any)?.error ?? "Errore caricamento squadre"
+          getApiText(data, "error", "Errore caricamento squadre")
         );
       }
 
-      setTeams(data);
-    } catch (e: any) {
-      setErr(e.message);
+      setTeams(Array.isArray(data) ? (data as TeamRow[]) : []);
+    } catch (error: unknown) {
+      setErr(getErrorMessage(error, "Errore caricamento squadre"));
     } finally {
       setLoading(false);
     }
-  }
+  }, [leagueId]);
 
   useEffect(() => {
     if (!leagueId) return;
     load();
-  }, [leagueId]);
+  }, [leagueId, load]);
 
   async function createTeam() {
     setErr(null);
@@ -75,21 +87,20 @@ export default function TeamsPage() {
     }
 
     try {
-
       const res = await authFetch(`/api/leagues/${leagueId}/teams`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: teamName,
-        badgeUrl: badgeUrl.trim() ? badgeUrl.trim() : null,
-        description: description.trim() || null,
-      }),
-    });
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: teamName,
+          badgeUrl: badgeUrl.trim() ? badgeUrl.trim() : null,
+          description: description.trim() || null,
+        }),
+      });
 
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error((data as any)?.error ?? "Errore creazione squadra");
+        throw new Error(getApiText(data, "error", "Errore creazione squadra"));
       }
 
       setName("");
@@ -98,8 +109,38 @@ export default function TeamsPage() {
       setMsg("Squadra creata");
       setShowCreateTeam(false);
       await load();
-    } catch (e: any) {
-      setErr(e.message);
+    } catch (error: unknown) {
+      setErr(getErrorMessage(error, "Errore creazione squadra"));
+    }
+  }
+
+  async function removeTeam(team: TeamRow) {
+    setErr(null);
+    setMsg(null);
+
+    const confirmed = window.confirm(
+      `Rimuovere "${team.name}" dal torneo?\n\n` +
+        "Se la squadra è vuota verrà eliminata definitivamente. Se contiene rosa, profilo o storico, i dati resteranno salvati e riutilizzabili."
+    );
+    if (!confirmed) return;
+
+    try {
+      setRemovingTeamId(team.id);
+      const res = await authFetch(
+        `/api/teams/${team.id}?leagueId=${encodeURIComponent(leagueId)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(getApiText(data, "error", "Errore rimozione squadra"));
+      }
+
+      setMsg(getApiText(data, "message", "Squadra rimossa dal torneo"));
+      await load();
+    } catch (error: unknown) {
+      setErr(getErrorMessage(error, "Errore rimozione squadra"));
+    } finally {
+      setRemovingTeamId(null);
     }
   }
 
@@ -126,25 +167,27 @@ export default function TeamsPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowCreateTeam((value) => !value)}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--accent)] text-white shadow-[0_1px_3px_rgba(0,0,0,0.1)] active:opacity-80"
-              aria-label={
-                showCreateTeam
-                  ? "Nascondi creazione squadra"
-                  : "Crea nuova squadra"
-              }
-            >
-              {showCreateTeam ? <X size={19} /> : <Plus size={19} />}
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowCreateTeam((value) => !value)}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--accent)] text-white shadow-[0_1px_3px_rgba(0,0,0,0.1)] active:opacity-80"
+                aria-label={
+                  showCreateTeam
+                    ? "Nascondi creazione squadra"
+                    : "Crea nuova squadra"
+                }
+              >
+                {showCreateTeam ? <X size={19} /> : <Plus size={19} />}
+              </button>
+            )}
           </div>
         </header>
 
         {msg && <Badge variant="success">{msg}</Badge>}
         {err && <Badge variant="error">{err}</Badge>}
 
-        {showCreateTeam && (
+        {isAdmin && showCreateTeam && (
           <Card className="space-y-4">
             <div>
               <h2 className="text-lg font-black tracking-[-0.04em] text-[var(--foreground)]">
@@ -206,6 +249,9 @@ export default function TeamsPage() {
                 key={team.id}
                 leagueId={leagueId}
                 team={team}
+                isAdmin={isAdmin}
+                removing={removingTeamId === team.id}
+                onRemove={() => removeTeam(team)}
               />
             ))}
           </Card>
@@ -218,31 +264,57 @@ export default function TeamsPage() {
 function TeamListItem({
   leagueId,
   team,
+  isAdmin,
+  removing,
+  onRemove,
 }: {
   leagueId: string;
   team: TeamRow;
+  isAdmin: boolean;
+  removing: boolean;
+  onRemove: () => void;
 }) {
   const playersCount = team.players?.length ?? team._count?.players ?? 0;
 
   return (
-    <Link
-      href={`/leagues/${leagueId}/teams/${team.id}`}
-      className="grid grid-cols-[44px_minmax(0,1fr)_18px] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0 active:bg-black/[0.02]"
+    <div
+      className={[
+        "items-center border-b border-[var(--border)] last:border-b-0",
+        isAdmin ? "grid grid-cols-[minmax(0,1fr)_44px]" : "block",
+      ].join(" ")}
     >
-      <TeamLogo name={team.name} badgeUrl={team.badgeUrl ?? null} />
+      <Link
+        href={`/leagues/${leagueId}/teams/${team.id}`}
+        className="grid grid-cols-[44px_minmax(0,1fr)_18px] items-center gap-3 px-4 py-4 active:bg-black/[0.02]"
+      >
+        <TeamLogo name={team.name} badgeUrl={team.badgeUrl ?? null} />
 
-      <div className="min-w-0">
-        <div className="break-words text-[16px] font-semibold text-[var(--foreground)]">
-          {team.name}
+        <div className="min-w-0">
+          <div className="break-words text-[16px] font-semibold text-[var(--foreground)]">
+            {team.name}
+          </div>
+
+          <div className="mt-0.5 text-sm text-[var(--muted)]">
+            Rosa {playersCount}/{FUTPOLI_RULES.maxPlayersPerTeam}
+          </div>
         </div>
 
-        <div className="mt-0.5 text-sm text-[var(--muted)]">
-          Rosa {playersCount}/{FUTPOLI_RULES.maxPlayersPerTeam}
-        </div>
-      </div>
+        <span className="text-xl text-[var(--muted)]">›</span>
+      </Link>
 
-      <span className="text-xl text-[var(--muted)]">›</span>
-    </Link>
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={removing}
+          className="mr-3 grid h-9 w-9 place-items-center rounded-xl border border-red-400/20 bg-red-500/10 text-red-300 transition hover:bg-red-500/20 disabled:cursor-wait disabled:opacity-50"
+          aria-label={`Rimuovi ${team.name} dal torneo`}
+          title="Rimuovi dal torneo"
+        >
+          {removing ? <span className="text-xs font-black">…</span> : <Trash2 size={16} />}
+        </button>
+      )}
+    </div>
   );
 }
 

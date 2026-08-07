@@ -6,7 +6,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string 
   const { leagueId } = await ctx.params;
 
   const teams = await prisma.team.findMany({
-    where: { leagueId },
+    where: { leagueId, activeInLeague: true },
     orderBy: { name: "asc" },
     include: { players: { orderBy: { number: "asc" } } },
   });
@@ -44,6 +44,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
         name,
         badgeUrl: badgeUrl || undefined,
         description: description || undefined,
+        activeInLeague: true,
         league: { connect: { id: leagueId } },
       },
     });

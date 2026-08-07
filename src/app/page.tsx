@@ -23,22 +23,45 @@ type League = {
   }>;
 };
 
+type ExistingTeam = {
+  id: string;
+  name: string;
+  badgeUrl?: string | null;
+  description?: string | null;
+  activeInLeague: boolean;
+  playersCount: number;
+  league: {
+    id: string;
+    name: string;
+  };
+};
+
 async function getJSON<T>(url: string): Promise<T> {
   const res = await fetch(url, { cache: "no-store" });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as any)?.error ?? "Errore");
+  if (!res.ok) throw new Error(getApiText(data, "error", "Errore"));
   return data as T;
 }
 
-async function postJSON<T>(url: string, body: any): Promise<T> {
+async function postJSON<T>(url: string, body: unknown): Promise<T> {
   const res = await authFetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as any)?.error ?? "Errore");
+  if (!res.ok) throw new Error(getApiText(data, "error", "Errore"));
   return data as T;
+}
+
+function getApiText(data: unknown, key: "error" | "message", fallback: string) {
+  if (typeof data !== "object" || data === null) return fallback;
+  const value = (data as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 export default function HomePage() {
@@ -50,6 +73,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [loadingLeagues, setLoadingLeagues] = useState(true);
   const [showCreateLeague, setShowCreateLeague] = useState(false);
+  const [existingTeams, setExistingTeams] = useState<ExistingTeam[]>([]);
+  const [loadingExistingTeams, setLoadingExistingTeams] = useState(false);
   const [teamIdsToCopy, setTeamIdsToCopy] = useState<string[]>([]);
   const [playoffEnabled, setPlayoffEnabled] = useState(false);
   const [playoffFormat, setPlayoffFormat] = useState<"SINGLE_ELIM" | "TWO_LEG">("SINGLE_ELIM");
@@ -66,8 +91,31 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    load().catch((e: any) => setErr(e.message ?? "Errore caricamento tornei"));
+    load().catch((error: unknown) =>
+      setErr(getErrorMessage(error, "Errore caricamento tornei"))
+    );
   }, []);
+
+  async function loadExistingTeams() {
+    setLoadingExistingTeams(true);
+    try {
+      const res = await authFetch("/api/teams", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(getApiText(data, "error", "Errore caricamento squadre salvate"));
+      }
+      setExistingTeams(Array.isArray(data) ? data : []);
+    } finally {
+      setLoadingExistingTeams(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    loadExistingTeams().catch((error: unknown) =>
+      setErr(getErrorMessage(error, "Errore caricamento squadre salvate"))
+    );
+  }, [isAdmin]);
 
   async function create() {
     setErr(null);
@@ -84,9 +132,9 @@ export default function HomePage() {
       setPlayoffTeamCount(8);
       setPlayoffSeeded(true);
       setShowCreateLeague(false);
-      await load();
-    } catch (e: any) {
-      setErr(e.message ?? "Errore creazione torneo");
+      await Promise.all([load(), loadExistingTeams()]);
+    } catch (error: unknown) {
+      setErr(getErrorMessage(error, "Errore creazione torneo"));
     } finally {
       setLoading(false);
     }
@@ -99,22 +147,12 @@ export default function HomePage() {
     try {
       const res = await authFetch(`/api/leagues/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as any)?.error ?? "Errore eliminazione");
+      if (!res.ok) throw new Error(getApiText(data, "error", "Errore eliminazione"));
       await load();
-    } catch (e: any) {
-      setErr(e.message ?? "Errore eliminazione torneo");
+    } catch (error: unknown) {
+      setErr(getErrorMessage(error, "Errore eliminazione torneo"));
     }
   }
-
-  const existingTeams = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; badgeUrl?: string | null }>();
-    for (const league of leagues) {
-      for (const team of league.teams ?? []) {
-        if (!map.has(team.id)) map.set(team.id, { id: team.id, name: team.name, badgeUrl: team.badgeUrl ?? null });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [leagues]);
 
   const totalTeams = leagues.reduce((sum, league) => sum + (league.teams?.length ?? 0), 0);
 
@@ -190,6 +228,7 @@ export default function HomePage() {
               loading={loading}
               create={create}
               existingTeams={existingTeams}
+              loadingExistingTeams={loadingExistingTeams}
               teamIdsToCopy={teamIdsToCopy}
               setTeamIdsToCopy={setTeamIdsToCopy}
               playoffEnabled={playoffEnabled}
@@ -247,7 +286,8 @@ function CreateLeaguePanel(props: {
   setName: (v: string) => void;
   loading: boolean;
   create: () => void;
-  existingTeams: Array<{ id: string; name: string; badgeUrl?: string | null }>;
+  existingTeams: ExistingTeam[];
+  loadingExistingTeams: boolean;
   teamIdsToCopy: string[];
   setTeamIdsToCopy: Dispatch<SetStateAction<string[]>>;
   playoffEnabled: boolean;
@@ -259,6 +299,38 @@ function CreateLeaguePanel(props: {
   playoffSeeded: boolean;
   setPlayoffSeeded: (v: boolean) => void;
 }) {
+  const [teamSearch, setTeamSearch] = useState("");
+  const normalizedSearch = teamSearch.trim().toLocaleLowerCase("it");
+  const filteredTeams = useMemo(
+    () =>
+      props.existingTeams.filter((team) => {
+        if (!normalizedSearch) return true;
+        return `${team.name} ${team.league.name}`
+          .toLocaleLowerCase("it")
+          .includes(normalizedSearch);
+      }),
+    [normalizedSearch, props.existingTeams]
+  );
+
+  function toggleExistingTeam(team: ExistingTeam) {
+    const checked = props.teamIdsToCopy.includes(team.id);
+    props.setTeamIdsToCopy((previous) => {
+      if (checked) return previous.filter((id) => id !== team.id);
+
+      const sameNameIds = new Set(
+        props.existingTeams
+          .filter(
+            (candidate) =>
+              candidate.name.trim().toLocaleLowerCase("it") ===
+              team.name.trim().toLocaleLowerCase("it")
+          )
+          .map((candidate) => candidate.id)
+      );
+
+      return [...previous.filter((id) => !sameNameIds.has(id)), team.id];
+    });
+  }
+
   return (
     <Card>
       <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]"><Plus size={20} /></div><div><p className="text-xs font-black uppercase tracking-widest text-[var(--accent)]">Creazione</p><h2 className="text-xl font-black">Nuovo torneo</h2></div></div>
@@ -266,7 +338,82 @@ function CreateLeaguePanel(props: {
         <Input value={props.name} onChange={(e) => props.setName(e.target.value)} placeholder="Nome torneo" />
         <label className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card-2)] p-4"><input type="checkbox" checked={props.playoffEnabled} onChange={(e) => props.setPlayoffEnabled(e.target.checked)} className="mt-1" /><span><span className="block text-sm font-black">Prevedi fase playoff</span><span className="mt-1 block text-xs text-[var(--muted)]">La voce Playoff comparirà solo se questa opzione è attiva.</span></span></label>
         {props.playoffEnabled && <div className="grid gap-3 sm:grid-cols-2"><select value={props.playoffFormat} onChange={(e) => props.setPlayoffFormat(e.target.value as "SINGLE_ELIM" | "TWO_LEG")} className="h-11 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-3 text-sm"><option value="SINGLE_ELIM" className="text-black">Eliminazione diretta</option><option value="TWO_LEG" className="text-black">Andata e ritorno</option></select><select value={props.playoffTeamCount} onChange={(e) => props.setPlayoffTeamCount(Number(e.target.value))} className="h-11 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-3 text-sm">{[2,4,8,16].map((n) => <option key={n} value={n} className="text-black">Top {n}</option>)}</select><label className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-3 py-2 text-sm font-semibold"><input type="checkbox" checked={props.playoffSeeded} onChange={(e) => props.setPlayoffSeeded(e.target.checked)} /> Seeding</label></div>}
-        {props.existingTeams.length > 0 && <div><p className="mb-2 text-xs font-black uppercase tracking-wider text-[var(--muted)]">Copia squadre</p><div className="grid gap-2">{props.existingTeams.slice(0, 8).map((team) => { const checked = props.teamIdsToCopy.includes(team.id); return <button key={team.id} type="button" onClick={() => props.setTeamIdsToCopy((prev) => checked ? prev.filter((id) => id !== team.id) : [...prev, team.id])} className={["flex items-center gap-3 rounded-2xl border px-3 py-3 text-left", checked ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--border)] bg-[var(--card-2)]"].join(" ")}><CopyPlus size={15} /><span className="truncate text-sm font-semibold">{team.name}</span></button>; })}</div></div>}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-[var(--muted)]">
+                Squadre già registrate
+              </p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Copia nel nuovo torneo profilo, stemma e rosa già salvati.
+              </p>
+            </div>
+            {props.teamIdsToCopy.length > 0 && (
+              <button
+                type="button"
+                onClick={() => props.setTeamIdsToCopy([])}
+                className="shrink-0 text-xs font-black text-[var(--accent)]"
+              >
+                Azzera ({props.teamIdsToCopy.length})
+              </button>
+            )}
+          </div>
+
+          <Input
+            value={teamSearch}
+            onChange={(event) => setTeamSearch(event.target.value)}
+            placeholder="Cerca squadra o torneo di origine"
+          />
+
+          {props.loadingExistingTeams ? (
+            <p className="py-3 text-sm text-[var(--muted)]">Caricamento squadre salvate…</p>
+          ) : filteredTeams.length === 0 ? (
+            <p className="rounded-2xl border border-[var(--border)] bg-[var(--card-2)] px-4 py-3 text-sm text-[var(--muted)]">
+              {props.existingTeams.length === 0
+                ? "Non ci sono ancora squadre registrate."
+                : "Nessuna squadra corrisponde alla ricerca."}
+            </p>
+          ) : (
+            <div className="grid max-h-80 gap-2 overflow-y-auto pr-1">
+              {filteredTeams.map((team) => {
+                const checked = props.teamIdsToCopy.includes(team.id);
+                return (
+                  <button
+                    key={team.id}
+                    type="button"
+                    onClick={() => toggleExistingTeam(team)}
+                    className={[
+                      "flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition",
+                      checked
+                        ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+                        : "border-[var(--border)] bg-[var(--card-2)] hover:border-[var(--accent)]/50",
+                    ].join(" ")}
+                  >
+                    <CopyPlus size={16} className="shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{team.name}</span>
+                      <span className="mt-0.5 block truncate text-xs text-[var(--muted)]">
+                        {team.league.name} · {team.playersCount} giocatori
+                        {!team.activeInLeague ? " · rimossa dal torneo" : ""}
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className={[
+                        "grid h-5 w-5 shrink-0 place-items-center rounded-md border text-xs font-black",
+                        checked
+                          ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                          : "border-[var(--border)]",
+                      ].join(" ")}
+                    >
+                      {checked ? "✓" : ""}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
         <Button onClick={props.create} disabled={props.loading} className="w-full">{props.loading ? "Creazione…" : "Crea torneo"}</Button>
       </div>
     </Card>

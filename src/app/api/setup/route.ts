@@ -25,6 +25,7 @@ export async function POST() {
   }
 
   const teams = await prisma.team.findMany({
+    where: { activeInLeague: true },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

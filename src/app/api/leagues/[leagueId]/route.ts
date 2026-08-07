@@ -85,7 +85,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leagueId: str
         return NextResponse.json({ error: "Numero squadre playoff non valido" }, { status: 400 });
       }
 
-      const teamsInLeague = await prisma.team.count({ where: { leagueId } });
+      const teamsInLeague = await prisma.team.count({
+        where: { leagueId, activeInLeague: true },
+      });
       if (teamsInLeague < teamCount) {
         return NextResponse.json(
           { error: `Servono almeno ${teamCount} squadre per questo playoff, ora ce ne sono ${teamsInLeague}.` },

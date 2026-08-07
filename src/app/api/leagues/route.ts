@@ -10,6 +10,7 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     include: {
       teams: {
+        where: { activeInLeague: true },
         orderBy: { name: "asc" },
         select: {
           id: true,
@@ -57,9 +58,41 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Numero squadre playoff non valido" }, { status: 400 });
   }
 
-  const teamIdsToCopy = Array.isArray(body?.teamIdsToCopy)
-    ? body.teamIdsToCopy.map((id: unknown) => String(id)).filter(Boolean)
+  const teamIdsToCopy: string[] = Array.isArray(body?.teamIdsToCopy)
+    ? Array.from(
+        new Set<string>(
+          body.teamIdsToCopy
+            .map((id: unknown) => String(id).trim())
+            .filter((id: string) => id.length > 0)
+        )
+      )
     : [];
+
+  const sourceTeams = teamIdsToCopy.length
+    ? await prisma.team.findMany({
+        where: { id: { in: teamIdsToCopy } },
+        include: {
+          players: {
+            orderBy: { number: "asc" },
+          },
+        },
+      })
+    : [];
+
+  if (sourceTeams.length !== teamIdsToCopy.length) {
+    return NextResponse.json(
+      { error: "Una o più squadre selezionate non sono più disponibili" },
+      { status: 400 }
+    );
+  }
+
+  const normalizedNames = sourceTeams.map((team) => team.name.trim().toLocaleLowerCase("it"));
+  if (new Set(normalizedNames).size !== normalizedNames.length) {
+    return NextResponse.json(
+      { error: "Seleziona una sola versione per ogni squadra con lo stesso nome" },
+      { status: 400 }
+    );
+  }
 
   const league = await prisma.$transaction(async (tx) => {
     const createdLeague = await tx.league.create({
@@ -75,21 +108,13 @@ export async function POST(req: Request) {
       },
     });
 
-    if (teamIdsToCopy.length > 0) {
-      const sourceTeams = await tx.team.findMany({
-        where: { id: { in: teamIdsToCopy } },
-        include: {
-          players: {
-            orderBy: { number: "asc" },
-          },
-        },
-      });
-
+    if (sourceTeams.length > 0) {
       for (const sourceTeam of sourceTeams) {
         const copiedTeam = await tx.team.create({
           data: {
             name: sourceTeam.name,
             badgeUrl: sourceTeam.badgeUrl,
+            description: sourceTeam.description,
             leagueId: createdLeague.id,
           },
         });
@@ -102,6 +127,18 @@ export async function POST(req: Request) {
               number: player.number,
               position: player.position,
               photoUrl: player.photoUrl,
+              fiscalCode: player.fiscalCode,
+              birthDate: player.birthDate,
+              documentSigned: player.documentSigned,
+              signedAt: player.signedAt,
+              privacyConsent: player.privacyConsent,
+              internalPhotoConsent: player.internalPhotoConsent,
+              publicPhotoConsent: player.publicPhotoConsent,
+              mediaConsent: player.mediaConsent,
+              healthDeclaration: player.healthDeclaration,
+              wildcardUsed: player.wildcardUsed,
+              status: player.status,
+              statusNote: player.statusNote,
               teamId: copiedTeam.id,
             })),
           });

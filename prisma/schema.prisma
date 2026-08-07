@@ -57,11 +57,12 @@ model League {
 }
 
 model Team {
-  id          String   @id @default(cuid())
-  name        String
-  badgeUrl    String?
-  description String?
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  name           String
+  badgeUrl       String?
+  description    String?
+  activeInLeague Boolean  @default(true)
+  createdAt      DateTime @default(now())
 
   leagueId String
   league   League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
@@ -78,6 +79,7 @@ model Team {
   captain User? @relation("TeamCaptain")
 
   @@unique([leagueId, name])
+  @@index([leagueId, activeInLeague])
 }
 
 model Player {
@@ -115,11 +117,11 @@ model Player {
 }
 
 model Match {
-  id       String    @id @default(cuid())
-  leagueId String
-  round    Int
-  date     DateTime?
-  slotEnd  DateTime?
+  id            String    @id @default(cuid())
+  leagueId      String
+  round         Int
+  date          DateTime?
+  slotEnd       DateTime?
   slotWeekStart DateTime?
 
   venueKey       String?
@@ -137,7 +139,7 @@ model Match {
   seriesId String?
   leg      Int?
 
-  refereeCostCents Int @default(2000)
+  refereeCostCents Int     @default(2000)
   refereeId        String?
 
   createdAt DateTime @default(now())
@@ -170,9 +172,9 @@ model Referee {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  league  League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  league  League  @relation(fields: [leagueId], references: [id], onDelete: Cascade)
   matches Match[]
-  account User?  @relation("RefereeAccount")
+  account User?   @relation("RefereeAccount")
 
   @@unique([leagueId, name])
   @@index([leagueId, active])

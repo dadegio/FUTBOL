@@ -94,7 +94,9 @@ export async function POST(req: Request, ctx: Ctx) {
   }
 
   // Check there are enough teams
-  const teamsInLeague = await prisma.team.count({ where: { leagueId } });
+  const teamsInLeague = await prisma.team.count({
+    where: { leagueId, activeInLeague: true },
+  });
   if (teamsInLeague < teamCount) {
     return NextResponse.json(
       { error: `Servono almeno ${teamCount} squadre, ne hai ${teamsInLeague}` },
@@ -109,7 +111,7 @@ export async function POST(req: Request, ctx: Ctx) {
   } else if (Array.isArray(body?.manualTeamIds) && body.manualTeamIds.length === teamCount) {
     // Validate all IDs belong to this league
     const validTeams = await prisma.team.findMany({
-      where: { leagueId, id: { in: body.manualTeamIds } },
+      where: { leagueId, activeInLeague: true, id: { in: body.manualTeamIds } },
       select: { id: true },
     });
     const validIds = new Set(validTeams.map((t: { id: string }) => t.id));
@@ -240,7 +242,7 @@ export async function DELETE(_: Request, ctx: Ctx) {
 
 async function getStandingsTeamIds(leagueId: string, limit: number): Promise<string[]> {
   const teams = await prisma.team.findMany({
-    where: { leagueId },
+    where: { leagueId, activeInLeague: true },
     select: { id: true, name: true },
   });
 
