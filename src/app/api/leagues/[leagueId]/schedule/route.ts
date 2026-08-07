@@ -3,12 +3,33 @@ import { prisma } from "@/lib/prisma";
 import { generateRoundRobin } from "@/lib/scheduler";
 import { requireAdmin } from "@/lib/server-auth";
 import {
+  DEFAULT_REFEREE_NAME,
+  OFFICIAL_REFEREE_NAMES,
+} from "@/lib/referees";
+import {
   getFirstFullSlotWeek,
   getFixedFieldSlotOccurrences,
   getRoundSlotWeek,
   getSlotWeekWindow,
 } from "@/lib/field-slots";
-import { FUTPOLI_RULES } from "@/lib/tournament-rules";
+
+async function ensureOfficialReferees(leagueId: string) {
+  return prisma.$transaction(
+    OFFICIAL_REFEREE_NAMES.map((name) =>
+      prisma.referee.upsert({
+        where: {
+          leagueId_name: {
+            leagueId,
+            name,
+          },
+        },
+        update: { active: true },
+        create: { leagueId, name },
+        select: { id: true, name: true },
+      })
+    )
+  );
+}
 
 export async function GET(
   req: Request,
@@ -133,20 +154,10 @@ export async function POST(
       );
     }
 
-    const defaultReferee = await prisma.referee.upsert({
-      where: {
-        leagueId_name: {
-          leagueId,
-          name: "Sebastiano Marcato",
-        },
-      },
-      update: { active: true },
-      create: {
-        leagueId,
-        name: "Sebastiano Marcato",
-      },
-      select: { id: true },
-    });
+    const referees = await ensureOfficialReferees(leagueId);
+    const defaultReferee =
+      referees.find((referee) => referee.name === DEFAULT_REFEREE_NAME) ??
+      referees[0];
 
     try {
       const match = await prisma.match.create({
@@ -232,10 +243,10 @@ export async function POST(
 
   const teamIds = teams.map((team) => team.id);
 
-  if (teamIds.length !== FUTPOLI_RULES.teamCount) {
+  if (teamIds.length < 2) {
     return NextResponse.json(
       {
-        error: `Il torneo richiede esattamente ${FUTPOLI_RULES.teamCount} squadre. Al momento ne risultano ${teamIds.length}.`,
+        error: `Servono almeno 2 squadre attive per generare il calendario. Al momento ne risultano ${teamIds.length}.`,
       },
       { status: 400 }
     );
@@ -359,20 +370,7 @@ export async function POST(
     }
   }
 
-  const defaultReferee = await prisma.referee.upsert({
-    where: {
-      leagueId_name: {
-        leagueId,
-        name: "Sebastiano Marcato",
-      },
-    },
-    update: { active: true },
-    create: {
-      leagueId,
-      name: "Sebastiano Marcato",
-    },
-    select: { id: true },
-  });
+  const referees = await ensureOfficialReferees(leagueId);
 
   const matchData = pairings.map((pairing, index) => {
     const pairingKey = `${pairing.round}:${pairing.homeTeamId}:${pairing.awayTeamId}:${index}`;
@@ -385,7 +383,7 @@ export async function POST(
       homeTeamId: pairing.homeTeamId,
       awayTeamId: pairing.awayTeamId,
       slotWeekStart: slotWeek.startsAt,
-      refereeId: defaultReferee.id,
+      refereeId: referees[index % referees.length].id,
       ...(slot
         ? {
             date: slot.startsAt,

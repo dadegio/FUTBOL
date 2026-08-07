@@ -5,8 +5,8 @@ Applicazione Next.js per la gestione del torneo amatoriale FUTPOLI: leghe, squad
 ## Regole FUTPOLI recepite nel codice
 
 - Formula campionato: girone unico con andata e ritorno.
-- Con 14 squadre vengono generate 26 giornate, 7 partite per giornata e 182
-  partite totali. Ogni squadra disputa 13 partite di andata e 13 di ritorno.
+- Il numero di squadre non è prefissato: il calendario viene calcolato usando
+  tutte le squadre attive presenti nel torneo e gestisce anche i numeri dispari.
 - Rosa massima: 14 giocatori per squadra.
 - Distinta gara obbligatoria: ogni squadra deve avere almeno 8 giocatori autorizzati.
 - Un giocatore è utilizzabile in distinta solo se risulta autorizzato e con documentazione minima completa.
@@ -117,6 +117,10 @@ La generazione del calendario offre due modalità:
 - solo accoppiamenti, con prenotazione successiva da parte dei capitani;
 - assegnazione automatica dei campi fissi a partire da data e ora selezionate.
 
+Il calendario usa tutte le squadre attive presenti nel torneo, senza richiedere
+un numero prefissato. Sono necessarie almeno due squadre; con un numero dispari
+lo scheduler inserisce automaticamente il turno di riposo.
+
 La data di inizio è modificabile in entrambe le modalità. Ogni giornata viene
 collegata a una specifica settimana e, dalla pagina di una partita, sono
 mostrati esclusivamente i sette slot di quella settimana. Admin e capitani
@@ -124,8 +128,9 @@ delle due squadre possono prenotare o cambiare uno slot; il server rifiuta sia
 gli slot di settimane diverse sia le doppie prenotazioni.
 
 Ogni partita ha un solo arbitro, selezionato dall'elenco gestito nella pagina
-admin del torneo. Sebastiano Marcato viene aggiunto automaticamente come primo
-nominativo. L'admin può aggiungere o disattivare arbitri e generare credenziali
+admin del torneo. Sebastiano Marcato, Yuri Caridi e Mohamed El Orche vengono
+aggiunti automaticamente e distribuiti a rotazione quando si genera il
+calendario. L'admin può aggiungere o disattivare arbitri e generare credenziali
 temporanee casuali. Il ruolo `REFEREE` può modificare risultato, distinta, gol
 e assist soltanto per le partite che gli sono state assegnate; non può gestire
 calendario, campi, utenti o impostazioni.

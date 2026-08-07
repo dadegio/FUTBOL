@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/server-auth";
+import { OFFICIAL_REFEREE_NAMES } from "@/lib/referees";
 
 const PLAYOFF_FORMATS = new Set(["SINGLE_ELIM", "TWO_LEG"]);
 const PLAYOFF_COUNTS = new Set([2, 4, 8, 16]);
@@ -106,6 +107,13 @@ export async function POST(req: Request) {
             }
           : {}),
       },
+    });
+
+    await tx.referee.createMany({
+      data: OFFICIAL_REFEREE_NAMES.map((refereeName) => ({
+        leagueId: createdLeague.id,
+        name: refereeName,
+      })),
     });
 
     if (sourceTeams.length > 0) {

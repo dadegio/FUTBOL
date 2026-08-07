@@ -19,7 +19,6 @@ import Input from "src/app/_components/ui/input";
 import Select from "src/app/_components/ui/select";
 import SponsorBanner from "src/app/_components/sponsor-banner";
 import { authFetch, useAuth } from "@/lib/client-auth";
-import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 type Team = {
   id: string;
@@ -171,6 +170,7 @@ export default function CalendarPage() {
   const isAdmin = user?.role === "ADMIN";
 
   const [matches, setMatches] = useState<Match[]>([]);
+  const [teamCount, setTeamCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -200,8 +200,12 @@ export default function CalendarPage() {
     setLoading(true);
 
     try {
-      const data = await getJSON<Match[]>(`/api/leagues/${leagueId}/schedule`);
-      setMatches(data);
+      const [matchData, teamData] = await Promise.all([
+        getJSON<Match[]>(`/api/leagues/${leagueId}/schedule`),
+        getJSON<Team[]>(`/api/leagues/${leagueId}/teams`),
+      ]);
+      setMatches(matchData);
+      setTeamCount(teamData.length);
     } catch (error: any) {
       setErr(error.message ?? "Errore caricamento calendario");
     } finally {
@@ -218,6 +222,10 @@ export default function CalendarPage() {
       [...new Set(matches.map((match) => match.round))].sort((a, b) => a - b),
     [matches]
   );
+
+  const matchesPerRound = Math.floor(teamCount / 2);
+  const roundsPerLeg =
+    teamCount < 2 ? 0 : teamCount % 2 === 0 ? teamCount - 1 : teamCount;
 
   const currentRound = useMemo(() => {
     if (rounds.length === 0) return null;
@@ -414,25 +422,42 @@ export default function CalendarPage() {
                   </h2>
                 </div>
                 <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
-                  Crea il calendario per {FUTPOLI_RULES.teamCount} squadre:
-                  {" "}{FUTPOLI_RULES.matchesPerRound} partite per giornata e
-                  {" "}{FUTPOLI_RULES.roundsPerLeg} giornate per girone. La
-                  rigenerazione è bloccata se esistono risultati, statistiche o
-                  distinte già compilate.
+                  {teamCount >= 2 ? (
+                    <>
+                      Il calendario userà tutte le {teamCount} squadre attive
+                      del torneo: {matchesPerRound}{" "}
+                      {matchesPerRound === 1 ? "partita" : "partite"} per
+                      giornata e {roundsPerLeg}{" "}
+                      {roundsPerLeg === 1 ? "giornata" : "giornate"} per
+                      girone
+                      {teamCount % 2 === 1
+                        ? ", con una squadra a riposo in ogni giornata"
+                        : ""}
+                      .
+                    </>
+                  ) : (
+                    <>Aggiungi almeno due squadre attive per creare il calendario.</>
+                  )}{" "}
+                  La rigenerazione è bloccata se esistono risultati,
+                  statistiche o distinte già compilate.
                 </p>
               </div>
 
               <div className="flex shrink-0 flex-wrap gap-2">
                 <Button
                   onClick={() => generateCalendar(false)}
-                  disabled={generating || loading || matches.length > 0}
+                  disabled={
+                    generating || loading || teamCount < 2 || matches.length > 0
+                  }
                 >
                   {generating ? "Genero…" : "Genera calendario"}
                 </Button>
                 <Button
                   variant="secondary"
                   onClick={() => generateCalendar(true)}
-                  disabled={generating || loading || matches.length === 0}
+                  disabled={
+                    generating || loading || teamCount < 2 || matches.length === 0
+                  }
                 >
                   <RefreshCw size={15} />
                   Rigenera
