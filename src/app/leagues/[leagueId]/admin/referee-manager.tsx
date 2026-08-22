@@ -25,7 +25,8 @@ type GeneratedCredentials = {
 
 export default function RefereeManager({ leagueId }: { leagueId: string }) {
   const [referees, setReferees] = useState<RefereeRow[]>([]);
-  const [newName, setNewName] = useState("");
+  const [newFirstName, setNewFirstName] = useState("");
+  const [newLastName, setNewLastName] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -60,7 +61,7 @@ export default function RefereeManager({ leagueId }: { leagueId: string }) {
   }, [load]);
 
   async function addReferee() {
-    if (!newName.trim()) return;
+    if (!newFirstName.trim() || !newLastName.trim()) return;
     setSaving(true);
     setErr(null);
 
@@ -70,14 +71,18 @@ export default function RefereeManager({ leagueId }: { leagueId: string }) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newName }),
+          body: JSON.stringify({
+            firstName: newFirstName,
+            lastName: newLastName,
+          }),
         }
       );
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.error ?? "Errore aggiunta arbitro");
       }
-      setNewName("");
+      setNewFirstName("");
+      setNewLastName("");
       await load();
     } catch (error) {
       setErr(
@@ -167,16 +172,20 @@ export default function RefereeManager({ leagueId }: { leagueId: string }) {
         </p>
       </div>
 
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+      <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
         <Input
-          value={newName}
-          onChange={(event) => setNewName(event.target.value)}
-          placeholder="Nome e cognome arbitro"
-          className="flex-1"
+          value={newFirstName}
+          onChange={(event) => setNewFirstName(event.target.value)}
+          placeholder="Nome"
+        />
+        <Input
+          value={newLastName}
+          onChange={(event) => setNewLastName(event.target.value)}
+          placeholder="Cognome"
         />
         <Button
           onClick={addReferee}
-          disabled={saving || newName.trim().length < 3}
+          disabled={saving || !newFirstName.trim() || !newLastName.trim()}
         >
           Aggiungi arbitro
         </Button>

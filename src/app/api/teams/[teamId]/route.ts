@@ -64,9 +64,18 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ teamId: strin
     body?.badgeUrl === undefined ? undefined : body.badgeUrl === null ? null : String(body.badgeUrl).trim() || null;
   const description =
     body?.description === undefined ? undefined : body.description === null ? null : String(body.description).trim() || null;
+  const colorHexRaw =
+    body?.colorHex === undefined ? undefined : body.colorHex === null ? null : String(body.colorHex).trim();
+  const colorHex = colorHexRaw === undefined || colorHexRaw === null
+    ? colorHexRaw
+    : colorHexRaw.toUpperCase();
 
   if (name !== undefined && !name) {
     return NextResponse.json({ error: "Nome squadra non valido" }, { status: 400 });
+  }
+
+  if (colorHex !== undefined && colorHex !== null && !/^#[0-9A-F]{6}$/.test(colorHex)) {
+    return NextResponse.json({ error: "Colore squadra non valido" }, { status: 400 });
   }
 
   // verifica esistenza
@@ -90,6 +99,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ teamId: strin
       ...(name !== undefined ? { name } : {}),
       ...(badgeUrl !== undefined ? { badgeUrl } : {}),
       ...(description !== undefined ? { description } : {}),
+      ...(colorHex !== undefined ? { colorHex } : {}),
     },
     include: {
       league: { select: { id: true, name: true } },
@@ -116,6 +126,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ teamId: stri
       activeInLeague: true,
       badgeUrl: true,
       description: true,
+      colorHex: true,
       captain: { select: { id: true } },
       _count: {
         select: {
@@ -181,6 +192,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ teamId: stri
   const hasStoredTeamData = Boolean(
     team.badgeUrl ||
       team.description ||
+      team.colorHex ||
       team.captain ||
       team._count.players > 0 ||
       team._count.sheetPlayers > 0 ||

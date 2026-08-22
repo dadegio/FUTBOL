@@ -54,6 +54,7 @@ model League {
   matches       Match[]
   playoffSeries PlayoffSeries[]
   referees      Referee[]
+  fields        Field[]
 }
 
 model Team {
@@ -61,6 +62,7 @@ model Team {
   name           String
   badgeUrl       String?
   description    String?
+  colorHex       String?
   activeInLeague Boolean  @default(true)
   createdAt      DateTime @default(now())
 
@@ -162,6 +164,23 @@ model Match {
   @@index([bookedByUserId])
   @@index([refereeId])
   @@index([seriesId])
+}
+
+
+model Field {
+  id        String   @id @default(cuid())
+  leagueId  String
+  name      String
+  address   String
+  slotKeys  Json?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@unique([leagueId, name])
+  @@index([leagueId, active])
 }
 
 model Referee {

@@ -24,9 +24,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
   const name = String(body?.name ?? "").trim();
   const badgeUrl = body?.badgeUrl ? String(body.badgeUrl).trim() : null;
   const description = body?.description ? String(body.description).trim() : null;
+  const colorHex = body?.colorHex ? String(body.colorHex).trim().toUpperCase() : null;
 
   if (!name) {
     return NextResponse.json({ error: "Nome squadra mancante" }, { status: 400 });
+  }
+
+  if (colorHex && !/^#[0-9A-F]{6}$/.test(colorHex)) {
+    return NextResponse.json({ error: "Colore squadra non valido" }, { status: 400 });
   }
 
   const league = await prisma.league.findUnique({
@@ -44,6 +49,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
         name,
         badgeUrl: badgeUrl || undefined,
         description: description || undefined,
+        colorHex: colorHex || undefined,
         activeInLeague: true,
         league: { connect: { id: leagueId } },
       },

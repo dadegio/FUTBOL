@@ -1,0 +1,1383 @@
+diff --git a/lib/field-slots.ts b/lib/field-slots.ts
+index c3630ac..101915e 100644
+--- a/lib/field-slots.ts
++++ b/lib/field-slots.ts
+@@ -1,10 +1,14 @@
+ const ROME_TIME_ZONE = "Europe/Rome";
+ 
++export type FieldDefinition = {
++  id: string;
++  name: string;
++  address: string;
++  slotKeys?: unknown;
++};
++
+ export type FixedFieldSlotDefinition = {
+   key: string;
+-  venueKey: string;
+-  venueName: string;
+-  address: string;
+   weekday: number;
+   hour: number;
+   minute: number;
+@@ -12,6 +16,9 @@ export type FixedFieldSlotDefinition = {
+ };
+ 
+ export type FixedFieldSlotOccurrence = FixedFieldSlotDefinition & {
++  venueKey: string;
++  venueName: string;
++  address: string;
+   startsAt: Date;
+   endsAt: Date;
+ };
+@@ -22,75 +29,33 @@ export type SlotWeekWindow = {
+ };
+ 
+ /**
+- * Gli intervalli 20–22 sono modellati come due partite da un'ora,
+- * con calcio d'inizio alle 20:00 e alle 21:00.
++ * Orari standard del torneo. I campi non sono più definiti qui:
++ * vengono caricati dal database e combinati con questi orari.
+  */
+ export const FIXED_FIELD_SLOTS: FixedFieldSlotDefinition[] = [
+   {
+-    key: "anastasio-tue-21",
+-    venueKey: "anastasio-germonio",
+-    venueName: "Campo Anastasio Germonio",
+-    address: "Via Anastasio Germonio 6",
++    key: "tue-21",
+     weekday: 2,
+     hour: 21,
+     minute: 0,
+     durationMinutes: 60,
+   },
+   {
+-    key: "anastasio-wed-20",
+-    venueKey: "anastasio-germonio",
+-    venueName: "Campo Anastasio Germonio",
+-    address: "Via Anastasio Germonio 6",
+-    weekday: 3,
+-    hour: 20,
+-    minute: 0,
+-    durationMinutes: 60,
+-  },
+-  {
+-    key: "anastasio-wed-21",
+-    venueKey: "anastasio-germonio",
+-    venueName: "Campo Anastasio Germonio",
+-    address: "Via Anastasio Germonio 6",
+-    weekday: 3,
+-    hour: 21,
+-    minute: 0,
+-    durationMinutes: 60,
+-  },
+-  {
+-    key: "sant-ignazio-wed-20",
+-    venueKey: "sant-ignazio",
+-    venueName: "Campo Sant'Ignazio",
+-    address: "Sant'Ignazio",
++    key: "wed-20",
+     weekday: 3,
+     hour: 20,
+     minute: 0,
+     durationMinutes: 60,
+   },
+   {
+-    key: "sant-ignazio-wed-21",
+-    venueKey: "sant-ignazio",
+-    venueName: "Campo Sant'Ignazio",
+-    address: "Sant'Ignazio",
++    key: "wed-21",
+     weekday: 3,
+     hour: 21,
+     minute: 0,
+     durationMinutes: 60,
+   },
+   {
+-    key: "circolo-stampa-wed-21",
+-    venueKey: "circolo-della-stampa",
+-    venueName: "Circolo della Stampa",
+-    address: "Circolo della Stampa",
+-    weekday: 3,
+-    hour: 21,
+-    minute: 0,
+-    durationMinutes: 60,
+-  },
+-  {
+-    key: "circolo-stampa-thu-21",
+-    venueKey: "circolo-della-stampa",
+-    venueName: "Circolo della Stampa",
+-    address: "Circolo della Stampa",
++    key: "thu-21",
+     weekday: 4,
+     hour: 21,
+     minute: 0,
+@@ -207,26 +172,52 @@ export function getSlotWeekWindow(anchor: Date): SlotWeekWindow {
+   );
+ 
+   return {
+-    startsAt: zonedDateTimeToUtc(
+-      monday.year,
+-      monday.month,
+-      monday.day,
+-      0,
+-      0
+-    ),
+-    endsAt: zonedDateTimeToUtc(
+-      nextMonday.year,
+-      nextMonday.month,
+-      nextMonday.day,
+-      0,
+-      0
+-    ),
++    startsAt: zonedDateTimeToUtc(monday.year, monday.month, monday.day, 0, 0),
++    endsAt: zonedDateTimeToUtc(nextMonday.year, nextMonday.month, nextMonday.day, 0, 0),
+   };
+ }
+ 
++function getKickoffOccurrences({
++  from,
++  weeks,
++}: {
++  from: Date;
++  weeks: number;
++}) {
++  const safeWeeks = Math.min(Math.max(Math.trunc(weeks), 1), 60);
++  const firstDay = getRomeParts(from);
++  const occurrences: Array<FixedFieldSlotDefinition & { startsAt: Date; endsAt: Date }> = [];
++
++  for (let offset = 0; offset <= safeWeeks * 7; offset += 1) {
++    const date = addCalendarDays(firstDay.year, firstDay.month, firstDay.day, offset);
++
++    for (const definition of FIXED_FIELD_SLOTS) {
++      if (definition.weekday !== date.weekday) continue;
++
++      const startsAt = zonedDateTimeToUtc(
++        date.year,
++        date.month,
++        date.day,
++        definition.hour,
++        definition.minute
++      );
++
++      if (startsAt.getTime() < from.getTime()) continue;
++
++      occurrences.push({
++        ...definition,
++        startsAt,
++        endsAt: new Date(startsAt.getTime() + definition.durationMinutes * 60_000),
++      });
++    }
++  }
++
++  return occurrences.sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime());
++}
++
+ export function getFirstFullSlotWeek(from: Date): SlotWeekWindow {
+   let week = getSlotWeekWindow(from);
+-  const firstSlot = getFixedFieldSlotOccurrences({
++  const firstSlot = getKickoffOccurrences({
+     from: week.startsAt,
+     weeks: 1,
+   }).find((slot) => slot.startsAt.getTime() < week.endsAt.getTime());
+@@ -271,56 +262,43 @@ export function isWithinSlotWeek(date: Date, weekStart: Date) {
+   );
+ }
+ 
++
++function fieldAllowsSlot(field: FieldDefinition, slotKey: string) {
++  if (!Array.isArray(field.slotKeys)) return true;
++  return field.slotKeys.some((key) => key === slotKey);
++}
++
+ export function getFixedFieldSlotOccurrences({
+   from,
+   weeks,
++  fields,
+ }: {
+   from: Date;
+   weeks: number;
++  fields: FieldDefinition[];
+ }): FixedFieldSlotOccurrence[] {
+-  const safeWeeks = Math.min(Math.max(Math.trunc(weeks), 1), 60);
+-  const firstDay = getRomeParts(from);
+-  const occurrences: FixedFieldSlotOccurrence[] = [];
+-
+-  for (let offset = 0; offset <= safeWeeks * 7; offset += 1) {
+-    const date = addCalendarDays(
+-      firstDay.year,
+-      firstDay.month,
+-      firstDay.day,
+-      offset
+-    );
+-
+-    for (const definition of FIXED_FIELD_SLOTS) {
+-      if (definition.weekday !== date.weekday) continue;
+-
+-      const startsAt = zonedDateTimeToUtc(
+-        date.year,
+-        date.month,
+-        date.day,
+-        definition.hour,
+-        definition.minute
+-      );
+-
+-      if (startsAt.getTime() < from.getTime()) continue;
+-
+-      occurrences.push({
+-        ...definition,
+-        startsAt,
+-        endsAt: new Date(
+-          startsAt.getTime() + definition.durationMinutes * 60_000
+-        ),
+-      });
+-    }
+-  }
+-
+-  return occurrences.sort((left, right) => {
+-    const byDate = left.startsAt.getTime() - right.startsAt.getTime();
+-    return byDate || left.venueName.localeCompare(right.venueName);
+-  });
++  const kickoffOccurrences = getKickoffOccurrences({ from, weeks });
++
++  return kickoffOccurrences
++    .flatMap((occurrence) =>
++      fields
++        .filter((field) => fieldAllowsSlot(field, occurrence.key))
++        .map((field) => ({
++          ...occurrence,
++          key: `${field.id}:${occurrence.key}`,
++          venueKey: field.id,
++          venueName: field.name,
++          address: field.address,
++        }))
++    )
++    .sort((left, right) => {
++      const byDate = left.startsAt.getTime() - right.startsAt.getTime();
++      return byDate || left.venueName.localeCompare(right.venueName);
++    });
+ }
+ 
+ export function findFixedFieldSlot(
+-  venueKey: string,
++  field: FieldDefinition,
+   startsAt: Date
+ ): FixedFieldSlotOccurrence | null {
+   if (Number.isNaN(startsAt.getTime())) return null;
+@@ -328,7 +306,6 @@ export function findFixedFieldSlot(
+   const parts = getRomeParts(startsAt);
+   const definition = FIXED_FIELD_SLOTS.find(
+     (slot) =>
+-      slot.venueKey === venueKey &&
+       slot.weekday === parts.weekday &&
+       slot.hour === parts.hour &&
+       slot.minute === parts.minute
+@@ -336,6 +313,7 @@ export function findFixedFieldSlot(
+ 
+   if (
+     !definition ||
++    !fieldAllowsSlot(field, definition.key) ||
+     parts.second !== 0 ||
+     startsAt.getUTCMilliseconds() !== 0
+   ) {
+@@ -344,19 +322,19 @@ export function findFixedFieldSlot(
+ 
+   return {
+     ...definition,
++    key: `${field.id}:${definition.key}`,
++    venueKey: field.id,
++    venueName: field.name,
++    address: field.address,
+     startsAt,
+-    endsAt: new Date(
+-      startsAt.getTime() + definition.durationMinutes * 60_000
+-    ),
++    endsAt: new Date(startsAt.getTime() + definition.durationMinutes * 60_000),
+   };
+ }
+ 
+ export function fixedSlotsSummary() {
+   return [
+-    "Martedì · 21:00 · Via Anastasio Germonio 6",
+-    "Mercoledì · 20:00 e 21:00 · Via Anastasio Germonio 6",
+-    "Mercoledì · 20:00 e 21:00 · Sant'Ignazio",
+-    "Mercoledì · 21:00 · Circolo della Stampa",
+-    "Giovedì · 21:00 · Circolo della Stampa",
++    "Martedì · 21:00",
++    "Mercoledì · 20:00 e 21:00",
++    "Giovedì · 21:00",
+   ];
+ }
+diff --git a/lib/referees.ts b/lib/referees.ts
+deleted file mode 100644
+index b5044da..0000000
+--- a/lib/referees.ts
++++ /dev/null
+@@ -1,7 +0,0 @@
+-export const OFFICIAL_REFEREE_NAMES = [
+-  "Sebastiano Marcato",
+-  "Yuri Caridi",
+-  "Mohamed El Orche",
+-] as const;
+-
+-export const DEFAULT_REFEREE_NAME = OFFICIAL_REFEREE_NAMES[0];
+diff --git a/prisma/migrations/20260822184500_dynamic_fields_team_color/migration.sql b/prisma/migrations/20260822184500_dynamic_fields_team_color/migration.sql
+new file mode 100644
+index 0000000..4d9f2bc
+--- /dev/null
++++ b/prisma/migrations/20260822184500_dynamic_fields_team_color/migration.sql
+@@ -0,0 +1,43 @@
++ALTER TABLE "Team"
++ADD COLUMN "colorHex" TEXT;
++
++CREATE TABLE "Field" (
++    "id" TEXT NOT NULL,
++    "leagueId" TEXT NOT NULL,
++    "name" TEXT NOT NULL,
++    "address" TEXT NOT NULL,
++    "slotKeys" JSONB,
++    "active" BOOLEAN NOT NULL DEFAULT true,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++
++    CONSTRAINT "Field_pkey" PRIMARY KEY ("id")
++);
++
++CREATE UNIQUE INDEX "Field_leagueId_name_key" ON "Field"("leagueId", "name");
++CREATE INDEX "Field_leagueId_active_idx" ON "Field"("leagueId", "active");
++
++ALTER TABLE "Field"
++ADD CONSTRAINT "Field_leagueId_fkey"
++FOREIGN KEY ("leagueId") REFERENCES "League"("id") ON DELETE CASCADE ON UPDATE CASCADE;
++
++-- Mantiene disponibili i campi che prima erano scritti nel codice.
++-- Da questa migrazione in poi, nuovi campi e modifiche vengono gestiti dall'app.
++INSERT INTO "Field" ("id", "leagueId", "name", "address", "slotKeys", "active", "createdAt", "updatedAt")
++SELECT
++    'fld_' || substr(md5("League"."id" || ':' || venues."name"), 1, 24),
++    "League"."id",
++    venues."name",
++    venues."address",
++    venues."slotKeys",
++    true,
++    CURRENT_TIMESTAMP,
++    CURRENT_TIMESTAMP
++FROM "League"
++CROSS JOIN (
++    VALUES
++        ('Campo Anastasio Germonio', 'Via Anastasio Germonio 6', '["tue-21","wed-20","wed-21"]'::jsonb),
++        ('Campo Sant''Ignazio', 'Sant''Ignazio', '["wed-20","wed-21"]'::jsonb),
++        ('Circolo della Stampa', 'Circolo della Stampa', '["wed-21","thu-21"]'::jsonb)
++) AS venues("name", "address", "slotKeys")
++ON CONFLICT ("leagueId", "name") DO NOTHING;
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index f8ad917..77fdf7a 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -54,6 +54,7 @@ model League {
+   matches       Match[]
+   playoffSeries PlayoffSeries[]
+   referees      Referee[]
++  fields        Field[]
+ }
+ 
+ model Team {
+@@ -61,6 +62,7 @@ model Team {
+   name           String
+   badgeUrl       String?
+   description    String?
++  colorHex       String?
+   activeInLeague Boolean  @default(true)
+   createdAt      DateTime @default(now())
+ 
+@@ -164,6 +166,23 @@ model Match {
+   @@index([seriesId])
+ }
+ 
++
++model Field {
++  id        String   @id @default(cuid())
++  leagueId  String
++  name      String
++  address   String
++  slotKeys  Json?
++  active    Boolean  @default(true)
++  createdAt DateTime @default(now())
++  updatedAt DateTime @updatedAt
++
++  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
++
++  @@unique([leagueId, name])
++  @@index([leagueId, active])
++}
++
+ model Referee {
+   id        String   @id @default(cuid())
+   leagueId  String
+diff --git a/src/app/api/leagues/[leagueId]/fields/route.ts b/src/app/api/leagues/[leagueId]/fields/route.ts
+new file mode 100644
+index 0000000..43c6ff3
+--- /dev/null
++++ b/src/app/api/leagues/[leagueId]/fields/route.ts
+@@ -0,0 +1,139 @@
++import { NextResponse } from "next/server";
++import { prisma } from "@/lib/prisma";
++import { getServerSession, requireAdmin } from "@/lib/server-auth";
++import { FIXED_FIELD_SLOTS } from "@/lib/field-slots";
++
++type Ctx = { params: Promise<{ leagueId: string }> };
++
++export async function GET(_: Request, ctx: Ctx) {
++  const { leagueId } = await ctx.params;
++  const session = await getServerSession();
++  const isAdmin = session?.role === "ADMIN";
++
++  const fields = await prisma.field.findMany({
++    where: {
++      leagueId,
++      ...(!isAdmin ? { active: true } : {}),
++    },
++    select: {
++      id: true,
++      name: true,
++      address: true,
++      active: true,
++    },
++    orderBy: [{ active: "desc" }, { name: "asc" }],
++  });
++
++  return NextResponse.json(fields);
++}
++
++export async function POST(req: Request, ctx: Ctx) {
++  const denied = await requireAdmin();
++  if (denied) return denied;
++
++  const { leagueId } = await ctx.params;
++  const body = await req.json().catch(() => ({}));
++  const name = String(body?.name ?? "").trim().replace(/\s+/g, " ");
++  const address = String(body?.address ?? "").trim().replace(/\s+/g, " ");
++
++  if (name.length < 2) {
++    return NextResponse.json({ error: "Inserisci il nome del campo" }, { status: 400 });
++  }
++
++  if (address.length < 3) {
++    return NextResponse.json({ error: "Inserisci la via del campo" }, { status: 400 });
++  }
++
++  const league = await prisma.league.findUnique({
++    where: { id: leagueId },
++    select: { id: true },
++  });
++
++  if (!league) {
++    return NextResponse.json({ error: "Torneo non trovato" }, { status: 404 });
++  }
++
++  try {
++    const field = await prisma.field.create({
++      data: {
++        leagueId,
++        name,
++        address,
++        slotKeys: FIXED_FIELD_SLOTS.map((slot) => slot.key),
++      },
++      select: { id: true, name: true, address: true, active: true },
++    });
++
++    return NextResponse.json(field, { status: 201 });
++  } catch (error) {
++    if ((error as { code?: string }).code === "P2002") {
++      return NextResponse.json(
++        { error: "Esiste già un campo con questo nome" },
++        { status: 409 }
++      );
++    }
++    throw error;
++  }
++}
++
++export async function PATCH(req: Request, ctx: Ctx) {
++  const denied = await requireAdmin();
++  if (denied) return denied;
++
++  const { leagueId } = await ctx.params;
++  const body = await req.json().catch(() => ({}));
++  const id = String(body?.id ?? "").trim();
++
++  if (!id) {
++    return NextResponse.json({ error: "Campo mancante" }, { status: 400 });
++  }
++
++  const existing = await prisma.field.findFirst({
++    where: { id, leagueId },
++    select: { id: true },
++  });
++
++  if (!existing) {
++    return NextResponse.json({ error: "Campo non trovato" }, { status: 404 });
++  }
++
++  const name =
++    body?.name === undefined
++      ? undefined
++      : String(body.name).trim().replace(/\s+/g, " ");
++  const address =
++    body?.address === undefined
++      ? undefined
++      : String(body.address).trim().replace(/\s+/g, " ");
++  const active = body?.active === undefined ? undefined : Boolean(body.active);
++
++  if (name !== undefined && name.length < 2) {
++    return NextResponse.json({ error: "Nome campo non valido" }, { status: 400 });
++  }
++
++  if (address !== undefined && address.length < 3) {
++    return NextResponse.json({ error: "Via del campo non valida" }, { status: 400 });
++  }
++
++  try {
++    const field = await prisma.field.update({
++      where: { id },
++      data: {
++        ...(name !== undefined ? { name } : {}),
++        ...(address !== undefined ? { address } : {}),
++        ...(active !== undefined ? { active } : {}),
++      },
++      select: { id: true, name: true, address: true, active: true },
++    });
++
++    return NextResponse.json(field);
++  } catch (error) {
++    if ((error as { code?: string }).code === "P2002") {
++      return NextResponse.json(
++        { error: "Esiste già un campo con questo nome" },
++        { status: 409 }
++      );
++    }
++    throw error;
++  }
++}
+diff --git a/src/app/api/leagues/[leagueId]/referees/route.ts b/src/app/api/leagues/[leagueId]/referees/route.ts
+index 1d5aed1..308f8e8 100644
+--- a/src/app/api/leagues/[leagueId]/referees/route.ts
++++ b/src/app/api/leagues/[leagueId]/referees/route.ts
+@@ -44,9 +44,11 @@ export async function POST(req: Request, ctx: Ctx) {
+ 
+   const { leagueId } = await ctx.params;
+   const body = await req.json().catch(() => ({}));
+-  const name = String(body?.name ?? "").trim().replace(/\s+/g, " ");
++  const firstName = String(body?.firstName ?? "").trim().replace(/\s+/g, " ");
++  const lastName = String(body?.lastName ?? "").trim().replace(/\s+/g, " ");
++  const name = `${firstName} ${lastName}`.trim();
+ 
+-  if (name.length < 3) {
++  if (!firstName || !lastName) {
+     return NextResponse.json(
+       { error: "Inserisci nome e cognome dell'arbitro" },
+       { status: 400 }
+diff --git a/src/app/api/leagues/[leagueId]/schedule/route.ts b/src/app/api/leagues/[leagueId]/schedule/route.ts
+index 39b1117..b9b03ce 100644
+--- a/src/app/api/leagues/[leagueId]/schedule/route.ts
++++ b/src/app/api/leagues/[leagueId]/schedule/route.ts
+@@ -2,10 +2,6 @@ import { NextResponse } from "next/server";
+ import { prisma } from "@/lib/prisma";
+ import { generateRoundRobin } from "@/lib/scheduler";
+ import { requireAdmin } from "@/lib/server-auth";
+-import {
+-  DEFAULT_REFEREE_NAME,
+-  OFFICIAL_REFEREE_NAMES,
+-} from "@/lib/referees";
+ import {
+   getFirstFullSlotWeek,
+   getFixedFieldSlotOccurrences,
+@@ -13,24 +9,6 @@ import {
+   getSlotWeekWindow,
+ } from "@/lib/field-slots";
+ 
+-async function ensureOfficialReferees(leagueId: string) {
+-  return prisma.$transaction(
+-    OFFICIAL_REFEREE_NAMES.map((name) =>
+-      prisma.referee.upsert({
+-        where: {
+-          leagueId_name: {
+-            leagueId,
+-            name,
+-          },
+-        },
+-        update: { active: true },
+-        create: { leagueId, name },
+-        select: { id: true, name: true },
+-      })
+-    )
+-  );
+-}
+-
+ export async function GET(
+   req: Request,
+   ctx: { params: Promise<{ leagueId: string }> }
+@@ -75,6 +53,7 @@ export async function GET(
+           id: true,
+           name: true,
+           badgeUrl: true,
++          colorHex: true,
+         },
+       },
+       awayTeam: {
+@@ -82,6 +61,7 @@ export async function GET(
+           id: true,
+           name: true,
+           badgeUrl: true,
++          colorHex: true,
+         },
+       },
+     },
+@@ -154,10 +134,11 @@ export async function POST(
+       );
+     }
+ 
+-    const referees = await ensureOfficialReferees(leagueId);
+-    const defaultReferee =
+-      referees.find((referee) => referee.name === DEFAULT_REFEREE_NAME) ??
+-      referees[0];
++    const defaultReferee = await prisma.referee.findFirst({
++      where: { leagueId, active: true },
++      orderBy: { name: "asc" },
++      select: { id: true },
++    });
+ 
+     try {
+       const match = await prisma.match.create({
+@@ -166,7 +147,7 @@ export async function POST(
+           round,
+           homeTeamId,
+           awayTeamId,
+-          refereeId: defaultReferee.id,
++          refereeId: defaultReferee?.id ?? null,
+           ...(date
+             ? {
+                 date,
+@@ -317,6 +298,22 @@ export async function POST(
+     ReturnType<typeof getFixedFieldSlotOccurrences>[number]
+   >();
+ 
++  const activeFields =
++    schedulingMode === "fixed_slots"
++      ? await prisma.field.findMany({
++          where: { leagueId, active: true },
++          select: { id: true, name: true, address: true, slotKeys: true },
++          orderBy: { name: "asc" },
++        })
++      : [];
++
++  if (schedulingMode === "fixed_slots" && activeFields.length === 0) {
++    return NextResponse.json(
++      { error: "Inserisci almeno un campo attivo dalla pagina Admin prima di usare la programmazione automatica" },
++      { status: 409 }
++    );
++  }
++
+   if (schedulingMode === "fixed_slots") {
+     const rounds = [...new Set(pairings.map((pairing) => pairing.round))];
+ 
+@@ -328,6 +325,7 @@ export async function POST(
+       const occurrences = getFixedFieldSlotOccurrences({
+         from: week.startsAt,
+         weeks: 1,
++        fields: activeFields,
+       }).filter((slot) => slot.startsAt.getTime() < week.endsAt.getTime());
+ 
+       const occupied = await prisma.match.findMany({
+@@ -370,7 +368,11 @@ export async function POST(
+     }
+   }
+ 
+-  const referees = await ensureOfficialReferees(leagueId);
++  const referees = await prisma.referee.findMany({
++    where: { leagueId, active: true },
++    orderBy: { name: "asc" },
++    select: { id: true },
++  });
+ 
+   const matchData = pairings.map((pairing, index) => {
+     const pairingKey = `${pairing.round}:${pairing.homeTeamId}:${pairing.awayTeamId}:${index}`;
+@@ -383,7 +385,7 @@ export async function POST(
+       homeTeamId: pairing.homeTeamId,
+       awayTeamId: pairing.awayTeamId,
+       slotWeekStart: slotWeek.startsAt,
+-      refereeId: referees[index % referees.length].id,
++      refereeId: referees.length > 0 ? referees[index % referees.length].id : null,
+       ...(slot
+         ? {
+             date: slot.startsAt,
+diff --git a/src/app/api/leagues/[leagueId]/slots/route.ts b/src/app/api/leagues/[leagueId]/slots/route.ts
+index 7c62fe6..ed026d1 100644
+--- a/src/app/api/leagues/[leagueId]/slots/route.ts
++++ b/src/app/api/leagues/[leagueId]/slots/route.ts
+@@ -60,9 +60,15 @@ export async function GET(req: Request, ctx: Ctx) {
+   }
+ 
+   const matchWeek = getSlotWeekWindow(weekAnchor);
++  const fields = await prisma.field.findMany({
++    where: { leagueId, active: true },
++    select: { id: true, name: true, address: true, slotKeys: true },
++    orderBy: { name: "asc" },
++  });
+   const occurrences = getFixedFieldSlotOccurrences({
+     from: matchWeek.startsAt,
+     weeks: 1,
++    fields,
+   }).filter((slot) => slot.startsAt.getTime() < matchWeek.endsAt.getTime());
+ 
+   const occupiedMatches = await prisma.match.findMany({
+@@ -112,6 +118,7 @@ export async function GET(req: Request, ctx: Ctx) {
+   return NextResponse.json({
+     timeZone: "Europe/Rome",
+     definitions: FIXED_FIELD_SLOTS,
++    fields,
+     matchWeek: {
+       round: currentMatch.round,
+       startsAt: matchWeek.startsAt,
+diff --git a/src/app/api/leagues/[leagueId]/teams/route.ts b/src/app/api/leagues/[leagueId]/teams/route.ts
+index 5931d93..9f204c1 100644
+--- a/src/app/api/leagues/[leagueId]/teams/route.ts
++++ b/src/app/api/leagues/[leagueId]/teams/route.ts
+@@ -24,11 +24,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
+   const name = String(body?.name ?? "").trim();
+   const badgeUrl = body?.badgeUrl ? String(body.badgeUrl).trim() : null;
+   const description = body?.description ? String(body.description).trim() : null;
++  const colorHex = body?.colorHex ? String(body.colorHex).trim().toUpperCase() : null;
+ 
+   if (!name) {
+     return NextResponse.json({ error: "Nome squadra mancante" }, { status: 400 });
+   }
+ 
++  if (colorHex && !/^#[0-9A-F]{6}$/.test(colorHex)) {
++    return NextResponse.json({ error: "Colore squadra non valido" }, { status: 400 });
++  }
++
+   const league = await prisma.league.findUnique({
+     where: { id: leagueId },
+     select: { id: true },
+@@ -44,6 +49,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
+         name,
+         badgeUrl: badgeUrl || undefined,
+         description: description || undefined,
++        colorHex: colorHex || undefined,
+         activeInLeague: true,
+         league: { connect: { id: leagueId } },
+       },
+diff --git a/src/app/api/leagues/route.ts b/src/app/api/leagues/route.ts
+index 4da50ba..e82aeb6 100644
+--- a/src/app/api/leagues/route.ts
++++ b/src/app/api/leagues/route.ts
+@@ -1,7 +1,6 @@
+ import { NextResponse } from "next/server";
+ import { prisma } from "@/lib/prisma";
+ import { requireAdmin } from "@/lib/server-auth";
+-import { OFFICIAL_REFEREE_NAMES } from "@/lib/referees";
+ 
+ const PLAYOFF_FORMATS = new Set(["SINGLE_ELIM", "TWO_LEG"]);
+ const PLAYOFF_COUNTS = new Set([2, 4, 8, 16]);
+@@ -109,12 +108,6 @@ export async function POST(req: Request) {
+       },
+     });
+ 
+-    await tx.referee.createMany({
+-      data: OFFICIAL_REFEREE_NAMES.map((refereeName) => ({
+-        leagueId: createdLeague.id,
+-        name: refereeName,
+-      })),
+-    });
+ 
+     if (sourceTeams.length > 0) {
+       for (const sourceTeam of sourceTeams) {
+@@ -123,6 +116,7 @@ export async function POST(req: Request) {
+             name: sourceTeam.name,
+             badgeUrl: sourceTeam.badgeUrl,
+             description: sourceTeam.description,
++            colorHex: sourceTeam.colorHex,
+             leagueId: createdLeague.id,
+           },
+         });
+diff --git a/src/app/api/matches/[matchId]/booking/route.ts b/src/app/api/matches/[matchId]/booking/route.ts
+index 512eb64..67f92fa 100644
+--- a/src/app/api/matches/[matchId]/booking/route.ts
++++ b/src/app/api/matches/[matchId]/booking/route.ts
+@@ -21,18 +21,10 @@ export async function POST(req: Request, ctx: Ctx) {
+   const body = await req.json().catch(() => ({}));
+   const venueKey = String(body?.venueKey ?? "").trim();
+   const startsAt = new Date(String(body?.startsAt ?? ""));
+-  const slot = findFixedFieldSlot(venueKey, startsAt);
+ 
+-  if (!slot) {
++  if (!venueKey || Number.isNaN(startsAt.getTime())) {
+     return NextResponse.json(
+-      { error: "Lo slot scelto non fa parte degli orari disponibili" },
+-      { status: 400 }
+-    );
+-  }
+-
+-  if (slot.startsAt.getTime() <= Date.now()) {
+-    return NextResponse.json(
+-      { error: "Non puoi prenotare uno slot già iniziato" },
++      { error: "Campo o orario non validi" },
+       { status: 400 }
+     );
+   }
+@@ -59,6 +51,22 @@ export async function POST(req: Request, ctx: Ctx) {
+           throw new Error("MATCH_ALREADY_PLAYED");
+         }
+ 
++        const field = await tx.field.findFirst({
++          where: {
++            id: venueKey,
++            leagueId: match.leagueId,
++            active: true,
++          },
++          select: { id: true, name: true, address: true, slotKeys: true },
++        });
++        if (!field) throw new Error("FIELD_NOT_AVAILABLE");
++
++        const slot = findFixedFieldSlot(field, startsAt);
++        if (!slot) throw new Error("INVALID_SLOT");
++        if (slot.startsAt.getTime() <= Date.now()) {
++          throw new Error("SLOT_ALREADY_STARTED");
++        }
++
+         const weekAnchor = match.slotWeekStart ?? match.date;
+         if (!weekAnchor) throw new Error("MATCH_WEEK_MISSING");
+         if (!isWithinSlotWeek(slot.startsAt, weekAnchor)) {
+@@ -119,6 +127,27 @@ export async function POST(req: Request, ctx: Ctx) {
+       );
+     }
+ 
++    if (message === "FIELD_NOT_AVAILABLE") {
++      return NextResponse.json(
++        { error: "Il campo scelto non è più disponibile" },
++        { status: 409 }
++      );
++    }
++
++    if (message === "INVALID_SLOT") {
++      return NextResponse.json(
++        { error: "Lo slot scelto non fa parte degli orari disponibili" },
++        { status: 400 }
++      );
++    }
++
++    if (message === "SLOT_ALREADY_STARTED") {
++      return NextResponse.json(
++        { error: "Non puoi prenotare uno slot già iniziato" },
++        { status: 400 }
++      );
++    }
++
+     if (message === "TEAM_CONFLICT") {
+       return NextResponse.json(
+         { error: "Una delle due squadre ha già una partita in questo orario" },
+diff --git a/src/app/api/teams/[teamId]/route.ts b/src/app/api/teams/[teamId]/route.ts
+index d2b989f..c714003 100644
+--- a/src/app/api/teams/[teamId]/route.ts
++++ b/src/app/api/teams/[teamId]/route.ts
+@@ -64,11 +64,20 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ teamId: strin
+     body?.badgeUrl === undefined ? undefined : body.badgeUrl === null ? null : String(body.badgeUrl).trim() || null;
+   const description =
+     body?.description === undefined ? undefined : body.description === null ? null : String(body.description).trim() || null;
++  const colorHexRaw =
++    body?.colorHex === undefined ? undefined : body.colorHex === null ? null : String(body.colorHex).trim();
++  const colorHex = colorHexRaw === undefined || colorHexRaw === null
++    ? colorHexRaw
++    : colorHexRaw.toUpperCase();
+ 
+   if (name !== undefined && !name) {
+     return NextResponse.json({ error: "Nome squadra non valido" }, { status: 400 });
+   }
+ 
++  if (colorHex !== undefined && colorHex !== null && !/^#[0-9A-F]{6}$/.test(colorHex)) {
++    return NextResponse.json({ error: "Colore squadra non valido" }, { status: 400 });
++  }
++
+   // verifica esistenza
+   const existing = await prisma.team.findUnique({ where: { id: teamId }, select: { id: true, leagueId: true } });
+   if (!existing) return NextResponse.json({ error: "Squadra non trovata" }, { status: 404 });
+@@ -90,6 +99,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ teamId: strin
+       ...(name !== undefined ? { name } : {}),
+       ...(badgeUrl !== undefined ? { badgeUrl } : {}),
+       ...(description !== undefined ? { description } : {}),
++      ...(colorHex !== undefined ? { colorHex } : {}),
+     },
+     include: {
+       league: { select: { id: true, name: true } },
+@@ -116,6 +126,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ teamId: stri
+       activeInLeague: true,
+       badgeUrl: true,
+       description: true,
++      colorHex: true,
+       captain: { select: { id: true } },
+       _count: {
+         select: {
+@@ -181,6 +192,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ teamId: stri
+   const hasStoredTeamData = Boolean(
+     team.badgeUrl ||
+       team.description ||
++      team.colorHex ||
+       team.captain ||
+       team._count.players > 0 ||
+       team._count.sheetPlayers > 0 ||
+diff --git a/src/app/api/teams/route.ts b/src/app/api/teams/route.ts
+index 63bb9b7..bc9b6dd 100644
+--- a/src/app/api/teams/route.ts
++++ b/src/app/api/teams/route.ts
+@@ -13,6 +13,7 @@ export async function GET() {
+       name: true,
+       badgeUrl: true,
+       description: true,
++      colorHex: true,
+       activeInLeague: true,
+       league: {
+         select: {
+diff --git a/src/app/leagues/[leagueId]/admin/field-manager.tsx b/src/app/leagues/[leagueId]/admin/field-manager.tsx
+new file mode 100644
+index 0000000..baa8630
+--- /dev/null
++++ b/src/app/leagues/[leagueId]/admin/field-manager.tsx
+@@ -0,0 +1,162 @@
++"use client";
++
++import { useCallback, useEffect, useState } from "react";
++import Card from "src/app/_components/ui/card";
++import Badge from "src/app/_components/ui/badge";
++import Button from "src/app/_components/ui/button";
++import Input from "src/app/_components/ui/input";
++import { authFetch } from "@/lib/client-auth";
++
++type FieldRow = {
++  id: string;
++  name: string;
++  address: string;
++  active: boolean;
++};
++
++export default function FieldManager({ leagueId }: { leagueId: string }) {
++  const [fields, setFields] = useState<FieldRow[]>([]);
++  const [newName, setNewName] = useState("");
++  const [newAddress, setNewAddress] = useState("");
++  const [loading, setLoading] = useState(true);
++  const [saving, setSaving] = useState(false);
++  const [err, setErr] = useState<string | null>(null);
++
++  const load = useCallback(async () => {
++    setLoading(true);
++    setErr(null);
++
++    try {
++      const response = await authFetch(`/api/leagues/${leagueId}/fields`, {
++        cache: "no-store",
++      });
++      const data = await response.json().catch(() => []);
++      if (!response.ok) {
++        throw new Error(data?.error ?? "Errore caricamento campi");
++      }
++      setFields(Array.isArray(data) ? data : []);
++    } catch (error) {
++      setErr(error instanceof Error ? error.message : "Errore caricamento campi");
++    } finally {
++      setLoading(false);
++    }
++  }, [leagueId]);
++
++  useEffect(() => {
++    load();
++  }, [load]);
++
++  async function addField() {
++    if (!newName.trim() || !newAddress.trim()) return;
++    setSaving(true);
++    setErr(null);
++
++    try {
++      const response = await authFetch(`/api/leagues/${leagueId}/fields`, {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify({ name: newName, address: newAddress }),
++      });
++      const data = await response.json().catch(() => ({}));
++      if (!response.ok) {
++        throw new Error(data?.error ?? "Errore aggiunta campo");
++      }
++      setNewName("");
++      setNewAddress("");
++      await load();
++    } catch (error) {
++      setErr(error instanceof Error ? error.message : "Errore aggiunta campo");
++    } finally {
++      setSaving(false);
++    }
++  }
++
++  async function toggleActive(field: FieldRow) {
++    setSaving(true);
++    setErr(null);
++
++    try {
++      const response = await authFetch(`/api/leagues/${leagueId}/fields`, {
++        method: "PATCH",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify({ id: field.id, active: !field.active }),
++      });
++      const data = await response.json().catch(() => ({}));
++      if (!response.ok) {
++        throw new Error(data?.error ?? "Errore aggiornamento campo");
++      }
++      await load();
++    } catch (error) {
++      setErr(error instanceof Error ? error.message : "Errore aggiornamento campo");
++    } finally {
++      setSaving(false);
++    }
++  }
++
++  return (
++    <Card>
++      <div>
++        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--accent)]">
++          Impianti
++        </p>
++        <h2 className="mt-1 text-xl font-black tracking-[-0.04em] text-[var(--foreground)]">
++          Campi disponibili
++        </h2>
++        <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
++          Aggiungi i campi utilizzabili nel torneo. Sono sufficienti nome del campo e via; i campi attivi vengono proposti negli orari standard del torneo.
++        </p>
++      </div>
++
++      <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
++        <Input
++          value={newName}
++          onChange={(event) => setNewName(event.target.value)}
++          placeholder="Nome campo"
++        />
++        <Input
++          value={newAddress}
++          onChange={(event) => setNewAddress(event.target.value)}
++          placeholder="Via / indirizzo"
++        />
++        <Button
++          onClick={addField}
++          disabled={saving || !newName.trim() || !newAddress.trim()}
++        >
++          Aggiungi campo
++        </Button>
++      </div>
++
++      {err && <Badge variant="error" className="mt-3">{err}</Badge>}
++
++      <div className="mt-4 space-y-2">
++        {loading ? (
++          <p className="text-sm text-[var(--muted)]">Caricamento campi…</p>
++        ) : fields.length === 0 ? (
++          <p className="text-sm text-[var(--muted)]">Nessun campo inserito.</p>
++        ) : (
++          fields.map((field) => (
++            <div
++              key={field.id}
++              className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card-2)] p-3 sm:flex-row sm:items-center sm:justify-between"
++            >
++              <div className="min-w-0">
++                <p className="font-black text-[var(--foreground)]">{field.name}</p>
++                <p className="mt-0.5 break-words text-xs text-[var(--muted)]">
++                  {field.address}{!field.active ? " · non selezionabile" : ""}
++                </p>
++              </div>
++              <Button
++                size="sm"
++                variant="secondary"
++                onClick={() => toggleActive(field)}
++                disabled={saving}
++              >
++                {field.active ? "Disattiva" : "Riattiva"}
++              </Button>
++            </div>
++          ))
++        )}
++      </div>
++    </Card>
++  );
++}
+diff --git a/src/app/leagues/[leagueId]/admin/page.tsx b/src/app/leagues/[leagueId]/admin/page.tsx
+index 51e909c..feb4b74 100644
+--- a/src/app/leagues/[leagueId]/admin/page.tsx
++++ b/src/app/leagues/[leagueId]/admin/page.tsx
+@@ -9,6 +9,7 @@ import Badge from "src/app/_components/ui/badge";
+ import Button from "src/app/_components/ui/button";
+ import { authFetch } from "@/lib/client-auth";
+ import RefereeManager from "./referee-manager";
++import FieldManager from "./field-manager";
+ 
+ type LeagueSettings = {
+   id: string;
+@@ -184,7 +185,10 @@ export default function LeagueAdminPage() {
+           </Card>
+         )}
+ 
+-        <RefereeManager leagueId={leagueId} />
++        <div className="grid gap-5 xl:grid-cols-2">
++          <FieldManager leagueId={leagueId} />
++          <RefereeManager leagueId={leagueId} />
++        </div>
+ 
+         {summary && (
+           <>
+diff --git a/src/app/leagues/[leagueId]/admin/referee-manager.tsx b/src/app/leagues/[leagueId]/admin/referee-manager.tsx
+index 1b05d8f..b57c93c 100644
+--- a/src/app/leagues/[leagueId]/admin/referee-manager.tsx
++++ b/src/app/leagues/[leagueId]/admin/referee-manager.tsx
+@@ -25,7 +25,8 @@ type GeneratedCredentials = {
+ 
+ export default function RefereeManager({ leagueId }: { leagueId: string }) {
+   const [referees, setReferees] = useState<RefereeRow[]>([]);
+-  const [newName, setNewName] = useState("");
++  const [newFirstName, setNewFirstName] = useState("");
++  const [newLastName, setNewLastName] = useState("");
+   const [loading, setLoading] = useState(true);
+   const [saving, setSaving] = useState(false);
+   const [err, setErr] = useState<string | null>(null);
+@@ -60,7 +61,7 @@ export default function RefereeManager({ leagueId }: { leagueId: string }) {
+   }, [load]);
+ 
+   async function addReferee() {
+-    if (!newName.trim()) return;
++    if (!newFirstName.trim() || !newLastName.trim()) return;
+     setSaving(true);
+     setErr(null);
+ 
+@@ -70,14 +71,18 @@ export default function RefereeManager({ leagueId }: { leagueId: string }) {
+         {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+-          body: JSON.stringify({ name: newName }),
++          body: JSON.stringify({
++            firstName: newFirstName,
++            lastName: newLastName,
++          }),
+         }
+       );
+       const data = await response.json().catch(() => ({}));
+       if (!response.ok) {
+         throw new Error(data?.error ?? "Errore aggiunta arbitro");
+       }
+-      setNewName("");
++      setNewFirstName("");
++      setNewLastName("");
+       await load();
+     } catch (error) {
+       setErr(
+@@ -167,16 +172,20 @@ export default function RefereeManager({ leagueId }: { leagueId: string }) {
+         </p>
+       </div>
+ 
+-      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
++      <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
++        <Input
++          value={newFirstName}
++          onChange={(event) => setNewFirstName(event.target.value)}
++          placeholder="Nome"
++        />
+         <Input
+-          value={newName}
+-          onChange={(event) => setNewName(event.target.value)}
+-          placeholder="Nome e cognome arbitro"
+-          className="flex-1"
++          value={newLastName}
++          onChange={(event) => setNewLastName(event.target.value)}
++          placeholder="Cognome"
+         />
+         <Button
+           onClick={addReferee}
+-          disabled={saving || newName.trim().length < 3}
++          disabled={saving || !newFirstName.trim() || !newLastName.trim()}
+         >
+           Aggiungi arbitro
+         </Button>
+diff --git a/src/app/leagues/[leagueId]/matches/[matchId]/result-form.tsx b/src/app/leagues/[leagueId]/matches/[matchId]/result-form.tsx
+index fbae258..b45c941 100644
+--- a/src/app/leagues/[leagueId]/matches/[matchId]/result-form.tsx
++++ b/src/app/leagues/[leagueId]/matches/[matchId]/result-form.tsx
+@@ -38,6 +38,7 @@ type Team = {
+   id: string;
+   name: string;
+   badgeUrl?: string | null;
++  colorHex?: string | null;
+   players: Player[];
+ };
+ 
+@@ -534,8 +535,8 @@ export default function MatchResultForm({ match }: { match: Match }) {
+         {!canEditResult && !authLoading && <p className="px-1 text-sm text-[var(--muted)]">Sola lettura — possono modificare distinta e risultato l&apos;admin, i capitani coinvolti e l&apos;arbitro assegnato.</p>}
+ 
+         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+-          <TeamStatsCard title={match.homeTeam.name} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
+-          <TeamStatsCard title={match.awayTeam.name} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
++          <TeamStatsCard title={match.homeTeam.name} colorHex={match.homeTeam.colorHex} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
++          <TeamStatsCard title={match.awayTeam.name} colorHex={match.awayTeam.colorHex} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
+         </div>
+ 
+         {canEditResult && (
+@@ -554,11 +555,32 @@ export default function MatchResultForm({ match }: { match: Match }) {
+   );
+ }
+ 
++function safeTeamColor(color?: string | null) {
++  return color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "#F97316";
++}
++
+ function TeamScoreBlock({ team, faded }: { team: Team; faded?: boolean }) {
++  const color = safeTeamColor(team.colorHex);
++
+   return (
+-    <div className={["flex min-w-0 flex-col items-center gap-2 text-center", faded ? "opacity-55" : ""].join(" ")}>
+-      <TeamCrest name={team.name} badgeUrl={team.badgeUrl ?? null} large />
++    <div
++      className={[
++        "flex min-w-0 flex-col items-center gap-2 rounded-[24px] px-2 py-3 text-center sm:px-4",
++        faded ? "opacity-55" : "",
++      ].join(" ")}
++      style={{
++        borderTop: `4px solid ${color}`,
++        background: `linear-gradient(180deg, ${color}24 0%, transparent 82%)`,
++      }}
++    >
++      <div
++        className="rounded-[26px] p-2"
++        style={{ boxShadow: `0 0 0 1px ${color}55, 0 12px 34px ${color}1F` }}
++      >
++        <TeamCrest name={team.name} badgeUrl={team.badgeUrl ?? null} large />
++      </div>
+       <span className="max-w-full truncate text-sm font-black text-[var(--foreground)] sm:text-base">{team.name}</span>
++      <span className="h-1 w-10 rounded-full" style={{ backgroundColor: color }} />
+     </div>
+   );
+ }
+@@ -587,6 +609,7 @@ function SheetCounter({ team, count, missing }: { team: string; count: number; m
+ 
+ function TeamStatsCard({
+   title,
++  colorHex,
+   players,
+   stats,
+   sheet,
+@@ -596,6 +619,7 @@ function TeamStatsCard({
+   isAdmin,
+ }: {
+   title: string;
++  colorHex?: string | null;
+   players: Player[];
+   stats: Record<string, { goals: string; assists: string }>;
+   sheet: Record<string, boolean>;
+@@ -605,10 +629,17 @@ function TeamStatsCard({
+   isAdmin?: boolean;
+ }) {
+   const eligibleCount = players.filter(isPlayerEligible).length;
++  const teamColor = safeTeamColor(colorHex);
+ 
+   return (
+     <Card className="overflow-hidden !p-0">
+-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-4">
++      <div
++        className="flex items-center justify-between border-b border-[var(--border)] px-4 py-4"
++        style={{
++          borderTop: `4px solid ${teamColor}`,
++          background: `linear-gradient(90deg, ${teamColor}1F 0%, transparent 58%)`,
++        }}
++      >
+         <div>
+           <h2 className="text-base font-black text-[var(--foreground)]">{title}</h2>
+           <p className="mt-1 text-xs text-[var(--muted)]">{eligibleCount} giocatori selezionabili</p>
+diff --git a/src/app/leagues/[leagueId]/teams/[teamId]/page.tsx b/src/app/leagues/[leagueId]/teams/[teamId]/page.tsx
+index 718f61e..dce5edb 100644
+--- a/src/app/leagues/[leagueId]/teams/[teamId]/page.tsx
++++ b/src/app/leagues/[leagueId]/teams/[teamId]/page.tsx
+@@ -37,6 +37,7 @@ type Team = {
+   name: string;
+   badgeUrl?: string | null;
+   description?: string | null;
++  colorHex?: string | null;
+   league: { id: string; name: string };
+   players: Player[];
+ };
+@@ -102,6 +103,7 @@ export default function TeamPage() {
+   const [name, setName] = useState("");
+   const [badgeUrl, setBadgeUrl] = useState("");
+   const [description, setDescription] = useState("");
++  const [colorHex, setColorHex] = useState("#F97316");
+   const [badgeFile, setBadgeFile] = useState<File | null>(null);
+   const [removeBadge, setRemoveBadge] = useState(false);
+   const [editingTeam, setEditingTeam] = useState(false);
+@@ -134,6 +136,7 @@ export default function TeamPage() {
+     setName(data.name ?? "");
+     setBadgeUrl(data.badgeUrl ?? "");
+     setDescription(data.description ?? "");
++    setColorHex(data.colorHex ?? "#F97316");
+     setBadgeFile(null);
+     setRemoveBadge(false);
+   }
+@@ -189,6 +192,7 @@ export default function TeamPage() {
+           name: trimmedName,
+           badgeUrl: finalBadgeUrl,
+           description: description.trim() || null,
++          colorHex,
+         }),
+       });
+ 
+@@ -334,6 +338,12 @@ export default function TeamPage() {
+               <h1 className="[overflow-wrap:anywhere] text-4xl font-black leading-[0.95] tracking-[-0.07em] text-[var(--foreground)] lg:text-5xl">
+                 {team.name}
+               </h1>
++              {team.colorHex && (
++                <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-[var(--muted)]">
++                  <span className="h-3 w-8 rounded-full" style={{ backgroundColor: team.colorHex }} />
++                  {team.colorHex}
++                </div>
++              )}
+               {team.description && (
+                 <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--muted)] sm:text-base">
+                   {team.description}
+@@ -453,6 +463,37 @@ export default function TeamPage() {
+               </div>
+             </div>
+ 
++            <div className="space-y-2">
++              <label className="text-xs font-black uppercase tracking-wider text-[var(--muted)]">
++                Colore squadra
++              </label>
++              <div className="flex items-center gap-3">
++                <input
++                  type="color"
++                  value={/^#[0-9A-F]{6}$/.test(colorHex) ? colorHex : "#F97316"}
++                  onChange={(event) => setColorHex(event.target.value.toUpperCase())}
++                  className="h-11 w-14 cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--card-2)] p-1"
++                  aria-label="Colore squadra"
++                />
++                <Input
++                  value={colorHex}
++                  onChange={(event) => {
++                    const value = event.target.value.toUpperCase();
++                    if (/^#[0-9A-F]{0,6}$/.test(value)) setColorHex(value);
++                  }}
++                  placeholder="#F97316"
++                  className="max-w-[180px] font-mono"
++                />
++                <span
++                  className="h-8 flex-1 rounded-xl border border-[var(--border)]"
++                  style={{ backgroundColor: /^#[0-9A-F]{6}$/.test(colorHex) ? colorHex : "transparent" }}
++                />
++              </div>
++              <p className="text-xs text-[var(--muted)]">
++                Verrà usato nel Match Center per distinguere graficamente la squadra.
++              </p>
++            </div>
++
+             <div className="space-y-3">
+               <textarea
+                 aria-label="Descrizione squadra"

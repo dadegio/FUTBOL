@@ -9,6 +9,7 @@ import Badge from "src/app/_components/ui/badge";
 import Button from "src/app/_components/ui/button";
 import { authFetch } from "@/lib/client-auth";
 import RefereeManager from "./referee-manager";
+import FieldManager from "./field-manager";
 
 type LeagueSettings = {
   id: string;
@@ -184,7 +185,10 @@ export default function LeagueAdminPage() {
           </Card>
         )}
 
-        <RefereeManager leagueId={leagueId} />
+        <div className="grid gap-5 xl:grid-cols-2">
+          <FieldManager leagueId={leagueId} />
+          <RefereeManager leagueId={leagueId} />
+        </div>
 
         {summary && (
           <>

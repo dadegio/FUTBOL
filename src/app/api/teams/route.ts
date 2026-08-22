@@ -13,6 +13,7 @@ export async function GET() {
       name: true,
       badgeUrl: true,
       description: true,
+      colorHex: true,
       activeInLeague: true,
       league: {
         select: {

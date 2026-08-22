@@ -21,18 +21,10 @@ export async function POST(req: Request, ctx: Ctx) {
   const body = await req.json().catch(() => ({}));
   const venueKey = String(body?.venueKey ?? "").trim();
   const startsAt = new Date(String(body?.startsAt ?? ""));
-  const slot = findFixedFieldSlot(venueKey, startsAt);
 
-  if (!slot) {
+  if (!venueKey || Number.isNaN(startsAt.getTime())) {
     return NextResponse.json(
-      { error: "Lo slot scelto non fa parte degli orari disponibili" },
-      { status: 400 }
-    );
-  }
-
-  if (slot.startsAt.getTime() <= Date.now()) {
-    return NextResponse.json(
-      { error: "Non puoi prenotare uno slot già iniziato" },
+      { error: "Campo o orario non validi" },
       { status: 400 }
     );
   }
@@ -57,6 +49,22 @@ export async function POST(req: Request, ctx: Ctx) {
         if (!match) throw new Error("MATCH_NOT_FOUND");
         if (match.homeGoals !== null || match.awayGoals !== null) {
           throw new Error("MATCH_ALREADY_PLAYED");
+        }
+
+        const field = await tx.field.findFirst({
+          where: {
+            id: venueKey,
+            leagueId: match.leagueId,
+            active: true,
+          },
+          select: { id: true, name: true, address: true, slotKeys: true },
+        });
+        if (!field) throw new Error("FIELD_NOT_AVAILABLE");
+
+        const slot = findFixedFieldSlot(field, startsAt);
+        if (!slot) throw new Error("INVALID_SLOT");
+        if (slot.startsAt.getTime() <= Date.now()) {
+          throw new Error("SLOT_ALREADY_STARTED");
         }
 
         const weekAnchor = match.slotWeekStart ?? match.date;
@@ -116,6 +124,27 @@ export async function POST(req: Request, ctx: Ctx) {
             "La disponibilità è cambiata mentre prenotavi: aggiorna gli slot e riprova",
         },
         { status: 409 }
+      );
+    }
+
+    if (message === "FIELD_NOT_AVAILABLE") {
+      return NextResponse.json(
+        { error: "Il campo scelto non è più disponibile" },
+        { status: 409 }
+      );
+    }
+
+    if (message === "INVALID_SLOT") {
+      return NextResponse.json(
+        { error: "Lo slot scelto non fa parte degli orari disponibili" },
+        { status: 400 }
+      );
+    }
+
+    if (message === "SLOT_ALREADY_STARTED") {
+      return NextResponse.json(
+        { error: "Non puoi prenotare uno slot già iniziato" },
+        { status: 400 }
       );
     }
 

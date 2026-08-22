@@ -60,9 +60,15 @@ export async function GET(req: Request, ctx: Ctx) {
   }
 
   const matchWeek = getSlotWeekWindow(weekAnchor);
+  const fields = await prisma.field.findMany({
+    where: { leagueId, active: true },
+    select: { id: true, name: true, address: true, slotKeys: true },
+    orderBy: { name: "asc" },
+  });
   const occurrences = getFixedFieldSlotOccurrences({
     from: matchWeek.startsAt,
     weeks: 1,
+    fields,
   }).filter((slot) => slot.startsAt.getTime() < matchWeek.endsAt.getTime());
 
   const occupiedMatches = await prisma.match.findMany({
@@ -112,6 +118,7 @@ export async function GET(req: Request, ctx: Ctx) {
   return NextResponse.json({
     timeZone: "Europe/Rome",
     definitions: FIXED_FIELD_SLOTS,
+    fields,
     matchWeek: {
       round: currentMatch.round,
       startsAt: matchWeek.startsAt,

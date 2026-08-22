@@ -44,9 +44,11 @@ export async function POST(req: Request, ctx: Ctx) {
 
   const { leagueId } = await ctx.params;
   const body = await req.json().catch(() => ({}));
-  const name = String(body?.name ?? "").trim().replace(/\s+/g, " ");
+  const firstName = String(body?.firstName ?? "").trim().replace(/\s+/g, " ");
+  const lastName = String(body?.lastName ?? "").trim().replace(/\s+/g, " ");
+  const name = `${firstName} ${lastName}`.trim();
 
-  if (name.length < 3) {
+  if (!firstName || !lastName) {
     return NextResponse.json(
       { error: "Inserisci nome e cognome dell'arbitro" },
       { status: 400 }

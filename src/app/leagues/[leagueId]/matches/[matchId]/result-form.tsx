@@ -38,6 +38,7 @@ type Team = {
   id: string;
   name: string;
   badgeUrl?: string | null;
+  colorHex?: string | null;
   players: Player[];
 };
 
@@ -534,8 +535,8 @@ export default function MatchResultForm({ match }: { match: Match }) {
         {!canEditResult && !authLoading && <p className="px-1 text-sm text-[var(--muted)]">Sola lettura — possono modificare distinta e risultato l&apos;admin, i capitani coinvolti e l&apos;arbitro assegnato.</p>}
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <TeamStatsCard title={match.homeTeam.name} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
-          <TeamStatsCard title={match.awayTeam.name} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
+          <TeamStatsCard title={match.homeTeam.name} colorHex={match.homeTeam.colorHex} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
+          <TeamStatsCard title={match.awayTeam.name} colorHex={match.awayTeam.colorHex} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
         </div>
 
         {canEditResult && (
@@ -554,11 +555,32 @@ export default function MatchResultForm({ match }: { match: Match }) {
   );
 }
 
+function safeTeamColor(color?: string | null) {
+  return color && /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "#F97316";
+}
+
 function TeamScoreBlock({ team, faded }: { team: Team; faded?: boolean }) {
+  const color = safeTeamColor(team.colorHex);
+
   return (
-    <div className={["flex min-w-0 flex-col items-center gap-2 text-center", faded ? "opacity-55" : ""].join(" ")}>
-      <TeamCrest name={team.name} badgeUrl={team.badgeUrl ?? null} large />
+    <div
+      className={[
+        "flex min-w-0 flex-col items-center gap-2 rounded-[24px] px-2 py-3 text-center sm:px-4",
+        faded ? "opacity-55" : "",
+      ].join(" ")}
+      style={{
+        borderTop: `4px solid ${color}`,
+        background: `linear-gradient(180deg, ${color}24 0%, transparent 82%)`,
+      }}
+    >
+      <div
+        className="rounded-[26px] p-2"
+        style={{ boxShadow: `0 0 0 1px ${color}55, 0 12px 34px ${color}1F` }}
+      >
+        <TeamCrest name={team.name} badgeUrl={team.badgeUrl ?? null} large />
+      </div>
       <span className="max-w-full truncate text-sm font-black text-[var(--foreground)] sm:text-base">{team.name}</span>
+      <span className="h-1 w-10 rounded-full" style={{ backgroundColor: color }} />
     </div>
   );
 }
@@ -587,6 +609,7 @@ function SheetCounter({ team, count, missing }: { team: string; count: number; m
 
 function TeamStatsCard({
   title,
+  colorHex,
   players,
   stats,
   sheet,
@@ -596,6 +619,7 @@ function TeamStatsCard({
   isAdmin,
 }: {
   title: string;
+  colorHex?: string | null;
   players: Player[];
   stats: Record<string, { goals: string; assists: string }>;
   sheet: Record<string, boolean>;
@@ -605,10 +629,17 @@ function TeamStatsCard({
   isAdmin?: boolean;
 }) {
   const eligibleCount = players.filter(isPlayerEligible).length;
+  const teamColor = safeTeamColor(colorHex);
 
   return (
     <Card className="overflow-hidden !p-0">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-4">
+      <div
+        className="flex items-center justify-between border-b border-[var(--border)] px-4 py-4"
+        style={{
+          borderTop: `4px solid ${teamColor}`,
+          background: `linear-gradient(90deg, ${teamColor}1F 0%, transparent 58%)`,
+        }}
+      >
         <div>
           <h2 className="text-base font-black text-[var(--foreground)]">{title}</h2>
           <p className="mt-1 text-xs text-[var(--muted)]">{eligibleCount} giocatori selezionabili</p>

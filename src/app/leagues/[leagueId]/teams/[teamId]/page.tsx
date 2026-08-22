@@ -37,6 +37,7 @@ type Team = {
   name: string;
   badgeUrl?: string | null;
   description?: string | null;
+  colorHex?: string | null;
   league: { id: string; name: string };
   players: Player[];
 };
@@ -102,6 +103,7 @@ export default function TeamPage() {
   const [name, setName] = useState("");
   const [badgeUrl, setBadgeUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [colorHex, setColorHex] = useState("#F97316");
   const [badgeFile, setBadgeFile] = useState<File | null>(null);
   const [removeBadge, setRemoveBadge] = useState(false);
   const [editingTeam, setEditingTeam] = useState(false);
@@ -134,6 +136,7 @@ export default function TeamPage() {
     setName(data.name ?? "");
     setBadgeUrl(data.badgeUrl ?? "");
     setDescription(data.description ?? "");
+    setColorHex(data.colorHex ?? "#F97316");
     setBadgeFile(null);
     setRemoveBadge(false);
   }
@@ -189,6 +192,7 @@ export default function TeamPage() {
           name: trimmedName,
           badgeUrl: finalBadgeUrl,
           description: description.trim() || null,
+          colorHex,
         }),
       });
 
@@ -334,6 +338,12 @@ export default function TeamPage() {
               <h1 className="[overflow-wrap:anywhere] text-4xl font-black leading-[0.95] tracking-[-0.07em] text-[var(--foreground)] lg:text-5xl">
                 {team.name}
               </h1>
+              {team.colorHex && (
+                <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-[var(--muted)]">
+                  <span className="h-3 w-8 rounded-full" style={{ backgroundColor: team.colorHex }} />
+                  {team.colorHex}
+                </div>
+              )}
               {team.description && (
                 <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--muted)] sm:text-base">
                   {team.description}
@@ -451,6 +461,37 @@ export default function TeamPage() {
                   </button>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-wider text-[var(--muted)]">
+                Colore squadra
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={/^#[0-9A-F]{6}$/.test(colorHex) ? colorHex : "#F97316"}
+                  onChange={(event) => setColorHex(event.target.value.toUpperCase())}
+                  className="h-11 w-14 cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--card-2)] p-1"
+                  aria-label="Colore squadra"
+                />
+                <Input
+                  value={colorHex}
+                  onChange={(event) => {
+                    const value = event.target.value.toUpperCase();
+                    if (/^#[0-9A-F]{0,6}$/.test(value)) setColorHex(value);
+                  }}
+                  placeholder="#F97316"
+                  className="max-w-[180px] font-mono"
+                />
+                <span
+                  className="h-8 flex-1 rounded-xl border border-[var(--border)]"
+                  style={{ backgroundColor: /^#[0-9A-F]{6}$/.test(colorHex) ? colorHex : "transparent" }}
+                />
+              </div>
+              <p className="text-xs text-[var(--muted)]">
+                Verrà usato nel Match Center per distinguere graficamente la squadra.
+              </p>
             </div>
 
             <div className="space-y-3">

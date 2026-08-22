@@ -1,10 +1,14 @@
 const ROME_TIME_ZONE = "Europe/Rome";
 
+export type FieldDefinition = {
+  id: string;
+  name: string;
+  address: string;
+  slotKeys?: unknown;
+};
+
 export type FixedFieldSlotDefinition = {
   key: string;
-  venueKey: string;
-  venueName: string;
-  address: string;
   weekday: number;
   hour: number;
   minute: number;
@@ -12,6 +16,9 @@ export type FixedFieldSlotDefinition = {
 };
 
 export type FixedFieldSlotOccurrence = FixedFieldSlotDefinition & {
+  venueKey: string;
+  venueName: string;
+  address: string;
   startsAt: Date;
   endsAt: Date;
 };
@@ -22,75 +29,33 @@ export type SlotWeekWindow = {
 };
 
 /**
- * Gli intervalli 20–22 sono modellati come due partite da un'ora,
- * con calcio d'inizio alle 20:00 e alle 21:00.
+ * Orari standard del torneo. I campi non sono più definiti qui:
+ * vengono caricati dal database e combinati con questi orari.
  */
 export const FIXED_FIELD_SLOTS: FixedFieldSlotDefinition[] = [
   {
-    key: "anastasio-tue-21",
-    venueKey: "anastasio-germonio",
-    venueName: "Campo Anastasio Germonio",
-    address: "Via Anastasio Germonio 6",
+    key: "tue-21",
     weekday: 2,
     hour: 21,
     minute: 0,
     durationMinutes: 60,
   },
   {
-    key: "anastasio-wed-20",
-    venueKey: "anastasio-germonio",
-    venueName: "Campo Anastasio Germonio",
-    address: "Via Anastasio Germonio 6",
+    key: "wed-20",
     weekday: 3,
     hour: 20,
     minute: 0,
     durationMinutes: 60,
   },
   {
-    key: "anastasio-wed-21",
-    venueKey: "anastasio-germonio",
-    venueName: "Campo Anastasio Germonio",
-    address: "Via Anastasio Germonio 6",
+    key: "wed-21",
     weekday: 3,
     hour: 21,
     minute: 0,
     durationMinutes: 60,
   },
   {
-    key: "sant-ignazio-wed-20",
-    venueKey: "sant-ignazio",
-    venueName: "Campo Sant'Ignazio",
-    address: "Sant'Ignazio",
-    weekday: 3,
-    hour: 20,
-    minute: 0,
-    durationMinutes: 60,
-  },
-  {
-    key: "sant-ignazio-wed-21",
-    venueKey: "sant-ignazio",
-    venueName: "Campo Sant'Ignazio",
-    address: "Sant'Ignazio",
-    weekday: 3,
-    hour: 21,
-    minute: 0,
-    durationMinutes: 60,
-  },
-  {
-    key: "circolo-stampa-wed-21",
-    venueKey: "circolo-della-stampa",
-    venueName: "Circolo della Stampa",
-    address: "Circolo della Stampa",
-    weekday: 3,
-    hour: 21,
-    minute: 0,
-    durationMinutes: 60,
-  },
-  {
-    key: "circolo-stampa-thu-21",
-    venueKey: "circolo-della-stampa",
-    venueName: "Circolo della Stampa",
-    address: "Circolo della Stampa",
+    key: "thu-21",
     weekday: 4,
     hour: 21,
     minute: 0,
@@ -207,26 +172,52 @@ export function getSlotWeekWindow(anchor: Date): SlotWeekWindow {
   );
 
   return {
-    startsAt: zonedDateTimeToUtc(
-      monday.year,
-      monday.month,
-      monday.day,
-      0,
-      0
-    ),
-    endsAt: zonedDateTimeToUtc(
-      nextMonday.year,
-      nextMonday.month,
-      nextMonday.day,
-      0,
-      0
-    ),
+    startsAt: zonedDateTimeToUtc(monday.year, monday.month, monday.day, 0, 0),
+    endsAt: zonedDateTimeToUtc(nextMonday.year, nextMonday.month, nextMonday.day, 0, 0),
   };
+}
+
+function getKickoffOccurrences({
+  from,
+  weeks,
+}: {
+  from: Date;
+  weeks: number;
+}) {
+  const safeWeeks = Math.min(Math.max(Math.trunc(weeks), 1), 60);
+  const firstDay = getRomeParts(from);
+  const occurrences: Array<FixedFieldSlotDefinition & { startsAt: Date; endsAt: Date }> = [];
+
+  for (let offset = 0; offset <= safeWeeks * 7; offset += 1) {
+    const date = addCalendarDays(firstDay.year, firstDay.month, firstDay.day, offset);
+
+    for (const definition of FIXED_FIELD_SLOTS) {
+      if (definition.weekday !== date.weekday) continue;
+
+      const startsAt = zonedDateTimeToUtc(
+        date.year,
+        date.month,
+        date.day,
+        definition.hour,
+        definition.minute
+      );
+
+      if (startsAt.getTime() < from.getTime()) continue;
+
+      occurrences.push({
+        ...definition,
+        startsAt,
+        endsAt: new Date(startsAt.getTime() + definition.durationMinutes * 60_000),
+      });
+    }
+  }
+
+  return occurrences.sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime());
 }
 
 export function getFirstFullSlotWeek(from: Date): SlotWeekWindow {
   let week = getSlotWeekWindow(from);
-  const firstSlot = getFixedFieldSlotOccurrences({
+  const firstSlot = getKickoffOccurrences({
     from: week.startsAt,
     weeks: 1,
   }).find((slot) => slot.startsAt.getTime() < week.endsAt.getTime());
@@ -271,56 +262,43 @@ export function isWithinSlotWeek(date: Date, weekStart: Date) {
   );
 }
 
+
+function fieldAllowsSlot(field: FieldDefinition, slotKey: string) {
+  if (!Array.isArray(field.slotKeys)) return true;
+  return field.slotKeys.some((key) => key === slotKey);
+}
+
 export function getFixedFieldSlotOccurrences({
   from,
   weeks,
+  fields,
 }: {
   from: Date;
   weeks: number;
+  fields: FieldDefinition[];
 }): FixedFieldSlotOccurrence[] {
-  const safeWeeks = Math.min(Math.max(Math.trunc(weeks), 1), 60);
-  const firstDay = getRomeParts(from);
-  const occurrences: FixedFieldSlotOccurrence[] = [];
+  const kickoffOccurrences = getKickoffOccurrences({ from, weeks });
 
-  for (let offset = 0; offset <= safeWeeks * 7; offset += 1) {
-    const date = addCalendarDays(
-      firstDay.year,
-      firstDay.month,
-      firstDay.day,
-      offset
-    );
-
-    for (const definition of FIXED_FIELD_SLOTS) {
-      if (definition.weekday !== date.weekday) continue;
-
-      const startsAt = zonedDateTimeToUtc(
-        date.year,
-        date.month,
-        date.day,
-        definition.hour,
-        definition.minute
-      );
-
-      if (startsAt.getTime() < from.getTime()) continue;
-
-      occurrences.push({
-        ...definition,
-        startsAt,
-        endsAt: new Date(
-          startsAt.getTime() + definition.durationMinutes * 60_000
-        ),
-      });
-    }
-  }
-
-  return occurrences.sort((left, right) => {
-    const byDate = left.startsAt.getTime() - right.startsAt.getTime();
-    return byDate || left.venueName.localeCompare(right.venueName);
-  });
+  return kickoffOccurrences
+    .flatMap((occurrence) =>
+      fields
+        .filter((field) => fieldAllowsSlot(field, occurrence.key))
+        .map((field) => ({
+          ...occurrence,
+          key: `${field.id}:${occurrence.key}`,
+          venueKey: field.id,
+          venueName: field.name,
+          address: field.address,
+        }))
+    )
+    .sort((left, right) => {
+      const byDate = left.startsAt.getTime() - right.startsAt.getTime();
+      return byDate || left.venueName.localeCompare(right.venueName);
+    });
 }
 
 export function findFixedFieldSlot(
-  venueKey: string,
+  field: FieldDefinition,
   startsAt: Date
 ): FixedFieldSlotOccurrence | null {
   if (Number.isNaN(startsAt.getTime())) return null;
@@ -328,7 +306,6 @@ export function findFixedFieldSlot(
   const parts = getRomeParts(startsAt);
   const definition = FIXED_FIELD_SLOTS.find(
     (slot) =>
-      slot.venueKey === venueKey &&
       slot.weekday === parts.weekday &&
       slot.hour === parts.hour &&
       slot.minute === parts.minute
@@ -336,6 +313,7 @@ export function findFixedFieldSlot(
 
   if (
     !definition ||
+    !fieldAllowsSlot(field, definition.key) ||
     parts.second !== 0 ||
     startsAt.getUTCMilliseconds() !== 0
   ) {
@@ -344,19 +322,19 @@ export function findFixedFieldSlot(
 
   return {
     ...definition,
+    key: `${field.id}:${definition.key}`,
+    venueKey: field.id,
+    venueName: field.name,
+    address: field.address,
     startsAt,
-    endsAt: new Date(
-      startsAt.getTime() + definition.durationMinutes * 60_000
-    ),
+    endsAt: new Date(startsAt.getTime() + definition.durationMinutes * 60_000),
   };
 }
 
 export function fixedSlotsSummary() {
   return [
-    "Martedì · 21:00 · Via Anastasio Germonio 6",
-    "Mercoledì · 20:00 e 21:00 · Via Anastasio Germonio 6",
-    "Mercoledì · 20:00 e 21:00 · Sant'Ignazio",
-    "Mercoledì · 21:00 · Circolo della Stampa",
-    "Giovedì · 21:00 · Circolo della Stampa",
+    "Martedì · 21:00",
+    "Mercoledì · 20:00 e 21:00",
+    "Giovedì · 21:00",
   ];
 }

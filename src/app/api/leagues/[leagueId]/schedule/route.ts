@@ -3,33 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { generateRoundRobin } from "@/lib/scheduler";
 import { requireAdmin } from "@/lib/server-auth";
 import {
-  DEFAULT_REFEREE_NAME,
-  OFFICIAL_REFEREE_NAMES,
-} from "@/lib/referees";
-import {
   getFirstFullSlotWeek,
   getFixedFieldSlotOccurrences,
   getRoundSlotWeek,
   getSlotWeekWindow,
 } from "@/lib/field-slots";
-
-async function ensureOfficialReferees(leagueId: string) {
-  return prisma.$transaction(
-    OFFICIAL_REFEREE_NAMES.map((name) =>
-      prisma.referee.upsert({
-        where: {
-          leagueId_name: {
-            leagueId,
-            name,
-          },
-        },
-        update: { active: true },
-        create: { leagueId, name },
-        select: { id: true, name: true },
-      })
-    )
-  );
-}
 
 export async function GET(
   req: Request,
@@ -75,6 +53,7 @@ export async function GET(
           id: true,
           name: true,
           badgeUrl: true,
+          colorHex: true,
         },
       },
       awayTeam: {
@@ -82,6 +61,7 @@ export async function GET(
           id: true,
           name: true,
           badgeUrl: true,
+          colorHex: true,
         },
       },
     },
@@ -154,10 +134,11 @@ export async function POST(
       );
     }
 
-    const referees = await ensureOfficialReferees(leagueId);
-    const defaultReferee =
-      referees.find((referee) => referee.name === DEFAULT_REFEREE_NAME) ??
-      referees[0];
+    const defaultReferee = await prisma.referee.findFirst({
+      where: { leagueId, active: true },
+      orderBy: { name: "asc" },
+      select: { id: true },
+    });
 
     try {
       const match = await prisma.match.create({
@@ -166,7 +147,7 @@ export async function POST(
           round,
           homeTeamId,
           awayTeamId,
-          refereeId: defaultReferee.id,
+          refereeId: defaultReferee?.id ?? null,
           ...(date
             ? {
                 date,
@@ -317,6 +298,22 @@ export async function POST(
     ReturnType<typeof getFixedFieldSlotOccurrences>[number]
   >();
 
+  const activeFields =
+    schedulingMode === "fixed_slots"
+      ? await prisma.field.findMany({
+          where: { leagueId, active: true },
+          select: { id: true, name: true, address: true, slotKeys: true },
+          orderBy: { name: "asc" },
+        })
+      : [];
+
+  if (schedulingMode === "fixed_slots" && activeFields.length === 0) {
+    return NextResponse.json(
+      { error: "Inserisci almeno un campo attivo dalla pagina Admin prima di usare la programmazione automatica" },
+      { status: 409 }
+    );
+  }
+
   if (schedulingMode === "fixed_slots") {
     const rounds = [...new Set(pairings.map((pairing) => pairing.round))];
 
@@ -328,6 +325,7 @@ export async function POST(
       const occurrences = getFixedFieldSlotOccurrences({
         from: week.startsAt,
         weeks: 1,
+        fields: activeFields,
       }).filter((slot) => slot.startsAt.getTime() < week.endsAt.getTime());
 
       const occupied = await prisma.match.findMany({
@@ -370,7 +368,11 @@ export async function POST(
     }
   }
 
-  const referees = await ensureOfficialReferees(leagueId);
+  const referees = await prisma.referee.findMany({
+    where: { leagueId, active: true },
+    orderBy: { name: "asc" },
+    select: { id: true },
+  });
 
   const matchData = pairings.map((pairing, index) => {
     const pairingKey = `${pairing.round}:${pairing.homeTeamId}:${pairing.awayTeamId}:${index}`;
@@ -383,7 +385,7 @@ export async function POST(
       homeTeamId: pairing.homeTeamId,
       awayTeamId: pairing.awayTeamId,
       slotWeekStart: slotWeek.startsAt,
-      refereeId: referees[index % referees.length].id,
+      refereeId: referees.length > 0 ? referees[index % referees.length].id : null,
       ...(slot
         ? {
             date: slot.startsAt,
