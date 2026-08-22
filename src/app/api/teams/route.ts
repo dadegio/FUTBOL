@@ -14,6 +14,7 @@ export async function GET() {
       badgeUrl: true,
       description: true,
       colorHex: true,
+      secondaryColorHex: true,
       activeInLeague: true,
       league: {
         select: {

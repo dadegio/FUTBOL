@@ -69,13 +69,27 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ teamId: strin
   const colorHex = colorHexRaw === undefined || colorHexRaw === null
     ? colorHexRaw
     : colorHexRaw.toUpperCase();
+  const secondaryColorHexRaw =
+    body?.secondaryColorHex === undefined
+      ? undefined
+      : body.secondaryColorHex === null
+        ? null
+        : String(body.secondaryColorHex).trim();
+  const secondaryColorHex =
+    secondaryColorHexRaw === undefined || secondaryColorHexRaw === null
+      ? secondaryColorHexRaw
+      : secondaryColorHexRaw.toUpperCase();
 
   if (name !== undefined && !name) {
     return NextResponse.json({ error: "Nome squadra non valido" }, { status: 400 });
   }
 
   if (colorHex !== undefined && colorHex !== null && !/^#[0-9A-F]{6}$/.test(colorHex)) {
-    return NextResponse.json({ error: "Colore squadra non valido" }, { status: 400 });
+    return NextResponse.json({ error: "Primo colore maglia non valido" }, { status: 400 });
+  }
+
+  if (secondaryColorHex !== undefined && secondaryColorHex !== null && !/^#[0-9A-F]{6}$/.test(secondaryColorHex)) {
+    return NextResponse.json({ error: "Secondo colore maglia non valido" }, { status: 400 });
   }
 
   // verifica esistenza
@@ -100,6 +114,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ teamId: strin
       ...(badgeUrl !== undefined ? { badgeUrl } : {}),
       ...(description !== undefined ? { description } : {}),
       ...(colorHex !== undefined ? { colorHex } : {}),
+      ...(secondaryColorHex !== undefined ? { secondaryColorHex } : {}),
     },
     include: {
       league: { select: { id: true, name: true } },
@@ -127,6 +142,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ teamId: stri
       badgeUrl: true,
       description: true,
       colorHex: true,
+      secondaryColorHex: true,
       captain: { select: { id: true } },
       _count: {
         select: {
@@ -193,6 +209,7 @@ export async function DELETE(req: Request, ctx: { params: Promise<{ teamId: stri
     team.badgeUrl ||
       team.description ||
       team.colorHex ||
+      team.secondaryColorHex ||
       team.captain ||
       team._count.players > 0 ||
       team._count.sheetPlayers > 0 ||

@@ -38,6 +38,7 @@ type Team = {
   badgeUrl?: string | null;
   description?: string | null;
   colorHex?: string | null;
+  secondaryColorHex?: string | null;
   league: { id: string; name: string };
   players: Player[];
 };
@@ -104,6 +105,7 @@ export default function TeamPage() {
   const [badgeUrl, setBadgeUrl] = useState("");
   const [description, setDescription] = useState("");
   const [colorHex, setColorHex] = useState("#F97316");
+  const [secondaryColorHex, setSecondaryColorHex] = useState("#F97316");
   const [badgeFile, setBadgeFile] = useState<File | null>(null);
   const [removeBadge, setRemoveBadge] = useState(false);
   const [editingTeam, setEditingTeam] = useState(false);
@@ -137,6 +139,7 @@ export default function TeamPage() {
     setBadgeUrl(data.badgeUrl ?? "");
     setDescription(data.description ?? "");
     setColorHex(data.colorHex ?? "#F97316");
+    setSecondaryColorHex(data.secondaryColorHex ?? data.colorHex ?? "#F97316");
     setBadgeFile(null);
     setRemoveBadge(false);
   }
@@ -193,6 +196,7 @@ export default function TeamPage() {
           badgeUrl: finalBadgeUrl,
           description: description.trim() || null,
           colorHex,
+          secondaryColorHex,
         }),
       });
 
@@ -339,9 +343,16 @@ export default function TeamPage() {
                 {team.name}
               </h1>
               {team.colorHex && (
-                <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-[var(--muted)]">
-                  <span className="h-3 w-8 rounded-full" style={{ backgroundColor: team.colorHex }} />
-                  {team.colorHex}
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--muted)]">
+                  <span
+                    className="h-3 w-10 rounded-full border border-[var(--border)]"
+                    style={{
+                      background: `linear-gradient(90deg, ${team.colorHex} 0 50%, ${team.secondaryColorHex ?? team.colorHex} 50% 100%)`,
+                    }}
+                  />
+                  <span>{team.colorHex}</span>
+                  <span aria-hidden="true">+</span>
+                  <span>{team.secondaryColorHex ?? team.colorHex}</span>
                 </div>
               )}
               {team.description && (
@@ -463,34 +474,70 @@ export default function TeamPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="text-xs font-black uppercase tracking-wider text-[var(--muted)]">
-                Colore squadra
+                Colori maglia
               </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={/^#[0-9A-F]{6}$/.test(colorHex) ? colorHex : "#F97316"}
-                  onChange={(event) => setColorHex(event.target.value.toUpperCase())}
-                  className="h-11 w-14 cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--card-2)] p-1"
-                  aria-label="Colore squadra"
-                />
-                <Input
-                  value={colorHex}
-                  onChange={(event) => {
-                    const value = event.target.value.toUpperCase();
-                    if (/^#[0-9A-F]{0,6}$/.test(value)) setColorHex(value);
-                  }}
-                  placeholder="#F97316"
-                  className="max-w-[180px] font-mono"
-                />
-                <span
-                  className="h-8 flex-1 rounded-xl border border-[var(--border)]"
-                  style={{ backgroundColor: /^#[0-9A-F]{6}$/.test(colorHex) ? colorHex : "transparent" }}
-                />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--card-2)] p-3">
+                  <span className="text-xs font-bold text-[var(--muted)]">Colore 1</span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={/^#[0-9A-F]{6}$/.test(colorHex) ? colorHex : "#F97316"}
+                      onChange={(event) => setColorHex(event.target.value.toUpperCase())}
+                      className="h-11 w-14 cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--card)] p-1"
+                      aria-label="Primo colore maglia"
+                    />
+                    <Input
+                      value={colorHex}
+                      onChange={(event) => {
+                        const value = event.target.value.toUpperCase();
+                        if (/^#[0-9A-F]{0,6}$/.test(value)) setColorHex(value);
+                      }}
+                      placeholder="#F97316"
+                      className="min-w-0 flex-1 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--card-2)] p-3">
+                  <span className="text-xs font-bold text-[var(--muted)]">Colore 2</span>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={/^#[0-9A-F]{6}$/.test(secondaryColorHex) ? secondaryColorHex : "#F97316"}
+                      onChange={(event) => setSecondaryColorHex(event.target.value.toUpperCase())}
+                      className="h-11 w-14 cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--card)] p-1"
+                      aria-label="Secondo colore maglia"
+                    />
+                    <Input
+                      value={secondaryColorHex}
+                      onChange={(event) => {
+                        const value = event.target.value.toUpperCase();
+                        if (/^#[0-9A-F]{0,6}$/.test(value)) setSecondaryColorHex(value);
+                      }}
+                      placeholder="#FFFFFF"
+                      className="min-w-0 flex-1 font-mono"
+                    />
+                  </div>
+                </div>
               </div>
+
+              <div
+                className="h-10 w-full rounded-xl border border-[var(--border)]"
+                style={{
+                  background:
+                    /^#[0-9A-F]{6}$/.test(colorHex) && /^#[0-9A-F]{6}$/.test(secondaryColorHex)
+                      ? `linear-gradient(90deg, ${colorHex} 0 50%, ${secondaryColorHex} 50% 100%)`
+                      : "transparent",
+                }}
+                aria-label="Anteprima colori maglia"
+              />
+
               <p className="text-xs text-[var(--muted)]">
-                Verrà usato nel Match Center per distinguere graficamente la squadra.
+                I due colori vengono mostrati insieme nel Match Center e restano modificabili dall'app.
               </p>
             </div>
 

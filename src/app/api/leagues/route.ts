@@ -117,6 +117,7 @@ export async function POST(req: Request) {
             badgeUrl: sourceTeam.badgeUrl,
             description: sourceTeam.description,
             colorHex: sourceTeam.colorHex,
+            secondaryColorHex: sourceTeam.secondaryColorHex,
             leagueId: createdLeague.id,
           },
         });

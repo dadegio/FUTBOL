@@ -17,6 +17,8 @@ type TeamRow = {
   name: string;
   badgeUrl?: string | null;
   description?: string | null;
+  colorHex?: string | null;
+  secondaryColorHex?: string | null;
   players?: Array<{ id: string }>;
   _count?: { players: number };
 };
@@ -39,6 +41,8 @@ export default function TeamsPage() {
   const [name, setName] = useState("");
   const [badgeUrl, setBadgeUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [colorHex, setColorHex] = useState("#F97316");
+  const [secondaryColorHex, setSecondaryColorHex] = useState("#F97316");
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,6 +98,8 @@ export default function TeamsPage() {
           name: teamName,
           badgeUrl: badgeUrl.trim() ? badgeUrl.trim() : null,
           description: description.trim() || null,
+          colorHex,
+          secondaryColorHex,
         }),
       });
 
@@ -106,6 +112,8 @@ export default function TeamsPage() {
       setName("");
       setBadgeUrl("");
       setDescription("");
+      setColorHex("#F97316");
+      setSecondaryColorHex("#F97316");
       setMsg("Squadra creata");
       setShowCreateTeam(false);
       await load();
@@ -194,7 +202,7 @@ export default function TeamsPage() {
                 Nuova squadra
               </h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                Aggiungi nome e stemma opzionale.
+                Aggiungi nome, stemma e i due colori della maglia.
               </p>
             </div>
 
@@ -209,6 +217,32 @@ export default function TeamsPage() {
                 value={badgeUrl}
                 onChange={(e) => setBadgeUrl(e.target.value)}
                 placeholder="Logo squadra URL"
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="space-y-1.5 text-xs font-bold text-[var(--muted)]">
+                  <span>Colore 1</span>
+                  <input
+                    type="color"
+                    value={colorHex}
+                    onChange={(e) => setColorHex(e.target.value.toUpperCase())}
+                    className="h-11 w-full cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--card-2)] p-1"
+                  />
+                </label>
+                <label className="space-y-1.5 text-xs font-bold text-[var(--muted)]">
+                  <span>Colore 2</span>
+                  <input
+                    type="color"
+                    value={secondaryColorHex}
+                    onChange={(e) => setSecondaryColorHex(e.target.value.toUpperCase())}
+                    className="h-11 w-full cursor-pointer rounded-xl border border-[var(--border)] bg-[var(--card-2)] p-1"
+                  />
+                </label>
+              </div>
+
+              <div
+                className="h-8 rounded-xl border border-[var(--border)]"
+                style={{ background: `linear-gradient(90deg, ${colorHex} 0 50%, ${secondaryColorHex} 50% 100%)` }}
               />
 
               <textarea
@@ -294,8 +328,17 @@ function TeamListItem({
             {team.name}
           </div>
 
-          <div className="mt-0.5 text-sm text-[var(--muted)]">
-            Rosa {playersCount}/{FUTPOLI_RULES.maxPlayersPerTeam}
+          <div className="mt-0.5 flex items-center gap-2 text-sm text-[var(--muted)]">
+            <span>Rosa {playersCount}/{FUTPOLI_RULES.maxPlayersPerTeam}</span>
+            {team.colorHex && (
+              <span
+                className="h-2.5 w-7 rounded-full border border-[var(--border)]"
+                style={{
+                  background: `linear-gradient(90deg, ${team.colorHex} 0 50%, ${team.secondaryColorHex ?? team.colorHex} 50% 100%)`,
+                }}
+                aria-label="Colori maglia"
+              />
+            )}
           </div>
         </div>
 
