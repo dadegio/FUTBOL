@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/server-auth";
 import { NextResponse } from "next/server";
 import { getSlotWeekWindow } from "@/lib/field-slots";
 import { effectiveMatchEnd, matchOverlapsWindow, refereeAllowsStart, refereeHasConflict } from "@/lib/referee-availability";
+import { rebalanceLeagueReferees } from "@/lib/automatic-referees";
 
 type Ctx = { params: Promise<{ matchId: string }> };
 
@@ -26,6 +27,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
   if (!date) {
     await prisma.match.update({ where: { id: matchId }, data: { date: null, slotEnd: null, venueKey: null, venueName: null, venueAddress: null, bookedByUserId: null, bookedAt: null, refereeId: null } });
+    await rebalanceLeagueReferees(existing.leagueId);
     return NextResponse.json({ ok: true, referee: null });
   }
 
@@ -57,7 +59,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
       });
       return { referee: updated.referee, releasedRefereeAssignments: releaseIds.length };
     });
-    return NextResponse.json({ ok: true, ...result });
+    await rebalanceLeagueReferees(existing.leagueId);
+    const refreshed = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: { referee: { select: { id: true, name: true } } },
+    });
+    return NextResponse.json({ ok: true, ...result, referee: refreshed?.referee ?? null });
   } catch (error) {
     if (error instanceof Error && error.message === "TEAM_CONFLICT") return NextResponse.json({ error: "Una delle due squadre ha già una partita in questo intervallo" }, { status: 409 });
     throw error;

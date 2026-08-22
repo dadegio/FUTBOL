@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateRoundRobin } from "@/lib/scheduler";
 import { requireAdmin } from "@/lib/server-auth";
+import { rebalanceLeagueReferees } from "@/lib/automatic-referees";
 import {
   getFirstFullSlotWeek,
   getFieldSlotOccurrences,
@@ -141,37 +142,23 @@ export async function POST(
       );
     }
 
-    const refereeCandidates = await prisma.referee.findMany({
-      where: { leagueId, active: true, OR: [{ teamId: null }, { teamId: { notIn: [homeTeamId, awayTeamId] } }] },
-      orderBy: { name: "asc" },
-      select: { id: true, teamId: true, availabilities: { select: { weekday: true, hour: true, minute: true } } },
-    });
-
-    let defaultRefereeId: string | null = null;
     const manualEnd = date ? effectiveMatchEnd(date, null) : null;
-    if (date && manualEnd) {
-      const scheduledAt = date;
-      const otherMatches = await prisma.match.findMany({
-        where: { leagueId, date: { not: null } },
-        select: { id: true, date: true, slotEnd: true, homeTeamId: true, awayTeamId: true, refereeId: true },
-      });
-      defaultRefereeId = refereeCandidates.find((referee) =>
-        refereeAllowsStart(referee.availabilities, scheduledAt) &&
-        !refereeHasConflict({ refereeId: referee.id, teamId: referee.teamId, startsAt: scheduledAt, endsAt: manualEnd, otherMatches })
-      )?.id ?? null;
-    } else {
-      defaultRefereeId = refereeCandidates[0]?.id ?? null;
-    }
 
     try {
       const match = await prisma.match.create({
         data: {
-          leagueId, round, homeTeamId, awayTeamId, refereeId: defaultRefereeId,
+          leagueId, round, homeTeamId, awayTeamId, refereeId: null,
           ...(date ? { date, slotEnd: manualEnd, slotWeekStart: getSlotWeekWindow(date).startsAt } : {}),
         },
       });
 
-      return NextResponse.json(match);
+      if (date) await rebalanceLeagueReferees(leagueId);
+      const updated = await prisma.match.findUnique({
+        where: { id: match.id },
+        include: { referee: { select: { id: true, name: true } } },
+      });
+
+      return NextResponse.json(updated ?? match);
     } catch {
       return NextResponse.json(
         { error: "Partita duplicata o dati non validi" },
@@ -451,6 +438,7 @@ export async function POST(
         : []),
       prisma.match.createMany({ data: matchData }),
     ]);
+    await rebalanceLeagueReferees(leagueId);
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") {
       return NextResponse.json(

@@ -6,6 +6,7 @@ import {
 } from "@/lib/server-auth";
 import { findFieldSlot, isWithinSlotWeek } from "@/lib/field-slots";
 import { matchOverlapsWindow, refereeAllowsStart, refereeHasConflict } from "@/lib/referee-availability";
+import { rebalanceLeagueReferees } from "@/lib/automatic-referees";
 
 type Ctx = { params: Promise<{ matchId: string }> };
 
@@ -148,7 +149,7 @@ export async function POST(req: Request, ctx: Ctx) {
             bookedByUserId: session.userId, bookedAt: new Date(), refereeId: assigned?.id ?? null,
           },
           select: {
-            id: true, date: true, slotEnd: true, venueKey: true, venueName: true, venueAddress: true, bookedAt: true,
+            id: true, leagueId: true, date: true, slotEnd: true, venueKey: true, venueName: true, venueAddress: true, bookedAt: true,
             referee: { select: { id: true, name: true } },
           },
         });
@@ -157,7 +158,16 @@ export async function POST(req: Request, ctx: Ctx) {
       { isolationLevel: "Serializable" }
     );
 
-    return NextResponse.json({ ok: true, booking });
+    await rebalanceLeagueReferees(booking.leagueId);
+    const refreshed = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: {
+        id: true, date: true, slotEnd: true, venueKey: true, venueName: true, venueAddress: true, bookedAt: true,
+        referee: { select: { id: true, name: true } },
+      },
+    });
+
+    return NextResponse.json({ ok: true, booking: refreshed ?? booking });
   } catch (error) {
     const code = (error as { code?: string }).code;
     const message = error instanceof Error ? error.message : "";
@@ -247,6 +257,7 @@ export async function DELETE(_: Request, ctx: Ctx) {
     where: { id: matchId },
     select: {
       id: true,
+      leagueId: true,
       venueKey: true,
       homeGoals: true,
       awayGoals: true,
@@ -281,6 +292,7 @@ export async function DELETE(_: Request, ctx: Ctx) {
       refereeId: null,
     },
   });
+  await rebalanceLeagueReferees(match.leagueId);
 
   return NextResponse.json({ ok: true });
 }

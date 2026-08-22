@@ -6,6 +6,7 @@ import {
   refereeHasConflict,
 } from "@/lib/referee-availability";
 import { getServerSession, requireAdmin } from "@/lib/server-auth";
+import { rebalanceLeagueReferees } from "@/lib/automatic-referees";
 
 type Ctx = { params: Promise<{ leagueId: string }> };
 type AvailabilityInput = { weekday: number; hour: number; minute: number };
@@ -124,6 +125,7 @@ export async function POST(req: Request, ctx: Ctx) {
         availabilities: { select: availabilitySelect },
       },
     });
+    await rebalanceLeagueReferees(leagueId);
     return NextResponse.json(referee, { status: 201 });
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") {
@@ -246,7 +248,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
       return { updated, releasedAssignments: invalidIds.length };
     });
 
-    return NextResponse.json({ ...result.updated, releasedAssignments: result.releasedAssignments });
+    const automatic = await rebalanceLeagueReferees(leagueId);
+    return NextResponse.json({ ...result.updated, releasedAssignments: result.releasedAssignments, automatic });
   } catch (error) {
     if ((error as { code?: string }).code === "P2002") {
       return NextResponse.json({ error: "Esiste già un arbitro con questo nome o una disponibilità duplicata" }, { status: 409 });
@@ -281,5 +284,6 @@ export async function DELETE(req: Request, ctx: Ctx) {
     await tx.referee.delete({ where: { id } });
     return released.count;
   });
-  return NextResponse.json({ ok: true, releasedAssignments });
+  const automatic = await rebalanceLeagueReferees(leagueId);
+  return NextResponse.json({ ok: true, releasedAssignments, automatic });
 }

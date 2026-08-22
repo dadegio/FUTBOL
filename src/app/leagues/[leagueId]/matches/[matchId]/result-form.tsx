@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -15,7 +15,6 @@ import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Badge from "src/app/_components/ui/badge";
-import Select from "src/app/_components/ui/select";
 import SponsorBanner from "src/app/_components/sponsor-banner";
 import { useAuth, authFetch } from "@/lib/client-auth";
 import { FUTPOLI_RULES } from "@/lib/tournament-rules";
@@ -161,39 +160,6 @@ export default function MatchResultForm({ match }: { match: Match }) {
   const [savingDate, setSavingDate] = useState(false);
   const [dateMsg, setDateMsg] = useState<string | null>(null);
   const [dateErr, setDateErr] = useState<string | null>(null);
-  const [refereeId, setRefereeId] = useState(match.referee?.id ?? "");
-  const [referees, setReferees] = useState<Referee[]>(
-    match.referee ? [match.referee] : []
-  );
-  const [savingOfficials, setSavingOfficials] = useState(false);
-  const [officialsMsg, setOfficialsMsg] = useState<string | null>(null);
-  const [officialsErr, setOfficialsErr] = useState<string | null>(null);
-
-  useEffect(() => {
-    setRefereeId(match.referee?.id ?? "");
-  }, [match.referee?.id]);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-
-    authFetch(`/api/leagues/${match.leagueId}/referees?matchId=${encodeURIComponent(match.id)}`, {
-      cache: "no-store",
-    })
-      .then(async (response) => {
-        const data = await response.json().catch(() => []);
-        if (!response.ok) {
-          throw new Error(data?.error ?? "Errore caricamento arbitri");
-        }
-        setReferees(Array.isArray(data) ? data : []);
-      })
-      .catch((error) => {
-        setOfficialsErr(
-          error instanceof Error
-            ? error.message
-            : "Errore caricamento arbitri"
-        );
-      });
-  }, [isAdmin, match.id, match.leagueId, match.date, match.slotEnd]);
 
   const initial = useMemo(() => {
     const m = new Map<string, { goals: number; assists: number }>();
@@ -323,40 +289,12 @@ export default function MatchResultForm({ match }: { match: Match }) {
     }
   }
 
-  async function saveOfficials() {
-    setOfficialsMsg(null);
-    setOfficialsErr(null);
-    setSavingOfficials(true);
-
-    try {
-      const res = await authFetch(`/api/matches/${match.id}/officials`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          refereeId: refereeId || null,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Errore salvataggio arbitro");
-
-      setOfficialsMsg("Arbitro aggiornato");
-      router.refresh();
-    } catch (error) {
-      setOfficialsErr(
-        error instanceof Error ? error.message : "Errore salvataggio arbitro"
-      );
-    } finally {
-      setSavingOfficials(false);
-    }
-  }
-
   const played = homeGoals !== "" && awayGoals !== "";
   const hg = Number(homeGoals);
   const ag = Number(awayGoals);
   const selectedRefereeName =
-    referees.find((referee) => referee.id === refereeId)?.name ??
     match.referee?.name ??
-    "Da assegnare";
+    (match.date ? "Nessun arbitro compatibile disponibile" : "In attesa dello slot");
 
   return (
     <DashboardShell leagueId={match.leagueId}>
@@ -478,46 +416,17 @@ export default function MatchResultForm({ match }: { match: Match }) {
               </p>
             </div>
 
-            {isAdmin && (
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Select
-                  value={refereeId}
-                  onChange={(event) => setRefereeId(event.target.value)}
-                  className="flex-1"
-                >
-                  <option value="" className="text-black">
-                    Nessun arbitro assegnato
-                  </option>
-                  {referees
-                    .filter((referee) => {
-                      if (referee.id === refereeId) return true;
-                      if (referee.active === false) return false;
-                      return (
-                        referee.teamId !== match.homeTeam.id &&
-                        referee.teamId !== match.awayTeam.id
-                      );
-                    })
-                    .map((referee) => (
-                      <option
-                        key={referee.id}
-                        value={referee.id}
-                        className="text-black"
-                      >
-                        {referee.name}
-                        {referee.team ? ` · gioca in ${referee.team.name}` : ""}
-                      </option>
-                    ))}
-                </Select>
-                <Button
-                  onClick={saveOfficials}
-                  disabled={savingOfficials}
-                >
-                  {savingOfficials ? "Salvataggio…" : "Salva arbitro"}
-                </Button>
-              </div>
-            )}
-            {officialsMsg && <Badge variant="success">{officialsMsg}</Badge>}
-            {officialsErr && <Badge variant="error">{officialsErr}</Badge>}
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-4 py-3 text-sm text-[var(--muted)]">
+              {match.date ? (
+                match.referee ? (
+                  <>Assegnazione automatica attiva: il sistema ha scelto <b className="text-[var(--foreground)]">{match.referee.name}</b> tra gli arbitri compatibili.</>
+                ) : (
+                  <>Assegnazione automatica attiva: al momento non esiste un arbitro compatibile con squadra, disponibilità e sovrapposizioni di questa partita.</>
+                )
+              ) : (
+                <>L&apos;arbitro verrà assegnato automaticamente quando sarà scelto lo slot della partita.</>
+              )}
+            </div>
           </div>
         </Card>
 
