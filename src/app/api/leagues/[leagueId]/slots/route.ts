@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
-  FIXED_FIELD_SLOTS,
-  getFixedFieldSlotOccurrences,
+  getFieldSlotOccurrences,
   getSlotWeekWindow,
 } from "@/lib/field-slots";
 
@@ -62,10 +61,23 @@ export async function GET(req: Request, ctx: Ctx) {
   const matchWeek = getSlotWeekWindow(weekAnchor);
   const fields = await prisma.field.findMany({
     where: { leagueId, active: true },
-    select: { id: true, name: true, address: true, slotKeys: true },
+    select: {
+      id: true,
+      name: true,
+      address: true,
+      slots: {
+        select: {
+          id: true,
+          weekday: true,
+          hour: true,
+          minute: true,
+          durationMinutes: true,
+        },
+      },
+    },
     orderBy: { name: "asc" },
   });
-  const occurrences = getFixedFieldSlotOccurrences({
+  const occurrences = getFieldSlotOccurrences({
     from: matchWeek.startsAt,
     weeks: 1,
     fields,
@@ -117,7 +129,6 @@ export async function GET(req: Request, ctx: Ctx) {
 
   return NextResponse.json({
     timeZone: "Europe/Rome",
-    definitions: FIXED_FIELD_SLOTS,
     fields,
     matchWeek: {
       round: currentMatch.round,

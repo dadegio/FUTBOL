@@ -39,6 +39,7 @@ type Team = {
   name: string;
   badgeUrl?: string | null;
   colorHex?: string | null;
+  secondaryColorHex?: string | null;
   players: Player[];
 };
 
@@ -54,6 +55,8 @@ type Referee = {
   id: string;
   name: string;
   active?: boolean;
+  teamId?: string | null;
+  team?: { id: string; name: string } | null;
 };
 
 type Match = {
@@ -167,9 +170,13 @@ export default function MatchResultForm({ match }: { match: Match }) {
   const [officialsErr, setOfficialsErr] = useState<string | null>(null);
 
   useEffect(() => {
+    setRefereeId(match.referee?.id ?? "");
+  }, [match.referee?.id]);
+
+  useEffect(() => {
     if (!isAdmin) return;
 
-    authFetch(`/api/leagues/${match.leagueId}/referees`, {
+    authFetch(`/api/leagues/${match.leagueId}/referees?matchId=${encodeURIComponent(match.id)}`, {
       cache: "no-store",
     })
       .then(async (response) => {
@@ -186,7 +193,7 @@ export default function MatchResultForm({ match }: { match: Match }) {
             : "Errore caricamento arbitri"
         );
       });
-  }, [isAdmin, match.leagueId]);
+  }, [isAdmin, match.id, match.leagueId, match.date, match.slotEnd]);
 
   const initial = useMemo(() => {
     const m = new Map<string, { goals: number; assists: number }>();
@@ -482,10 +489,14 @@ export default function MatchResultForm({ match }: { match: Match }) {
                     Nessun arbitro assegnato
                   </option>
                   {referees
-                    .filter(
-                      (referee) =>
-                        referee.active !== false || referee.id === refereeId
-                    )
+                    .filter((referee) => {
+                      if (referee.id === refereeId) return true;
+                      if (referee.active === false) return false;
+                      return (
+                        referee.teamId !== match.homeTeam.id &&
+                        referee.teamId !== match.awayTeam.id
+                      );
+                    })
                     .map((referee) => (
                       <option
                         key={referee.id}
@@ -493,6 +504,7 @@ export default function MatchResultForm({ match }: { match: Match }) {
                         className="text-black"
                       >
                         {referee.name}
+                        {referee.team ? ` · gioca in ${referee.team.name}` : ""}
                       </option>
                     ))}
                 </Select>
@@ -535,8 +547,8 @@ export default function MatchResultForm({ match }: { match: Match }) {
         {!canEditResult && !authLoading && <p className="px-1 text-sm text-[var(--muted)]">Sola lettura — possono modificare distinta e risultato l&apos;admin, i capitani coinvolti e l&apos;arbitro assegnato.</p>}
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <TeamStatsCard title={match.homeTeam.name} colorHex={match.homeTeam.colorHex} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
-          <TeamStatsCard title={match.awayTeam.name} colorHex={match.awayTeam.colorHex} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
+          <TeamStatsCard title={match.homeTeam.name} colorHex={match.homeTeam.colorHex} secondaryColorHex={match.homeTeam.secondaryColorHex} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
+          <TeamStatsCard title={match.awayTeam.name} colorHex={match.awayTeam.colorHex} secondaryColorHex={match.awayTeam.secondaryColorHex} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
         </div>
 
         {canEditResult && (
@@ -560,7 +572,8 @@ function safeTeamColor(color?: string | null) {
 }
 
 function TeamScoreBlock({ team, faded }: { team: Team; faded?: boolean }) {
-  const color = safeTeamColor(team.colorHex);
+  const primaryColor = safeTeamColor(team.colorHex);
+  const secondaryColor = safeTeamColor(team.secondaryColorHex ?? team.colorHex);
 
   return (
     <div
@@ -569,18 +582,22 @@ function TeamScoreBlock({ team, faded }: { team: Team; faded?: boolean }) {
         faded ? "opacity-55" : "",
       ].join(" ")}
       style={{
-        borderTop: `4px solid ${color}`,
-        background: `linear-gradient(180deg, ${color}24 0%, transparent 82%)`,
+        borderTop: "4px solid transparent",
+        borderImage: `linear-gradient(90deg, ${primaryColor} 0 50%, ${secondaryColor} 50% 100%) 1`,
+        background: `linear-gradient(135deg, ${primaryColor}24 0 48%, ${secondaryColor}24 52% 100%)`,
       }}
     >
       <div
         className="rounded-[26px] p-2"
-        style={{ boxShadow: `0 0 0 1px ${color}55, 0 12px 34px ${color}1F` }}
+        style={{ boxShadow: `-8px 10px 28px ${primaryColor}1F, 8px 10px 28px ${secondaryColor}1F`, background: `linear-gradient(135deg, ${primaryColor}18 0 49%, ${secondaryColor}18 51% 100%)` }}
       >
         <TeamCrest name={team.name} badgeUrl={team.badgeUrl ?? null} large />
       </div>
       <span className="max-w-full truncate text-sm font-black text-[var(--foreground)] sm:text-base">{team.name}</span>
-      <span className="h-1 w-10 rounded-full" style={{ backgroundColor: color }} />
+      <span
+        className="h-1 w-12 rounded-full"
+        style={{ background: `linear-gradient(90deg, ${primaryColor} 0 50%, ${secondaryColor} 50% 100%)` }}
+      />
     </div>
   );
 }
@@ -610,6 +627,7 @@ function SheetCounter({ team, count, missing }: { team: string; count: number; m
 function TeamStatsCard({
   title,
   colorHex,
+  secondaryColorHex,
   players,
   stats,
   sheet,
@@ -620,6 +638,7 @@ function TeamStatsCard({
 }: {
   title: string;
   colorHex?: string | null;
+  secondaryColorHex?: string | null;
   players: Player[];
   stats: Record<string, { goals: string; assists: string }>;
   sheet: Record<string, boolean>;
@@ -630,14 +649,16 @@ function TeamStatsCard({
 }) {
   const eligibleCount = players.filter(isPlayerEligible).length;
   const teamColor = safeTeamColor(colorHex);
+  const teamSecondaryColor = safeTeamColor(secondaryColorHex ?? colorHex);
 
   return (
     <Card className="overflow-hidden !p-0">
       <div
         className="flex items-center justify-between border-b border-[var(--border)] px-4 py-4"
         style={{
-          borderTop: `4px solid ${teamColor}`,
-          background: `linear-gradient(90deg, ${teamColor}1F 0%, transparent 58%)`,
+          borderTop: "4px solid transparent",
+          borderImage: `linear-gradient(90deg, ${teamColor} 0 50%, ${teamSecondaryColor} 50% 100%) 1`,
+          background: `linear-gradient(105deg, ${teamColor}1F 0 30%, ${teamSecondaryColor}1F 70% 100%)`,
         }}
       >
         <div>

@@ -1,21 +1,22 @@
 const ROME_TIME_ZONE = "Europe/Rome";
 
-export type FieldDefinition = {
-  id: string;
-  name: string;
-  address: string;
-  slotKeys?: unknown;
-};
-
-export type FixedFieldSlotDefinition = {
-  key: string;
+export type FieldSlotDefinition = {
+  id?: string;
   weekday: number;
   hour: number;
   minute: number;
   durationMinutes: number;
 };
 
-export type FixedFieldSlotOccurrence = FixedFieldSlotDefinition & {
+export type FieldDefinition = {
+  id: string;
+  name: string;
+  address: string;
+  slots: FieldSlotDefinition[];
+};
+
+export type FieldSlotOccurrence = FieldSlotDefinition & {
+  key: string;
   venueKey: string;
   venueName: string;
   address: string;
@@ -27,41 +28,6 @@ export type SlotWeekWindow = {
   startsAt: Date;
   endsAt: Date;
 };
-
-/**
- * Orari standard del torneo. I campi non sono più definiti qui:
- * vengono caricati dal database e combinati con questi orari.
- */
-export const FIXED_FIELD_SLOTS: FixedFieldSlotDefinition[] = [
-  {
-    key: "tue-21",
-    weekday: 2,
-    hour: 21,
-    minute: 0,
-    durationMinutes: 60,
-  },
-  {
-    key: "wed-20",
-    weekday: 3,
-    hour: 20,
-    minute: 0,
-    durationMinutes: 60,
-  },
-  {
-    key: "wed-21",
-    weekday: 3,
-    hour: 21,
-    minute: 0,
-    durationMinutes: 60,
-  },
-  {
-    key: "thu-21",
-    weekday: 4,
-    hour: 21,
-    minute: 0,
-    durationMinutes: 60,
-  },
-];
 
 type DateParts = {
   year: number;
@@ -151,6 +117,23 @@ function addCalendarDays(
   };
 }
 
+function isValidSlotDefinition(slot: FieldSlotDefinition) {
+  return (
+    Number.isInteger(slot.weekday) &&
+    slot.weekday >= 0 &&
+    slot.weekday <= 6 &&
+    Number.isInteger(slot.hour) &&
+    slot.hour >= 0 &&
+    slot.hour <= 23 &&
+    Number.isInteger(slot.minute) &&
+    slot.minute >= 0 &&
+    slot.minute <= 59 &&
+    Number.isInteger(slot.durationMinutes) &&
+    slot.durationMinutes > 0 &&
+    slot.durationMinutes <= 24 * 60
+  );
+}
+
 export function getSlotWeekWindow(anchor: Date): SlotWeekWindow {
   if (Number.isNaN(anchor.getTime())) {
     throw new Error("Data settimana non valida");
@@ -173,60 +156,22 @@ export function getSlotWeekWindow(anchor: Date): SlotWeekWindow {
 
   return {
     startsAt: zonedDateTimeToUtc(monday.year, monday.month, monday.day, 0, 0),
-    endsAt: zonedDateTimeToUtc(nextMonday.year, nextMonday.month, nextMonday.day, 0, 0),
+    endsAt: zonedDateTimeToUtc(
+      nextMonday.year,
+      nextMonday.month,
+      nextMonday.day,
+      0,
+      0
+    ),
   };
 }
 
-function getKickoffOccurrences({
-  from,
-  weeks,
-}: {
-  from: Date;
-  weeks: number;
-}) {
-  const safeWeeks = Math.min(Math.max(Math.trunc(weeks), 1), 60);
-  const firstDay = getRomeParts(from);
-  const occurrences: Array<FixedFieldSlotDefinition & { startsAt: Date; endsAt: Date }> = [];
-
-  for (let offset = 0; offset <= safeWeeks * 7; offset += 1) {
-    const date = addCalendarDays(firstDay.year, firstDay.month, firstDay.day, offset);
-
-    for (const definition of FIXED_FIELD_SLOTS) {
-      if (definition.weekday !== date.weekday) continue;
-
-      const startsAt = zonedDateTimeToUtc(
-        date.year,
-        date.month,
-        date.day,
-        definition.hour,
-        definition.minute
-      );
-
-      if (startsAt.getTime() < from.getTime()) continue;
-
-      occurrences.push({
-        ...definition,
-        startsAt,
-        endsAt: new Date(startsAt.getTime() + definition.durationMinutes * 60_000),
-      });
-    }
-  }
-
-  return occurrences.sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime());
-}
-
+/**
+ * La data scelta dall'admin identifica la prima settimana del calendario.
+ * Gli slot dei campi possono essere configurati anche in un secondo momento.
+ */
 export function getFirstFullSlotWeek(from: Date): SlotWeekWindow {
-  let week = getSlotWeekWindow(from);
-  const firstSlot = getKickoffOccurrences({
-    from: week.startsAt,
-    weeks: 1,
-  }).find((slot) => slot.startsAt.getTime() < week.endsAt.getTime());
-
-  if (firstSlot && firstSlot.startsAt.getTime() < from.getTime()) {
-    week = getSlotWeekWindow(week.endsAt);
-  }
-
-  return week;
+  return getSlotWeekWindow(from);
 }
 
 export function getRoundSlotWeek(
@@ -256,19 +201,10 @@ export function getRoundSlotWeek(
 export function isWithinSlotWeek(date: Date, weekStart: Date) {
   const week = getSlotWeekWindow(weekStart);
   const timestamp = date.getTime();
-  return (
-    timestamp >= week.startsAt.getTime() &&
-    timestamp < week.endsAt.getTime()
-  );
+  return timestamp >= week.startsAt.getTime() && timestamp < week.endsAt.getTime();
 }
 
-
-function fieldAllowsSlot(field: FieldDefinition, slotKey: string) {
-  if (!Array.isArray(field.slotKeys)) return true;
-  return field.slotKeys.some((key) => key === slotKey);
-}
-
-export function getFixedFieldSlotOccurrences({
+export function getFieldSlotOccurrences({
   from,
   weeks,
   fields,
@@ -276,36 +212,57 @@ export function getFixedFieldSlotOccurrences({
   from: Date;
   weeks: number;
   fields: FieldDefinition[];
-}): FixedFieldSlotOccurrence[] {
-  const kickoffOccurrences = getKickoffOccurrences({ from, weeks });
+}): FieldSlotOccurrence[] {
+  const safeWeeks = Math.min(Math.max(Math.trunc(weeks), 1), 60);
+  const firstDay = getRomeParts(from);
+  const occurrences: FieldSlotOccurrence[] = [];
 
-  return kickoffOccurrences
-    .flatMap((occurrence) =>
-      fields
-        .filter((field) => fieldAllowsSlot(field, occurrence.key))
-        .map((field) => ({
-          ...occurrence,
-          key: `${field.id}:${occurrence.key}`,
+  for (let offset = 0; offset <= safeWeeks * 7; offset += 1) {
+    const date = addCalendarDays(firstDay.year, firstDay.month, firstDay.day, offset);
+
+    for (const field of fields) {
+      for (const slot of field.slots) {
+        if (!isValidSlotDefinition(slot) || slot.weekday !== date.weekday) continue;
+
+        const startsAt = zonedDateTimeToUtc(
+          date.year,
+          date.month,
+          date.day,
+          slot.hour,
+          slot.minute
+        );
+
+        if (startsAt.getTime() < from.getTime()) continue;
+
+        occurrences.push({
+          ...slot,
+          key: slot.id ?? `${field.id}:${slot.weekday}-${slot.hour}-${slot.minute}`,
           venueKey: field.id,
           venueName: field.name,
           address: field.address,
-        }))
-    )
-    .sort((left, right) => {
-      const byDate = left.startsAt.getTime() - right.startsAt.getTime();
-      return byDate || left.venueName.localeCompare(right.venueName);
-    });
+          startsAt,
+          endsAt: new Date(startsAt.getTime() + slot.durationMinutes * 60_000),
+        });
+      }
+    }
+  }
+
+  return occurrences.sort((left, right) => {
+    const byDate = left.startsAt.getTime() - right.startsAt.getTime();
+    return byDate || left.venueName.localeCompare(right.venueName);
+  });
 }
 
-export function findFixedFieldSlot(
+export function findFieldSlot(
   field: FieldDefinition,
   startsAt: Date
-): FixedFieldSlotOccurrence | null {
+): FieldSlotOccurrence | null {
   if (Number.isNaN(startsAt.getTime())) return null;
 
   const parts = getRomeParts(startsAt);
-  const definition = FIXED_FIELD_SLOTS.find(
+  const definition = field.slots.find(
     (slot) =>
+      isValidSlotDefinition(slot) &&
       slot.weekday === parts.weekday &&
       slot.hour === parts.hour &&
       slot.minute === parts.minute
@@ -313,7 +270,6 @@ export function findFixedFieldSlot(
 
   if (
     !definition ||
-    !fieldAllowsSlot(field, definition.key) ||
     parts.second !== 0 ||
     startsAt.getUTCMilliseconds() !== 0
   ) {
@@ -322,19 +278,15 @@ export function findFixedFieldSlot(
 
   return {
     ...definition,
-    key: `${field.id}:${definition.key}`,
+    key:
+      definition.id ??
+      `${field.id}:${definition.weekday}-${definition.hour}-${definition.minute}`,
     venueKey: field.id,
     venueName: field.name,
     address: field.address,
     startsAt,
-    endsAt: new Date(startsAt.getTime() + definition.durationMinutes * 60_000),
+    endsAt: new Date(
+      startsAt.getTime() + definition.durationMinutes * 60_000
+    ),
   };
-}
-
-export function fixedSlotsSummary() {
-  return [
-    "Martedì · 21:00",
-    "Mercoledì · 20:00 e 21:00",
-    "Giovedì · 21:00",
-  ];
 }

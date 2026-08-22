@@ -4,7 +4,8 @@ import {
   getServerSession,
   requireAdminOrCaptainOfMatch,
 } from "@/lib/server-auth";
-import { findFixedFieldSlot, isWithinSlotWeek } from "@/lib/field-slots";
+import { findFieldSlot, isWithinSlotWeek } from "@/lib/field-slots";
+import { matchOverlapsWindow, refereeAllowsStart, refereeHasConflict } from "@/lib/referee-availability";
 
 type Ctx = { params: Promise<{ matchId: string }> };
 
@@ -43,6 +44,8 @@ export async function POST(req: Request, ctx: Ctx) {
             awayGoals: true,
             date: true,
             slotWeekStart: true,
+            refereeId: true,
+            round: true,
           },
         });
 
@@ -57,11 +60,24 @@ export async function POST(req: Request, ctx: Ctx) {
             leagueId: match.leagueId,
             active: true,
           },
-          select: { id: true, name: true, address: true, slotKeys: true },
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            slots: {
+              select: {
+                id: true,
+                weekday: true,
+                hour: true,
+                minute: true,
+                durationMinutes: true,
+              },
+            },
+          },
         });
         if (!field) throw new Error("FIELD_NOT_AVAILABLE");
 
-        const slot = findFixedFieldSlot(field, startsAt);
+        const slot = findFieldSlot(field, startsAt);
         if (!slot) throw new Error("INVALID_SLOT");
         if (slot.startsAt.getTime() <= Date.now()) {
           throw new Error("SLOT_ALREADY_STARTED");
@@ -87,27 +103,56 @@ export async function POST(req: Request, ctx: Ctx) {
 
         if (teamConflict) throw new Error("TEAM_CONFLICT");
 
-        return tx.match.update({
+        const [referees, otherMatches] = await Promise.all([
+          tx.referee.findMany({
+            where: { leagueId: match.leagueId, active: true },
+            orderBy: { name: "asc" },
+            select: { id: true, name: true, teamId: true, availabilities: { select: { weekday: true, hour: true, minute: true } } },
+          }),
+          tx.match.findMany({
+            where: { leagueId: match.leagueId, id: { not: matchId }, date: { not: null } },
+            select: { id: true, date: true, slotEnd: true, homeTeamId: true, awayTeamId: true, refereeId: true },
+          }),
+        ]);
+
+        const overlappingTeamConflict = otherMatches.some((other) =>
+          (other.homeTeamId === match.homeTeamId || other.awayTeamId === match.homeTeamId ||
+           other.homeTeamId === match.awayTeamId || other.awayTeamId === match.awayTeamId) &&
+          matchOverlapsWindow(other, slot.startsAt, slot.endsAt)
+        );
+        if (overlappingTeamConflict) throw new Error("TEAM_CONFLICT");
+
+        const affiliatedRefereeIds = new Set(referees.filter((r) => r.teamId === match.homeTeamId || r.teamId === match.awayTeamId).map((r) => r.id));
+        const assignmentsToRelease = otherMatches.filter((other) =>
+          Boolean(other.refereeId) && affiliatedRefereeIds.has(other.refereeId!) && matchOverlapsWindow(other, slot.startsAt, slot.endsAt)
+        ).map((other) => other.id);
+        if (assignmentsToRelease.length) {
+          await tx.match.updateMany({ where: { id: { in: assignmentsToRelease } }, data: { refereeId: null } });
+          for (const other of otherMatches) if (assignmentsToRelease.includes(other.id)) other.refereeId = null;
+        }
+
+        const load = new Map<string, number>();
+        for (const other of otherMatches) if (other.refereeId) load.set(other.refereeId, (load.get(other.refereeId) ?? 0) + 1);
+        const ordered = [...referees].sort((a,b) => ((load.get(a.id) ?? 0) - (load.get(b.id) ?? 0)) || a.name.localeCompare(b.name));
+        const compatible = (r: (typeof referees)[number]) =>
+          r.teamId !== match.homeTeamId && r.teamId !== match.awayTeamId &&
+          refereeAllowsStart(r.availabilities, slot.startsAt) &&
+          !refereeHasConflict({ refereeId: r.id, teamId: r.teamId, startsAt: slot.startsAt, endsAt: slot.endsAt, otherMatches });
+        const current = ordered.find((r) => r.id === match.refereeId && compatible(r));
+        const assigned = current ?? ordered.find(compatible) ?? null;
+
+        const updated = await tx.match.update({
           where: { id: matchId },
           data: {
-            date: slot.startsAt,
-            slotEnd: slot.endsAt,
-            venueKey: slot.venueKey,
-            venueName: slot.venueName,
-            venueAddress: slot.address,
-            bookedByUserId: session.userId,
-            bookedAt: new Date(),
+            date: slot.startsAt, slotEnd: slot.endsAt, venueKey: slot.venueKey, venueName: slot.venueName, venueAddress: slot.address,
+            bookedByUserId: session.userId, bookedAt: new Date(), refereeId: assigned?.id ?? null,
           },
           select: {
-            id: true,
-            date: true,
-            slotEnd: true,
-            venueKey: true,
-            venueName: true,
-            venueAddress: true,
-            bookedAt: true,
+            id: true, date: true, slotEnd: true, venueKey: true, venueName: true, venueAddress: true, bookedAt: true,
+            referee: { select: { id: true, name: true } },
           },
         });
+        return { ...updated, releasedRefereeAssignments: assignmentsToRelease.length };
       },
       { isolationLevel: "Serializable" }
     );
@@ -233,6 +278,7 @@ export async function DELETE(_: Request, ctx: Ctx) {
       venueAddress: null,
       bookedByUserId: null,
       bookedAt: null,
+      refereeId: null,
     },
   });
 

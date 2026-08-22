@@ -62,7 +62,8 @@ model Team {
   name           String
   badgeUrl       String?
   description    String?
-  colorHex       String?
+  colorHex          String?
+  secondaryColorHex String?
   activeInLeague Boolean  @default(true)
   createdAt      DateTime @default(now())
 
@@ -79,6 +80,7 @@ model Team {
   wonSeries  PlayoffSeries[] @relation("SeriesWinner")
 
   captain User? @relation("TeamCaptain")
+  affiliatedReferees Referee[] @relation("RefereeTeamAffiliation")
 
   @@unique([leagueId, name])
   @@index([leagueId, activeInLeague])
@@ -172,15 +174,29 @@ model Field {
   leagueId  String
   name      String
   address   String
-  slotKeys  Json?
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  league League      @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  slots  FieldSlot[]
 
   @@unique([leagueId, name])
   @@index([leagueId, active])
+}
+
+model FieldSlot {
+  id              String @id @default(cuid())
+  fieldId         String
+  weekday         Int
+  hour            Int
+  minute          Int
+  durationMinutes Int    @default(60)
+
+  field Field @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([fieldId, weekday, hour, minute])
+  @@index([fieldId, weekday])
 }
 
 model Referee {
@@ -188,15 +204,32 @@ model Referee {
   leagueId  String
   name      String
   active    Boolean  @default(true)
+  teamId    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   league  League  @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  matches Match[]
-  account User?   @relation("RefereeAccount")
+  team    Team?   @relation("RefereeTeamAffiliation", fields: [teamId], references: [id], onDelete: SetNull)
+  matches        Match[]
+  availabilities RefereeAvailability[]
+  account        User?   @relation("RefereeAccount")
 
   @@unique([leagueId, name])
   @@index([leagueId, active])
+  @@index([teamId])
+}
+
+model RefereeAvailability {
+  id        String @id @default(cuid())
+  refereeId String
+  weekday   Int
+  hour      Int
+  minute    Int
+
+  referee Referee @relation(fields: [refereeId], references: [id], onDelete: Cascade)
+
+  @@unique([refereeId, weekday, hour, minute])
+  @@index([refereeId, weekday])
 }
 
 model MatchPlayerStat {
