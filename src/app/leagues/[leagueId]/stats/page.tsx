@@ -12,6 +12,9 @@ type Row = {
   firstName: string;
   lastName: string;
   photoUrl?: string | null;
+  photoZoom?: number;
+  photoPositionX?: number;
+  photoPositionY?: number;
   teamName: string;
   teamBadgeUrl?: string | null;
   value: number;
@@ -159,6 +162,9 @@ function StatList({
             firstName={r.firstName}
             lastName={r.lastName}
             photoUrl={r.photoUrl ?? null}
+            photoZoom={r.photoZoom ?? 1}
+            photoPositionX={r.photoPositionX ?? 50}
+            photoPositionY={r.photoPositionY ?? 50}
           />
 
           <div className="min-w-0">
@@ -194,10 +200,16 @@ function PlayerAvatar({
   firstName,
   lastName,
   photoUrl,
+  photoZoom = 1,
+  photoPositionX = 50,
+  photoPositionY = 50,
 }: {
   firstName: string;
   lastName: string;
   photoUrl: string | null;
+  photoZoom?: number;
+  photoPositionX?: number;
+  photoPositionY?: number;
 }) {
   const initials = `${firstName} ${lastName}`
     .trim()
@@ -209,11 +221,18 @@ function PlayerAvatar({
 
   if (photoUrl) {
     return (
-      <img
-        src={photoUrl}
-        alt={`${firstName} ${lastName}`}
-        className="h-12 w-12 rounded-2xl border border-[var(--border)] object-cover"
-      />
+      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card-2)]">
+        <img
+          src={photoUrl}
+          alt={`${firstName} ${lastName}`}
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{
+            objectPosition: `${photoPositionX}% ${photoPositionY}%`,
+            transform: `scale(${photoZoom})`,
+            transformOrigin: `${photoPositionX}% ${photoPositionY}%`,
+          }}
+        />
+      </div>
     );
   }
 

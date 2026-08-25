@@ -18,6 +18,9 @@ type Row = {
   number: number;
   position?: string | null;
   photoUrl?: string | null;
+  photoZoom?: number;
+  photoPositionX?: number;
+  photoPositionY?: number;
   registrationStatus?: string;
   isEligibleForMatchSheet?: boolean;
   team: {
@@ -259,6 +262,9 @@ function PlayerCard({
           name={fullName}
           number={player.number}
           photoUrl={player.photoUrl ?? null}
+          photoZoom={player.photoZoom ?? 1}
+          photoPositionX={player.photoPositionX ?? 50}
+          photoPositionY={player.photoPositionY ?? 50}
         />
 
         <div className="min-w-0 flex-1">
@@ -321,10 +327,16 @@ function PlayerAvatar({
   name,
   number,
   photoUrl,
+  photoZoom = 1,
+  photoPositionX = 50,
+  photoPositionY = 50,
 }: {
   name: string;
   number: number;
   photoUrl: string | null;
+  photoZoom?: number;
+  photoPositionX?: number;
+  photoPositionY?: number;
 }) {
   const initials = name
     .split(" ")
@@ -336,7 +348,7 @@ function PlayerAvatar({
   if (photoUrl) {
     return (
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card-2)]">
-        <img src={photoUrl} alt={name} className="h-full w-full object-cover" />
+        <img src={photoUrl} alt={name} className="h-full w-full object-cover" style={{ objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom})`, transformOrigin: `${photoPositionX}% ${photoPositionY}%` }} />
 
         <span className="absolute bottom-0 right-0 flex h-6 min-w-6 items-center justify-center rounded-tl-xl bg-[var(--accent)] px-1 text-[10px] font-black text-white">
           {number}

@@ -13,6 +13,9 @@ export type PlayerVisibilityInput = PlayerEligibilityInput & {
   number: number;
   position?: string | null;
   photoUrl?: string | null;
+  photoZoom?: number;
+  photoPositionX?: number;
+  photoPositionY?: number;
   teamId?: string | null;
   team?: unknown;
   [key: string]: unknown;
@@ -46,6 +49,9 @@ export function sanitizePlayerForRole<T extends PlayerVisibilityInput>(
     number: player.number,
     position: player.position ?? null,
     photoUrl: player.photoUrl ?? null,
+    photoZoom: typeof player.photoZoom === "number" ? player.photoZoom : 1,
+    photoPositionX: typeof player.photoPositionX === "number" ? player.photoPositionX : 50,
+    photoPositionY: typeof player.photoPositionY === "number" ? player.photoPositionY : 50,
     teamId: player.teamId ?? null,
     team: player.team,
     ...status,

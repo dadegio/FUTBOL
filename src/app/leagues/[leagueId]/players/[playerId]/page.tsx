@@ -19,6 +19,9 @@ type Player = {
   number: number;
   position?: string | null;
   photoUrl?: string | null;
+  photoZoom?: number;
+  photoPositionX?: number;
+  photoPositionY?: number;
   birthDate?: string | null;
   documentSigned?: boolean;
   signedAt?: string | null;
@@ -114,6 +117,9 @@ export default function PlayerPage() {
   const [number, setNumber] = useState("");
   const [position, setPosition] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [photoZoom, setPhotoZoom] = useState(1);
+  const [photoPositionX, setPhotoPositionX] = useState(50);
+  const [photoPositionY, setPhotoPositionY] = useState(50);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [birthDate, setBirthDate] = useState("");
@@ -154,6 +160,9 @@ export default function PlayerPage() {
       setNumber(String(playerData.number ?? ""));
       setPosition(playerData.position ?? "");
       setPhotoUrl(playerData.photoUrl ?? "");
+      setPhotoZoom(typeof playerData.photoZoom === "number" ? playerData.photoZoom : 1);
+      setPhotoPositionX(typeof playerData.photoPositionX === "number" ? playerData.photoPositionX : 50);
+      setPhotoPositionY(typeof playerData.photoPositionY === "number" ? playerData.photoPositionY : 50);
       setPhotoFile(null);
       setRemovePhoto(false);
       setBirthDate(playerData.birthDate ? String(playerData.birthDate).slice(0, 10) : "");
@@ -205,6 +214,9 @@ export default function PlayerPage() {
         number: n,
         position: position || null,
         photoUrl: finalPhotoUrl,
+        photoZoom,
+        photoPositionX,
+        photoPositionY,
       };
 
       if (isAdmin) {
@@ -270,7 +282,7 @@ export default function PlayerPage() {
         <Card className="overflow-hidden !p-0">
           <div className="matchroom-hero grid gap-5 p-4 sm:p-5 lg:grid-cols-[230px_minmax(0,1fr)]">
             <div className="flex min-h-[215px] flex-col items-center justify-center rounded-[24px] border border-white/10 bg-black/20 p-3 text-center sm:min-h-[230px]">
-              <PlayerAvatar firstName={player.firstName} lastName={player.lastName} number={player.number} photoUrl={player.photoUrl ?? null} />
+              <PlayerAvatar firstName={player.firstName} lastName={player.lastName} number={player.number} photoUrl={player.photoUrl ?? null} photoZoom={player.photoZoom ?? 1} photoPositionX={player.photoPositionX ?? 50} photoPositionY={player.photoPositionY ?? 50} />
               <p className="mt-2 text-sm text-[var(--muted)]">{player.position || "Ruolo non impostato"}</p>
             </div>
 
@@ -339,11 +351,49 @@ export default function PlayerPage() {
           <Card>
             <h2 className="mb-4 text-lg font-black text-[var(--foreground)]">Modifica giocatore</h2>
             <div className="grid gap-4">
-              <div className="grid gap-4 lg:grid-cols-[96px_minmax(0,1fr)] lg:items-start">
-                <div>{photoPreview ? <img src={photoPreview} alt="Preview" className="h-24 w-24 rounded-[1.25rem] border border-[var(--border)] object-cover md:h-28 md:w-28" /> : <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/5 text-xs font-bold text-[var(--foreground)]/35 md:h-28 md:w-28">N/A</div>}</div>
-                <div className="space-y-3">
+              <div className="grid gap-4 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-start">
+                <div className="space-y-2">
+                  <div className="relative aspect-[4/5] w-full max-w-[190px] overflow-hidden rounded-[1.5rem] border border-[var(--border)] bg-black/20">
+                    {photoPreview ? (
+                      <img
+                        src={photoPreview}
+                        alt="Anteprima inquadratura"
+                        className="absolute inset-0 h-full w-full object-cover"
+                        style={{
+                          objectPosition: `${photoPositionX}% ${photoPositionY}%`,
+                          transform: `scale(${photoZoom})`,
+                          transformOrigin: `${photoPositionX}% ${photoPositionY}%`,
+                        }}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs font-bold text-[var(--foreground)]/35">N/A</div>
+                    )}
+                  </div>
+                  <p className="text-xs text-[var(--muted)]">L’anteprima usa la stessa inquadratura delle card.</p>
+                </div>
+
+                <div className="space-y-4">
                   <input type="file" accept="image/*" aria-label="Carica foto giocatore" onChange={(e) => { const file = e.target.files?.[0] ?? null; setPhotoFile(file); if (file) setRemovePhoto(false); }} className="block w-full rounded-xl border border-[var(--border)] bg-white/5 px-3.5 py-2.5 text-sm text-[var(--foreground)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--accent)] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-black" />
-                  <Button variant="destructive" size="sm" onClick={() => { setPhotoFile(null); setPhotoUrl(""); setRemovePhoto(true); }}>Rimuovi foto</Button>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <label className="rounded-2xl border border-[var(--border)] bg-white/[0.03] p-3">
+                      <span className="flex items-center justify-between gap-2 text-xs font-bold text-[var(--foreground)]"><span>Zoom</span><span>{Math.round(photoZoom * 100)}%</span></span>
+                      <input aria-label="Zoom foto" type="range" min="0.75" max="2" step="0.05" value={photoZoom} onChange={(e) => setPhotoZoom(Number(e.target.value))} className="mt-3 w-full accent-[var(--accent)]" />
+                    </label>
+                    <label className="rounded-2xl border border-[var(--border)] bg-white/[0.03] p-3">
+                      <span className="flex items-center justify-between gap-2 text-xs font-bold text-[var(--foreground)]"><span>Orizzontale</span><span>{photoPositionX}%</span></span>
+                      <input aria-label="Posizione orizzontale foto" type="range" min="0" max="100" step="1" value={photoPositionX} onChange={(e) => setPhotoPositionX(Number(e.target.value))} className="mt-3 w-full accent-[var(--accent)]" />
+                    </label>
+                    <label className="rounded-2xl border border-[var(--border)] bg-white/[0.03] p-3">
+                      <span className="flex items-center justify-between gap-2 text-xs font-bold text-[var(--foreground)]"><span>Verticale</span><span>{photoPositionY}%</span></span>
+                      <input aria-label="Posizione verticale foto" type="range" min="0" max="100" step="1" value={photoPositionY} onChange={(e) => setPhotoPositionY(Number(e.target.value))} className="mt-3 w-full accent-[var(--accent)]" />
+                    </label>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => { setPhotoZoom(1); setPhotoPositionX(50); setPhotoPositionY(50); }}>Reimposta inquadratura</Button>
+                    <Button variant="destructive" size="sm" onClick={() => { setPhotoFile(null); setPhotoUrl(""); setRemovePhoto(true); }}>Rimuovi foto</Button>
+                  </div>
                 </div>
               </div>
 
@@ -399,7 +449,7 @@ export default function PlayerPage() {
   );
 }
 
-function PlayerAvatar({ firstName, lastName, number, photoUrl }: { firstName: string; lastName: string; number: number; photoUrl?: string | null }) {
+function PlayerAvatar({ firstName, lastName, number, photoUrl, photoZoom = 1, photoPositionX = 50, photoPositionY = 50 }: { firstName: string; lastName: string; number: number; photoUrl?: string | null; photoZoom?: number; photoPositionX?: number; photoPositionY?: number }) {
   const fullName = `${firstName} ${lastName}`;
   const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
   const frameClass =
@@ -408,7 +458,7 @@ function PlayerAvatar({ firstName, lastName, number, photoUrl }: { firstName: st
   if (photoUrl) {
     return (
       <div className={frameClass}>
-        <img src={photoUrl} alt={`Foto ${fullName}`} className="absolute inset-0 h-full w-full object-cover object-center" />
+        <img src={photoUrl} alt={`Foto ${fullName}`} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom})`, transformOrigin: `${photoPositionX}% ${photoPositionY}%` }} />
         <span className="absolute bottom-0 right-0 flex h-12 min-w-12 items-center justify-center rounded-tl-3xl bg-[var(--accent)] px-3 text-base font-black text-black">{number}</span>
       </div>
     );

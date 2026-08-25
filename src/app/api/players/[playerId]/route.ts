@@ -18,6 +18,17 @@ function asBool(value: unknown) {
   return value === true;
 }
 
+function asClampedNumber(value: unknown, min: number, max: number) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return undefined;
+  return Math.min(max, Math.max(min, n));
+}
+
+function asClampedInt(value: unknown, min: number, max: number) {
+  const n = asClampedNumber(value, min, max);
+  return n === undefined ? undefined : Math.round(n);
+}
+
 export async function GET(
   _: Request,
   ctx: { params: Promise<{ playerId: string }> }
@@ -34,6 +45,9 @@ export async function GET(
       number: true,
       position: true,
       photoUrl: true,
+      photoZoom: true,
+      photoPositionX: true,
+      photoPositionY: true,
       fiscalCode: true,
       birthDate: true,
       documentSigned: true,
@@ -126,6 +140,16 @@ export async function PATCH(
         ? null
         : String(body.photoUrl).trim() || null;
 
+  const photoZoom = body?.photoZoom === undefined
+    ? undefined
+    : asClampedNumber(body.photoZoom, 0.75, 2);
+  const photoPositionX = body?.photoPositionX === undefined
+    ? undefined
+    : asClampedInt(body.photoPositionX, 0, 100);
+  const photoPositionY = body?.photoPositionY === undefined
+    ? undefined
+    : asClampedInt(body.photoPositionY, 0, 100);
+
   const fiscalCode =
     body?.fiscalCode === undefined
       ? undefined
@@ -174,6 +198,18 @@ export async function PATCH(
     );
   }
 
+  if (body?.photoZoom !== undefined && photoZoom === undefined) {
+    return NextResponse.json({ error: "Zoom foto non valido" }, { status: 400 });
+  }
+
+  if (body?.photoPositionX !== undefined && photoPositionX === undefined) {
+    return NextResponse.json({ error: "Posizione orizzontale foto non valida" }, { status: 400 });
+  }
+
+  if (body?.photoPositionY !== undefined && photoPositionY === undefined) {
+    return NextResponse.json({ error: "Posizione verticale foto non valida" }, { status: 400 });
+  }
+
   if (body?.birthDate !== undefined && birthDate === undefined) {
     return NextResponse.json({ error: "Data di nascita non valida" }, { status: 400 });
   }
@@ -194,6 +230,9 @@ export async function PATCH(
       ...(number !== undefined ? { number } : {}),
       ...(position !== undefined ? { position } : {}),
       ...(photoUrl !== undefined ? { photoUrl } : {}),
+      ...(photoZoom !== undefined ? { photoZoom } : {}),
+      ...(photoPositionX !== undefined ? { photoPositionX } : {}),
+      ...(photoPositionY !== undefined ? { photoPositionY } : {}),
       ...(canEditAdminFields && fiscalCode !== undefined ? { fiscalCode } : {}),
       ...(canEditAdminFields && birthDate !== undefined ? { birthDate } : {}),
       ...(canEditAdminFields && signedAt !== undefined ? { signedAt } : {}),
@@ -214,6 +253,9 @@ export async function PATCH(
       number: true,
       position: true,
       photoUrl: true,
+      photoZoom: true,
+      photoPositionX: true,
+      photoPositionY: true,
       fiscalCode: true,
       birthDate: true,
       documentSigned: true,

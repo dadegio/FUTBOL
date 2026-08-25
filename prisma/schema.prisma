@@ -93,7 +93,10 @@ model Player {
   lastName  String
   number    Int
   position  String?
-  photoUrl  String?
+  photoUrl       String?
+  photoZoom      Float  @default(1)
+  photoPositionX Int    @default(50)
+  photoPositionY Int    @default(50)
 
   fiscalCode           String?
   birthDate            DateTime?

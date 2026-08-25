@@ -8,6 +8,9 @@ type PlayerLookup = {
   firstName: string;
   lastName: string;
   photoUrl: string | null;
+  photoZoom: number;
+  photoPositionX: number;
+  photoPositionY: number;
   teamId: string;
   team: {
     name: string;
@@ -20,6 +23,9 @@ type StatRow = {
   firstName: string;
   lastName: string;
   photoUrl: string | null;
+  photoZoom: number;
+  photoPositionX: number;
+  photoPositionY: number;
   teamName: string;
   teamBadgeUrl: string | null;
   value: number;
@@ -31,6 +37,9 @@ function toRow(player: PlayerLookup | undefined, value: number, playerId: string
     firstName: player?.firstName ?? "",
     lastName: player?.lastName ?? "",
     photoUrl: player?.photoUrl ?? null,
+    photoZoom: player?.photoZoom ?? 1,
+    photoPositionX: player?.photoPositionX ?? 50,
+    photoPositionY: player?.photoPositionY ?? 50,
     teamName: player?.team?.name ?? "",
     teamBadgeUrl: player?.team?.badgeUrl ?? null,
     value,
@@ -73,6 +82,9 @@ export async function GET(
         firstName: true,
         lastName: true,
         photoUrl: true,
+        photoZoom: true,
+        photoPositionX: true,
+        photoPositionY: true,
         teamId: true,
         team: {
           select: {

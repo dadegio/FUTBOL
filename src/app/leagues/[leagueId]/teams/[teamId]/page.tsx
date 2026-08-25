@@ -20,6 +20,9 @@ type Player = {
   number: number;
   position?: string | null;
   photoUrl?: string | null;
+  photoZoom?: number;
+  photoPositionX?: number;
+  photoPositionY?: number;
   goals?: number;
   assists?: number;
   appearances?: number;
@@ -728,6 +731,9 @@ function PlayerRow({
       <PlayerPhoto
         name={fullName}
         photoUrl={player.photoUrl ?? null}
+        photoZoom={player.photoZoom ?? 1}
+        photoPositionX={player.photoPositionX ?? 50}
+        photoPositionY={player.photoPositionY ?? 50}
       />
 
       <Link
@@ -810,9 +816,15 @@ function TeamLogo({
 function PlayerPhoto({
   name,
   photoUrl,
+  photoZoom = 1,
+  photoPositionX = 50,
+  photoPositionY = 50,
 }: {
   name: string;
   photoUrl?: string | null;
+  photoZoom?: number;
+  photoPositionX?: number;
+  photoPositionY?: number;
 }) {
   const initials = name
     .split(" ")
@@ -828,6 +840,11 @@ function PlayerPhoto({
           src={photoUrl}
           alt={`Foto ${name}`}
           className="h-full w-full object-cover"
+          style={{
+            objectPosition: `${photoPositionX}% ${photoPositionY}%`,
+            transform: `scale(${photoZoom})`,
+            transformOrigin: `${photoPositionX}% ${photoPositionY}%`,
+          }}
         />
       </div>
     );
