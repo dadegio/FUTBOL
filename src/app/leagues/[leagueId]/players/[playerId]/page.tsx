@@ -358,7 +358,7 @@ export default function PlayerPage() {
                       <img
                         src={photoPreview}
                         alt="Anteprima inquadratura"
-                        className="absolute inset-0 h-full w-full object-cover"
+                        className="absolute inset-0 h-full w-full object-contain"
                         style={{
                           objectPosition: `${photoPositionX}% ${photoPositionY}%`,
                           transform: `scale(${photoZoom})`,
@@ -453,12 +453,12 @@ function PlayerAvatar({ firstName, lastName, number, photoUrl, photoZoom = 1, ph
   const fullName = `${firstName} ${lastName}`;
   const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
   const frameClass =
-    "relative aspect-[4/5] h-[178px] w-full max-w-[168px] shrink-0 overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--background)] shadow-sm sm:h-[190px] sm:max-w-[180px]";
+    "relative aspect-[4/5] w-full max-w-[168px] shrink-0 overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--background)] shadow-sm sm:max-w-[180px]";
 
   if (photoUrl) {
     return (
       <div className={frameClass}>
-        <img src={photoUrl} alt={`Foto ${fullName}`} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom})`, transformOrigin: `${photoPositionX}% ${photoPositionY}%` }} />
+        <img src={photoUrl} alt={`Foto ${fullName}`} className="absolute inset-0 h-full w-full object-contain" style={{ objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom})`, transformOrigin: `${photoPositionX}% ${photoPositionY}%` }} />
         <span className="absolute bottom-0 right-0 flex h-12 min-w-12 items-center justify-center rounded-tl-3xl bg-[var(--accent)] px-3 text-base font-black text-black">{number}</span>
       </div>
     );
