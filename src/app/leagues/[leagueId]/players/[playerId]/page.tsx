@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, CalendarDays, Goal, Handshake, Pencil, Shield, WalletCards } from "lucide-react";
+import { ArrowLeft, CalendarDays, Crown, Goal, Handshake, Pencil, Shield, WalletCards } from "lucide-react";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
@@ -22,6 +22,7 @@ type Player = {
   photoZoom?: number;
   photoPositionX?: number;
   photoPositionY?: number;
+  isTeamCaptain?: boolean;
   birthDate?: string | null;
   documentSigned?: boolean;
   signedAt?: string | null;
@@ -120,6 +121,7 @@ export default function PlayerPage() {
   const [photoZoom, setPhotoZoom] = useState(1);
   const [photoPositionX, setPhotoPositionX] = useState(50);
   const [photoPositionY, setPhotoPositionY] = useState(50);
+  const [isTeamCaptain, setIsTeamCaptain] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [birthDate, setBirthDate] = useState("");
@@ -163,6 +165,7 @@ export default function PlayerPage() {
       setPhotoZoom(typeof playerData.photoZoom === "number" ? playerData.photoZoom : 1);
       setPhotoPositionX(typeof playerData.photoPositionX === "number" ? playerData.photoPositionX : 50);
       setPhotoPositionY(typeof playerData.photoPositionY === "number" ? playerData.photoPositionY : 50);
+      setIsTeamCaptain(Boolean(playerData.isTeamCaptain));
       setPhotoFile(null);
       setRemovePhoto(false);
       setBirthDate(playerData.birthDate ? String(playerData.birthDate).slice(0, 10) : "");
@@ -228,6 +231,7 @@ export default function PlayerPage() {
           wildcardUsed,
           status,
           statusNote: statusNote.trim() || null,
+          isTeamCaptain,
         });
       }
 
@@ -288,7 +292,14 @@ export default function PlayerPage() {
 
             <div className="flex flex-col justify-between gap-6">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--accent)]">Player Passport</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--accent)]">Player Passport</p>
+                  {player.isTeamCaptain && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-400/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-300">
+                      <Crown size={12} /> Capitano
+                    </span>
+                  )}
+                </div>
                 <h1 className="mt-2 text-4xl font-black tracking-[-0.08em] text-[var(--foreground)] sm:text-6xl">{fullName}</h1>
                 <p className="mt-3 text-sm font-semibold text-[var(--muted)]">{player.team?.name ?? "Squadra non disponibile"}</p>
               </div>
@@ -415,6 +426,13 @@ export default function PlayerPage() {
                     <Input aria-label="Data firma" type="date" value={signedAt} onChange={(e) => setSignedAt(e.target.value)} />
                     <Select aria-label="Stato admin" value={status} onChange={(e) => setStatus(e.target.value)}>{PLAYER_STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value} className="text-black">{label}</option>)}</Select>
                   </div>
+                  <label className="mt-3 flex items-start gap-3 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3 py-3 text-sm text-[var(--foreground)]/85">
+                    <input type="checkbox" checked={isTeamCaptain} onChange={(e) => setIsTeamCaptain(e.target.checked)} className="mt-0.5" />
+                    <span>
+                      <span className="flex items-center gap-1.5 font-bold text-[var(--foreground)]"><Crown size={14} className="text-amber-300" /> Capitano della squadra</span>
+                      <span className="mt-0.5 block text-xs text-[var(--muted)]">Solo riconoscimento visivo. Se lo assegni, il capitano precedente della squadra viene rimosso automaticamente.</span>
+                    </span>
+                  </label>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     {[["Modulo firmato", documentSigned, setDocumentSigned], ["Liberatoria video/foto", mediaConsent, setMediaConsent], ["Wildcard", wildcardUsed, setWildcardUsed]].map(([label, value, setter]) => (
                       <label key={label as string} className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--foreground)]/80"><input type="checkbox" checked={value as boolean} onChange={(e) => (setter as (v: boolean) => void)(e.target.checked)} />{label as string}</label>

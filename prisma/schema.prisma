@@ -97,6 +97,7 @@ model Player {
   photoZoom      Float  @default(1)
   photoPositionX Int    @default(50)
   photoPositionY Int    @default(50)
+  isTeamCaptain Boolean @default(false)
 
   fiscalCode           String?
   birthDate            DateTime?

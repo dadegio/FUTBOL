@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Pencil, Trash2, Plus, ArrowLeft, X, Search } from "lucide-react";
+import { Pencil, Trash2, Plus, ArrowLeft, X, Search, Crown } from "lucide-react";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
@@ -23,6 +23,7 @@ type Player = {
   photoZoom?: number;
   photoPositionX?: number;
   photoPositionY?: number;
+  isTeamCaptain?: boolean;
   goals?: number;
   assists?: number;
   appearances?: number;
@@ -740,8 +741,15 @@ function PlayerRow({
         href={`/leagues/${leagueId}/players/${player.id}`}
         className="min-w-0"
       >
-        <div className="break-words text-[16px] font-semibold text-[var(--foreground)]">
-          {fullName}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="break-words text-[16px] font-semibold text-[var(--foreground)]">
+            {fullName}
+          </div>
+          {player.isTeamCaptain && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/35 bg-amber-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-amber-300">
+              <Crown size={11} /> Capitano
+            </span>
+          )}
         </div>
 
         <div className="mt-1 flex items-center gap-2 text-sm text-[var(--muted)]">

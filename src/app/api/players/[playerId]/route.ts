@@ -48,6 +48,7 @@ export async function GET(
       photoZoom: true,
       photoPositionX: true,
       photoPositionY: true,
+      isTeamCaptain: true,
       fiscalCode: true,
       birthDate: true,
       documentSigned: true,
@@ -149,6 +150,9 @@ export async function PATCH(
   const photoPositionY = body?.photoPositionY === undefined
     ? undefined
     : asClampedInt(body.photoPositionY, 0, 100);
+  const isTeamCaptain = body?.isTeamCaptain === undefined
+    ? undefined
+    : asBool(body.isTeamCaptain);
 
   const fiscalCode =
     body?.fiscalCode === undefined
@@ -222,31 +226,40 @@ export async function PATCH(
     return NextResponse.json({ error: "Stato giocatore non valido" }, { status: 400 });
   }
 
-  const updated = await prisma.player.update({
-    where: { id: playerId },
-    data: {
-      ...(firstName !== undefined ? { firstName } : {}),
-      ...(lastName !== undefined ? { lastName } : {}),
-      ...(number !== undefined ? { number } : {}),
-      ...(position !== undefined ? { position } : {}),
-      ...(photoUrl !== undefined ? { photoUrl } : {}),
-      ...(photoZoom !== undefined ? { photoZoom } : {}),
-      ...(photoPositionX !== undefined ? { photoPositionX } : {}),
-      ...(photoPositionY !== undefined ? { photoPositionY } : {}),
-      ...(canEditAdminFields && fiscalCode !== undefined ? { fiscalCode } : {}),
-      ...(canEditAdminFields && birthDate !== undefined ? { birthDate } : {}),
-      ...(canEditAdminFields && signedAt !== undefined ? { signedAt } : {}),
-      ...(canEditAdminFields && documentSigned !== undefined ? { documentSigned } : {}),
-      ...(canEditAdminFields && privacyConsent !== undefined ? { privacyConsent } : {}),
-      ...(canEditAdminFields && internalPhotoConsent !== undefined ? { internalPhotoConsent } : {}),
-      ...(canEditAdminFields && publicPhotoConsent !== undefined ? { publicPhotoConsent } : {}),
-      ...(canEditAdminFields && mediaConsent !== undefined ? { mediaConsent } : {}),
-      ...(canEditAdminFields && healthDeclaration !== undefined ? { healthDeclaration } : {}),
-      ...(canEditAdminFields && wildcardUsed !== undefined ? { wildcardUsed } : {}),
-      ...(canEditAdminFields && status !== undefined ? { status: status as any } : {}),
-      ...(canEditAdminFields && statusNote !== undefined ? { statusNote } : {}),
-    },
-    select: {
+  const updated = await prisma.$transaction(async (tx) => {
+    if (canEditAdminFields && isTeamCaptain === true) {
+      await tx.player.updateMany({
+        where: { teamId: existing.teamId, id: { not: playerId }, isTeamCaptain: true },
+        data: { isTeamCaptain: false },
+      });
+    }
+
+    return tx.player.update({
+      where: { id: playerId },
+      data: {
+        ...(firstName !== undefined ? { firstName } : {}),
+        ...(lastName !== undefined ? { lastName } : {}),
+        ...(number !== undefined ? { number } : {}),
+        ...(position !== undefined ? { position } : {}),
+        ...(photoUrl !== undefined ? { photoUrl } : {}),
+        ...(photoZoom !== undefined ? { photoZoom } : {}),
+        ...(photoPositionX !== undefined ? { photoPositionX } : {}),
+        ...(photoPositionY !== undefined ? { photoPositionY } : {}),
+        ...(canEditAdminFields && isTeamCaptain !== undefined ? { isTeamCaptain } : {}),
+        ...(canEditAdminFields && fiscalCode !== undefined ? { fiscalCode } : {}),
+        ...(canEditAdminFields && birthDate !== undefined ? { birthDate } : {}),
+        ...(canEditAdminFields && signedAt !== undefined ? { signedAt } : {}),
+        ...(canEditAdminFields && documentSigned !== undefined ? { documentSigned } : {}),
+        ...(canEditAdminFields && privacyConsent !== undefined ? { privacyConsent } : {}),
+        ...(canEditAdminFields && internalPhotoConsent !== undefined ? { internalPhotoConsent } : {}),
+        ...(canEditAdminFields && publicPhotoConsent !== undefined ? { publicPhotoConsent } : {}),
+        ...(canEditAdminFields && mediaConsent !== undefined ? { mediaConsent } : {}),
+        ...(canEditAdminFields && healthDeclaration !== undefined ? { healthDeclaration } : {}),
+        ...(canEditAdminFields && wildcardUsed !== undefined ? { wildcardUsed } : {}),
+        ...(canEditAdminFields && status !== undefined ? { status: status as any } : {}),
+        ...(canEditAdminFields && statusNote !== undefined ? { statusNote } : {}),
+      },
+      select: {
       id: true,
       firstName: true,
       lastName: true,
@@ -256,6 +269,7 @@ export async function PATCH(
       photoZoom: true,
       photoPositionX: true,
       photoPositionY: true,
+      isTeamCaptain: true,
       fiscalCode: true,
       birthDate: true,
       documentSigned: true,
@@ -283,7 +297,8 @@ export async function PATCH(
           },
         },
       },
-    },
+      },
+    });
   });
 
   return NextResponse.json(sanitizePlayerForRole(updated, session));
