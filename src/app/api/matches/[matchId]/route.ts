@@ -30,6 +30,9 @@ export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }
               number: true,
               position: true,
               photoUrl: true,
+              photoZoom: true,
+              photoPositionX: true,
+              photoPositionY: true,
               teamId: true,
               status: true,
               documentSigned: true,
@@ -52,6 +55,9 @@ export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }
               number: true,
               position: true,
               photoUrl: true,
+              photoZoom: true,
+              photoPositionX: true,
+              photoPositionY: true,
               teamId: true,
               status: true,
               documentSigned: true,
@@ -80,6 +86,9 @@ export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }
 
   return NextResponse.json({
     ...match,
+    referee: match.referee
+      ? { id: match.referee.id, name: session?.role === "ADMIN" ? match.referee.name : null }
+      : null,
     homeTeam: {
       ...match.homeTeam,
       players: match.homeTeam.players.map((player) => sanitizePlayerForRole(player, session)),

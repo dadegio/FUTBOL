@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -10,6 +10,8 @@ import {
   MapPin,
   ShieldCheck,
   UsersRound,
+  X,
+  ZoomIn,
 } from "lucide-react";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
@@ -28,6 +30,9 @@ type Player = {
   teamId: string;
   position?: string | null;
   photoUrl?: string | null;
+  photoZoom?: number;
+  photoPositionX?: number;
+  photoPositionY?: number;
   registrationStatus?: string;
   isEligibleForMatchSheet?: boolean;
   adminMissingItems?: string[];
@@ -52,7 +57,7 @@ type StatRow = {
 
 type Referee = {
   id: string;
-  name: string;
+  name?: string | null;
   active?: boolean;
   teamId?: string | null;
   team?: { id: string; name: string } | null;
@@ -67,6 +72,7 @@ type Match = {
   venueName: string | null;
   venueAddress: string | null;
   refereeId: string | null;
+  refereeManualOverride: boolean;
   referee: Referee | null;
   homeGoals: number | null;
   awayGoals: number | null;
@@ -75,6 +81,22 @@ type Match = {
   stats: StatRow[];
   sheetPlayers?: Array<{ playerId: string; teamId: string }>;
   leagueId: string;
+};
+
+type AdminRefereeOption = {
+  id: string;
+  name: string;
+  active: boolean;
+  warnings: string[];
+  compatible: boolean;
+};
+
+type AdminRefereeState = {
+  mode: "automatic" | "manual";
+  referee: { id: string; name: string; active?: boolean } | null;
+  refereeId: string | null;
+  completed: boolean;
+  referees: AdminRefereeOption[];
 };
 
 function TeamCrest({
@@ -147,6 +169,13 @@ export default function MatchResultForm({ match }: { match: Match }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<Player | null>(null);
+  const [adminRefereeState, setAdminRefereeState] = useState<AdminRefereeState | null>(null);
+  const [refereeChoice, setRefereeChoice] = useState("automatic");
+  const [loadingReferees, setLoadingReferees] = useState(false);
+  const [savingReferee, setSavingReferee] = useState(false);
+  const [refereeMsg, setRefereeMsg] = useState<string | null>(null);
+  const [refereeErr, setRefereeErr] = useState<string | null>(null);
 
   const toLocalDatetimeValue = (iso: string | null) => {
     if (!iso) return "";
@@ -217,6 +246,81 @@ export default function MatchResultForm({ match }: { match: Match }) {
 
   function toggleSheet(playerId: string, checked: boolean) {
     setSheet((prev) => ({ ...prev, [playerId]: checked }));
+  }
+
+  async function loadAdminReferees() {
+    if (!isAdmin) return;
+    setLoadingReferees(true);
+    setRefereeErr(null);
+    try {
+      const res = await authFetch(`/api/matches/${match.id}/officials`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as any)?.error ?? "Errore caricamento arbitri");
+      const state = data as AdminRefereeState;
+      setAdminRefereeState(state);
+      setRefereeChoice(
+        state.mode === "automatic"
+          ? "automatic"
+          : state.refereeId
+            ? `manual:${state.refereeId}`
+            : "manual:none"
+      );
+    } catch (error) {
+      setRefereeErr(error instanceof Error ? error.message : "Errore caricamento arbitri");
+    } finally {
+      setLoadingReferees(false);
+    }
+  }
+
+  useEffect(() => {
+    if (isAdmin) void loadAdminReferees();
+  }, [isAdmin, match.id, match.date, match.slotEnd]);
+
+  useEffect(() => {
+    if (!photoPreview) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPhotoPreview(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [photoPreview]);
+
+  async function saveRefereeChoice() {
+    if (!isAdmin) return;
+    setSavingReferee(true);
+    setRefereeErr(null);
+    setRefereeMsg(null);
+    try {
+      const automatic = refereeChoice === "automatic";
+      const refereeId = refereeChoice.startsWith("manual:")
+        ? refereeChoice.slice("manual:".length)
+        : null;
+      const res = await authFetch(`/api/matches/${match.id}/officials`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: automatic ? "automatic" : "manual",
+          refereeId: !automatic && refereeId && refereeId !== "none" ? refereeId : null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as any)?.error ?? "Errore salvataggio arbitro");
+      const state = data as AdminRefereeState;
+      setAdminRefereeState(state);
+      setRefereeChoice(
+        state.mode === "automatic"
+          ? "automatic"
+          : state.refereeId
+            ? `manual:${state.refereeId}`
+            : "manual:none"
+      );
+      setRefereeMsg(state.mode === "automatic" ? "Assegnazione automatica ripristinata" : "Override manuale salvato");
+      router.refresh();
+    } catch (error) {
+      setRefereeErr(error instanceof Error ? error.message : "Errore salvataggio arbitro");
+    } finally {
+      setSavingReferee(false);
+    }
   }
 
   async function saveDate(clear = false) {
@@ -292,9 +396,17 @@ export default function MatchResultForm({ match }: { match: Match }) {
   const played = homeGoals !== "" && awayGoals !== "";
   const hg = Number(homeGoals);
   const ag = Number(awayGoals);
-  const selectedRefereeName =
-    match.referee?.name ??
-    (match.date ? "Nessun arbitro compatibile disponibile" : "In attesa dello slot");
+  const adminRefereeName = adminRefereeState?.referee?.name ?? null;
+  const selectedRefereeName = isAdmin
+    ? adminRefereeName ?? (match.date ? "Nessun arbitro compatibile disponibile" : "In attesa dello slot")
+    : match.refereeId
+      ? "Arbitro assegnato"
+      : match.date
+        ? "Arbitro da assegnare"
+        : "In attesa dello slot";
+  const selectedManualReferee = refereeChoice.startsWith("manual:")
+    ? adminRefereeState?.referees.find((referee) => `manual:${referee.id}` === refereeChoice) ?? null
+    : null;
 
   return (
     <DashboardShell leagueId={match.leagueId}>
@@ -409,24 +521,61 @@ export default function MatchResultForm({ match }: { match: Match }) {
                 Arbitro
               </p>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                Direzione di gara:{" "}
-                <b className="text-[var(--foreground)]">
-                  {selectedRefereeName}
-                </b>
+                Direzione di gara: <b className="text-[var(--foreground)]">{selectedRefereeName}</b>
               </p>
             </div>
 
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-4 py-3 text-sm text-[var(--muted)]">
-              {match.date ? (
-                match.referee ? (
-                  <>Assegnazione automatica attiva: il sistema ha scelto <b className="text-[var(--foreground)]">{match.referee.name}</b> tra gli arbitri compatibili.</>
+            {isAdmin ? (
+              <div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--card-2)] p-4">
+                <div className="flex flex-col gap-2 md:flex-row md:items-end">
+                  <label className="min-w-0 flex-1">
+                    <span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">Modalità assegnazione</span>
+                    <select
+                      value={refereeChoice}
+                      onChange={(event) => setRefereeChoice(event.target.value)}
+                      disabled={loadingReferees || savingReferee}
+                      className="h-11 w-full rounded-2xl border border-[var(--border)] bg-[var(--card)] px-3 text-sm font-bold text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
+                    >
+                      <option value="automatic">Automatico · scegli tra gli arbitri compatibili</option>
+                      <option value="manual:none">Manuale · nessun arbitro</option>
+                      {(adminRefereeState?.referees ?? []).map((referee) => (
+                        <option key={referee.id} value={`manual:${referee.id}`}>
+                          Manuale · {referee.name}{!referee.active ? " · disattivato" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button onClick={saveRefereeChoice} disabled={loadingReferees || savingReferee} size="sm">
+                    {savingReferee ? "…" : "Salva arbitro"}
+                  </Button>
+                </div>
+
+                {refereeChoice === "automatic" ? (
+                  <p className="text-xs text-[var(--muted)]">
+                    Il sistema esclude chi gioca nelle squadre coinvolte, chi non è disponibile e chi ha sovrapposizioni.
+                  </p>
+                ) : selectedManualReferee?.warnings?.length ? (
+                  <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-200">
+                    Override manuale: {selectedManualReferee.warnings.join(" · ")}. La scelta verrà comunque mantenuta finché non torni su Automatico.
+                  </div>
                 ) : (
-                  <>Assegnazione automatica attiva: al momento non esiste un arbitro compatibile con squadra, disponibilità e sovrapposizioni di questa partita.</>
-                )
-              ) : (
-                <>L&apos;arbitro verrà assegnato automaticamente quando sarà scelto lo slot della partita.</>
-              )}
-            </div>
+                  <p className="text-xs text-[var(--muted)]">
+                    L&apos;override manuale resta bloccato anche se cambiano slot o disponibilità.
+                  </p>
+                )}
+
+                {refereeMsg && <p className="text-xs font-semibold text-emerald-400">{refereeMsg}</p>}
+                {refereeErr && <p className="text-xs font-semibold text-red-300">{refereeErr}</p>}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--card-2)] px-4 py-3 text-sm text-[var(--muted)]">
+                {match.date
+                  ? match.refereeId
+                    ? "Arbitro assegnato."
+                    : "Al momento non risulta un arbitro assegnato."
+                  : "L'arbitro verrà assegnato quando sarà definito lo slot della partita."}
+              </div>
+            )}
           </div>
         </Card>
 
@@ -456,8 +605,8 @@ export default function MatchResultForm({ match }: { match: Match }) {
         {!canEditResult && !authLoading && <p className="px-1 text-sm text-[var(--muted)]">Sola lettura — possono modificare distinta e risultato l&apos;admin, i capitani coinvolti e l&apos;arbitro assegnato.</p>}
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          <TeamStatsCard title={match.homeTeam.name} colorHex={match.homeTeam.colorHex} secondaryColorHex={match.homeTeam.secondaryColorHex} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
-          <TeamStatsCard title={match.awayTeam.name} colorHex={match.awayTeam.colorHex} secondaryColorHex={match.awayTeam.secondaryColorHex} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} />
+          <TeamStatsCard title={match.homeTeam.name} colorHex={match.homeTeam.colorHex} secondaryColorHex={match.homeTeam.secondaryColorHex} players={homePlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} onPreviewPhoto={setPhotoPreview} />
+          <TeamStatsCard title={match.awayTeam.name} colorHex={match.awayTeam.colorHex} secondaryColorHex={match.awayTeam.secondaryColorHex} players={awayPlayers} stats={stats} sheet={sheet} toggleSheet={toggleSheet} setPlayerStat={setPlayerStat} readOnly={!canEditResult} isAdmin={isAdmin} onPreviewPhoto={setPhotoPreview} />
         </div>
 
         {canEditResult && (
@@ -472,6 +621,43 @@ export default function MatchResultForm({ match }: { match: Match }) {
           </div>
         )}
       </div>
+
+      {photoPreview?.photoUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-3 sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Foto di ${photoPreview.firstName} ${photoPreview.lastName}`}
+          onClick={() => setPhotoPreview(null)}
+        >
+          <div
+            className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-white/15 bg-black shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-white">
+              <div className="min-w-0">
+                <p className="truncate text-base font-black">{photoPreview.firstName} {photoPreview.lastName}</p>
+                <p className="text-xs text-white/60">#{photoPreview.number} · foto originale</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPhotoPreview(null)}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-white active:bg-white/20"
+                aria-label="Chiudi foto"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-2 sm:p-4">
+              <img
+                src={photoPreview.photoUrl}
+                alt={`Foto di ${photoPreview.firstName} ${photoPreview.lastName}`}
+                className="max-h-[78vh] max-w-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardShell>
   );
 }
@@ -544,6 +730,7 @@ function TeamStatsCard({
   setPlayerStat,
   readOnly,
   isAdmin,
+  onPreviewPhoto,
 }: {
   title: string;
   colorHex?: string | null;
@@ -555,6 +742,7 @@ function TeamStatsCard({
   setPlayerStat: (playerId: string, key: "goals" | "assists", value: string) => void;
   readOnly?: boolean;
   isAdmin?: boolean;
+  onPreviewPhoto: (player: Player) => void;
 }) {
   const eligibleCount = players.filter(isPlayerEligible).length;
   const teamColor = safeTeamColor(colorHex);
@@ -592,9 +780,11 @@ function TeamStatsCard({
                   i < players.length - 1 ? "border-b border-[var(--border)]" : "",
                   hasStats ? "bg-[var(--accent-soft)]" : "",
                 ].join(" ")}
-                style={{ gridTemplateColumns: "32px minmax(0,1fr) auto auto" }}
+                style={{ gridTemplateColumns: "32px 48px minmax(0,1fr) auto" }}
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--card-2)] text-[11px] font-black text-[var(--muted)]">{p.number}</div>
+
+                <PlayerSheetPhoto player={p} onPreview={onPreviewPhoto} />
 
                 <div className="min-w-0">
                   <span className="block truncate text-[13px] font-black text-[var(--foreground)]">{p.firstName} {p.lastName}</span>
@@ -604,14 +794,15 @@ function TeamStatsCard({
                   </span>
                 </div>
 
-                <label className="flex items-center gap-1 text-[10px] font-black text-[var(--muted)]">
-                  <input type="checkbox" checked={sheet[p.id] ?? false} disabled={readOnly || !eligible} onChange={(event) => toggleSheet(p.id, event.target.checked)} />
-                  Distinta
-                </label>
-
-                <div className="flex items-center gap-1.5">
-                  <StatInput label="G" value={stats[p.id]?.goals ?? ""} onChange={(v) => setPlayerStat(p.id, "goals", v)} readOnly={readOnly} />
-                  <StatInput label="A" value={stats[p.id]?.assists ?? ""} onChange={(v) => setPlayerStat(p.id, "assists", v)} readOnly={readOnly} />
+                <div className="flex flex-col items-end gap-2">
+                  <label className="flex min-h-8 items-center gap-1 text-[10px] font-black text-[var(--muted)]">
+                    <input type="checkbox" checked={sheet[p.id] ?? false} disabled={readOnly || !eligible} onChange={(event) => toggleSheet(p.id, event.target.checked)} />
+                    Distinta
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <StatInput label="G" value={stats[p.id]?.goals ?? ""} onChange={(v) => setPlayerStat(p.id, "goals", v)} readOnly={readOnly} />
+                    <StatInput label="A" value={stats[p.id]?.assists ?? ""} onChange={(v) => setPlayerStat(p.id, "assists", v)} readOnly={readOnly} />
+                  </div>
                 </div>
               </div>
             );
@@ -619,6 +810,41 @@ function TeamStatsCard({
         </div>
       )}
     </Card>
+  );
+}
+
+function PlayerSheetPhoto({ player, onPreview }: { player: Player; onPreview: (player: Player) => void }) {
+  const initials = `${player.firstName?.[0] ?? ""}${player.lastName?.[0] ?? ""}`.toUpperCase() || "?";
+  if (!player.photoUrl) {
+    return (
+      <div className="flex h-14 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--card-2)] text-xs font-black text-[var(--muted)]">
+        {initials}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onPreview(player)}
+      className="group relative h-14 w-11 overflow-hidden rounded-xl border border-[var(--border)] bg-black/20 outline-none ring-[var(--accent)] focus-visible:ring-2"
+      aria-label={`Ingrandisci foto di ${player.firstName} ${player.lastName}`}
+      title="Tocca per controllare la foto"
+    >
+      <img
+        src={player.photoUrl}
+        alt={`Foto ${player.firstName} ${player.lastName}`}
+        className="h-full w-full object-contain"
+        style={{
+          objectPosition: `${player.photoPositionX ?? 50}% ${player.photoPositionY ?? 50}%`,
+          transform: `scale(${player.photoZoom ?? 1})`,
+          transformOrigin: `${player.photoPositionX ?? 50}% ${player.photoPositionY ?? 50}%`,
+        }}
+      />
+      <span className="absolute bottom-0 right-0 grid h-5 w-5 place-items-center rounded-tl-lg bg-black/65 text-white">
+        <ZoomIn size={11} />
+      </span>
+    </button>
   );
 }
 

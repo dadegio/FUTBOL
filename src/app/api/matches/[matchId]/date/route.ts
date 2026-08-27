@@ -20,13 +20,13 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
   const existing = await prisma.match.findUnique({
     where: { id: matchId },
-    select: { id: true, leagueId: true, homeTeamId: true, awayTeamId: true, refereeId: true, homeGoals: true, awayGoals: true },
+    select: { id: true, leagueId: true, homeTeamId: true, awayTeamId: true, refereeId: true, refereeManualOverride: true, homeGoals: true, awayGoals: true },
   });
   if (!existing) return NextResponse.json({ error: "Partita non trovata" }, { status: 404 });
   if (existing.homeGoals !== null || existing.awayGoals !== null) return NextResponse.json({ error: "Non puoi spostare una partita già conclusa" }, { status: 400 });
 
   if (!date) {
-    await prisma.match.update({ where: { id: matchId }, data: { date: null, slotEnd: null, venueKey: null, venueName: null, venueAddress: null, bookedByUserId: null, bookedAt: null, refereeId: null } });
+    await prisma.match.update({ where: { id: matchId }, data: { date: null, slotEnd: null, venueKey: null, venueName: null, venueAddress: null, bookedByUserId: null, bookedAt: null, ...(!existing.refereeManualOverride ? { refereeId: null } : {}) } });
     await rebalanceLeagueReferees(existing.leagueId);
     return NextResponse.json({ ok: true, referee: null });
   }
@@ -36,14 +36,14 @@ export async function PATCH(req: Request, ctx: Ctx) {
     const result = await prisma.$transaction(async (tx) => {
       const [referees, otherMatches] = await Promise.all([
         tx.referee.findMany({ where: { leagueId: existing.leagueId, active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, teamId: true, availabilities: { select: { weekday: true, hour: true, minute: true } } } }),
-        tx.match.findMany({ where: { leagueId: existing.leagueId, id: { not: matchId }, date: { not: null } }, select: { id: true, date: true, slotEnd: true, homeTeamId: true, awayTeamId: true, refereeId: true } }),
+        tx.match.findMany({ where: { leagueId: existing.leagueId, id: { not: matchId }, date: { not: null } }, select: { id: true, date: true, slotEnd: true, homeTeamId: true, awayTeamId: true, refereeId: true, refereeManualOverride: true } }),
       ]);
       const teamConflict = otherMatches.some((m) =>
         (m.homeTeamId === existing.homeTeamId || m.awayTeamId === existing.homeTeamId || m.homeTeamId === existing.awayTeamId || m.awayTeamId === existing.awayTeamId) && matchOverlapsWindow(m, startsAt, endsAt));
       if (teamConflict) throw new Error("TEAM_CONFLICT");
 
       const affiliated = new Set(referees.filter((r) => r.teamId === existing.homeTeamId || r.teamId === existing.awayTeamId).map((r) => r.id));
-      const releaseIds = otherMatches.filter((m) => Boolean(m.refereeId) && affiliated.has(m.refereeId!) && matchOverlapsWindow(m, startsAt, endsAt)).map((m) => m.id);
+      const releaseIds = otherMatches.filter((m) => !m.refereeManualOverride && Boolean(m.refereeId) && affiliated.has(m.refereeId!) && matchOverlapsWindow(m, startsAt, endsAt)).map((m) => m.id);
       if (releaseIds.length) {
         await tx.match.updateMany({ where: { id: { in: releaseIds } }, data: { refereeId: null } });
         for (const m of otherMatches) if (releaseIds.includes(m.id)) m.refereeId = null;
@@ -52,17 +52,18 @@ export async function PATCH(req: Request, ctx: Ctx) {
       const ordered = [...referees].sort((a,b) => ((load.get(a.id) ?? 0) - (load.get(b.id) ?? 0)) || a.name.localeCompare(b.name));
       const compatible = (r: (typeof referees)[number]) => r.teamId !== existing.homeTeamId && r.teamId !== existing.awayTeamId && refereeAllowsStart(r.availabilities, startsAt) && !refereeHasConflict({ refereeId: r.id, teamId: r.teamId, startsAt, endsAt, otherMatches });
       const current = ordered.find((r) => r.id === existing.refereeId && compatible(r)); const assigned = current ?? ordered.find(compatible) ?? null;
+      const assignedRefereeId = existing.refereeManualOverride ? existing.refereeId : assigned?.id ?? null;
       const updated = await tx.match.update({
         where: { id: matchId },
-        data: { date: startsAt, slotEnd: endsAt, venueKey: null, venueName: null, venueAddress: null, bookedByUserId: null, bookedAt: null, slotWeekStart: getSlotWeekWindow(startsAt).startsAt, refereeId: assigned?.id ?? null },
-        select: { referee: { select: { id: true, name: true } } },
+        data: { date: startsAt, slotEnd: endsAt, venueKey: null, venueName: null, venueAddress: null, bookedByUserId: null, bookedAt: null, slotWeekStart: getSlotWeekWindow(startsAt).startsAt, refereeId: assignedRefereeId },
+        select: { referee: { select: { id: true } } },
       });
       return { referee: updated.referee, releasedRefereeAssignments: releaseIds.length };
     });
     await rebalanceLeagueReferees(existing.leagueId);
     const refreshed = await prisma.match.findUnique({
       where: { id: matchId },
-      select: { referee: { select: { id: true, name: true } } },
+      select: { referee: { select: { id: true } } },
     });
     return NextResponse.json({ ok: true, ...result, referee: refreshed?.referee ?? null });
   } catch (error) {

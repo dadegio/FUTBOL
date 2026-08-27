@@ -146,8 +146,9 @@ model Match {
   seriesId String?
   leg      Int?
 
-  refereeCostCents Int     @default(2000)
-  refereeId        String?
+  refereeCostCents      Int     @default(2000)
+  refereeId             String?
+  refereeManualOverride Boolean @default(false)
 
   createdAt DateTime @default(now())
 

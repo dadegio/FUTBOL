@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateRoundRobin } from "@/lib/scheduler";
-import { requireAdmin } from "@/lib/server-auth";
+import { getServerSession, requireAdmin } from "@/lib/server-auth";
 import { rebalanceLeagueReferees } from "@/lib/automatic-referees";
 import {
   getFirstFullSlotWeek,
@@ -20,6 +20,8 @@ export async function GET(
   ctx: { params: Promise<{ leagueId: string }> }
 ) {
   const { leagueId } = await ctx.params;
+  const session = await getServerSession();
+  const canSeeRefereeName = session?.role === "ADMIN";
 
   const { searchParams } = new URL(req.url);
   const phase = searchParams.get("phase") ?? "league";
@@ -75,7 +77,14 @@ export async function GET(
     },
   });
 
-  return NextResponse.json(matches);
+  return NextResponse.json(
+    matches.map((match) => ({
+      ...match,
+      referee: match.referee
+        ? { id: match.referee.id, name: canSeeRefereeName ? match.referee.name : null }
+        : null,
+    }))
+  );
 }
 
 export async function POST(

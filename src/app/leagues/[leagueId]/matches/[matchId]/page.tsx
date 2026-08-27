@@ -18,7 +18,6 @@ export default async function MatchPage({
       referee: {
         select: {
           id: true,
-          name: true,
         },
       },
       homeTeam: { include: { players: { orderBy: { number: "asc" } } } },

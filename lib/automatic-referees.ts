@@ -30,6 +30,7 @@ export async function rebalanceLeagueReferees(leagueId: string) {
         homeTeamId: true,
         awayTeamId: true,
         refereeId: true,
+        refereeManualOverride: true,
         homeGoals: true,
         awayGoals: true,
       },
@@ -42,10 +43,18 @@ export async function rebalanceLeagueReferees(leagueId: string) {
   const pending = matches.filter(
     (match) => match.homeGoals === null && match.awayGoals === null
   );
-  const scheduledPending = pending.filter((match) => Boolean(match.date));
-  const unscheduledPending = pending.filter((match) => !match.date);
 
-  const fixedMatches: ScheduledMatchWindow[] = completed.map((match) => ({
+  // Le assegnazioni manuali sono "bloccate": il ribilanciamento automatico
+  // deve considerarle come occupazioni reali, ma non deve mai modificarle.
+  const manualPending = pending.filter((match) => match.refereeManualOverride);
+  const automaticPending = pending.filter((match) => !match.refereeManualOverride);
+  const scheduledPending = automaticPending.filter((match) => Boolean(match.date));
+  const unscheduledPending = automaticPending.filter((match) => !match.date);
+
+  const fixedMatches: ScheduledMatchWindow[] = [
+    ...completed,
+    ...manualPending.filter((match) => Boolean(match.date)),
+  ].map((match) => ({
     id: match.id,
     date: match.date,
     slotEnd: match.slotEnd,
@@ -55,7 +64,7 @@ export async function rebalanceLeagueReferees(leagueId: string) {
   }));
 
   const load = new Map<string, number>();
-  for (const match of completed) {
+  for (const match of [...completed, ...manualPending]) {
     if (match.refereeId) {
       load.set(match.refereeId, (load.get(match.refereeId) ?? 0) + 1);
     }

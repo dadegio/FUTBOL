@@ -725,7 +725,7 @@ function PlayerRow({
 
   return (
     <div className={[
-      "grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0",
+      "grid grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0 sm:grid-cols-[104px_minmax(0,1fr)_auto]",
       isAdminOk(player) ? "" : "bg-amber-400/5",
     ].join(" ")}>
       <PlayerPhoto
@@ -835,11 +835,11 @@ function PlayerPhoto({
 
   if (photoUrl) {
     return (
-      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--background)]">
+      <div className="relative h-[95px] w-[76px] shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--background)] sm:h-[115px] sm:w-[92px]">
         <img
           src={photoUrl}
           alt={`Foto ${name}`}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain"
           style={{
             objectPosition: `${photoPositionX}% ${photoPositionY}%`,
             transform: `scale(${photoZoom})`,
@@ -851,7 +851,7 @@ function PlayerPhoto({
   }
 
   return (
-    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--background)] text-sm font-black text-[var(--accent)]">
+    <div className="relative flex h-[95px] w-[76px] shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--background)] text-lg font-black text-[var(--accent)] sm:h-[115px] sm:w-[92px]">
       {initials}
     </div>
   );

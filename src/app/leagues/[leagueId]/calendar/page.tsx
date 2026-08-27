@@ -37,7 +37,7 @@ type Match = {
   venueAddress: string | null;
   referee: {
     id: string;
-    name: string;
+    name: string | null;
   } | null;
   homeGoals: number | null;
   awayGoals: number | null;
@@ -55,7 +55,7 @@ type GeneratorResult = {
 };
 
 async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await authFetch(url, { cache: "no-store" });
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
@@ -691,7 +691,7 @@ function CalendarMatchRow({ leagueId, match }: { leagueId: string; match: Match 
           <span className="flex min-w-0 items-center gap-1.5">
             <UsersRound size={12} className="shrink-0 text-[var(--accent)]" />
             <span className="truncate">
-              Arbitro: {match.referee?.name ?? "da assegnare"}
+              Arbitro: {match.referee ? (match.referee.name || "assegnato") : "da assegnare"}
             </span>
           </span>
         </div>

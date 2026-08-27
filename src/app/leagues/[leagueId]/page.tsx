@@ -7,6 +7,7 @@ import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import YouTubeVideoCard from "src/app/_components/youtube-video-card";
 import SponsorBanner from "src/app/_components/sponsor-banner";
+import { authFetch } from "@/lib/client-auth";
 
 type League = {
   id: string;
@@ -28,7 +29,7 @@ type Match = {
   venueAddress?: string | null;
   referee?: {
     id: string;
-    name: string;
+    name: string | null;
   } | null;
   homeGoals: number | null;
   awayGoals: number | null;
@@ -78,7 +79,7 @@ type PlayoffResponse = {
 };
 
 async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await authFetch(url, { cache: "no-store" });
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
@@ -641,7 +642,7 @@ function NextMatchCard({ match }: { match: Match }) {
 
       <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-semibold text-[var(--muted)]">
         <span>{match.venueName ?? "Campo da prenotare"}</span>
-        <span>Arbitro: {match.referee?.name ?? "da assegnare"}</span>
+        <span>Arbitro: {match.referee ? (match.referee.name || "assegnato") : "da assegnare"}</span>
       </div>
 
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">

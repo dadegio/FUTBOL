@@ -46,6 +46,7 @@ export async function POST(req: Request, ctx: Ctx) {
             date: true,
             slotWeekStart: true,
             refereeId: true,
+            refereeManualOverride: true,
             round: true,
           },
         });
@@ -112,7 +113,7 @@ export async function POST(req: Request, ctx: Ctx) {
           }),
           tx.match.findMany({
             where: { leagueId: match.leagueId, id: { not: matchId }, date: { not: null } },
-            select: { id: true, date: true, slotEnd: true, homeTeamId: true, awayTeamId: true, refereeId: true },
+            select: { id: true, date: true, slotEnd: true, homeTeamId: true, awayTeamId: true, refereeId: true, refereeManualOverride: true },
           }),
         ]);
 
@@ -125,7 +126,7 @@ export async function POST(req: Request, ctx: Ctx) {
 
         const affiliatedRefereeIds = new Set(referees.filter((r) => r.teamId === match.homeTeamId || r.teamId === match.awayTeamId).map((r) => r.id));
         const assignmentsToRelease = otherMatches.filter((other) =>
-          Boolean(other.refereeId) && affiliatedRefereeIds.has(other.refereeId!) && matchOverlapsWindow(other, slot.startsAt, slot.endsAt)
+          !other.refereeManualOverride && Boolean(other.refereeId) && affiliatedRefereeIds.has(other.refereeId!) && matchOverlapsWindow(other, slot.startsAt, slot.endsAt)
         ).map((other) => other.id);
         if (assignmentsToRelease.length) {
           await tx.match.updateMany({ where: { id: { in: assignmentsToRelease } }, data: { refereeId: null } });
@@ -141,16 +142,19 @@ export async function POST(req: Request, ctx: Ctx) {
           !refereeHasConflict({ refereeId: r.id, teamId: r.teamId, startsAt: slot.startsAt, endsAt: slot.endsAt, otherMatches });
         const current = ordered.find((r) => r.id === match.refereeId && compatible(r));
         const assigned = current ?? ordered.find(compatible) ?? null;
+        const assignedRefereeId = match.refereeManualOverride
+          ? match.refereeId
+          : assigned?.id ?? null;
 
         const updated = await tx.match.update({
           where: { id: matchId },
           data: {
             date: slot.startsAt, slotEnd: slot.endsAt, venueKey: slot.venueKey, venueName: slot.venueName, venueAddress: slot.address,
-            bookedByUserId: session.userId, bookedAt: new Date(), refereeId: assigned?.id ?? null,
+            bookedByUserId: session.userId, bookedAt: new Date(), refereeId: assignedRefereeId,
           },
           select: {
             id: true, leagueId: true, date: true, slotEnd: true, venueKey: true, venueName: true, venueAddress: true, bookedAt: true,
-            referee: { select: { id: true, name: true } },
+            referee: { select: { id: true } },
           },
         });
         return { ...updated, releasedRefereeAssignments: assignmentsToRelease.length };
@@ -163,7 +167,7 @@ export async function POST(req: Request, ctx: Ctx) {
       where: { id: matchId },
       select: {
         id: true, date: true, slotEnd: true, venueKey: true, venueName: true, venueAddress: true, bookedAt: true,
-        referee: { select: { id: true, name: true } },
+        referee: { select: { id: true } },
       },
     });
 
@@ -261,6 +265,7 @@ export async function DELETE(_: Request, ctx: Ctx) {
       venueKey: true,
       homeGoals: true,
       awayGoals: true,
+      refereeManualOverride: true,
     },
   });
 
@@ -289,7 +294,7 @@ export async function DELETE(_: Request, ctx: Ctx) {
       venueAddress: null,
       bookedByUserId: null,
       bookedAt: null,
-      refereeId: null,
+      ...(!match.refereeManualOverride ? { refereeId: null } : {}),
     },
   });
   await rebalanceLeagueReferees(match.leagueId);

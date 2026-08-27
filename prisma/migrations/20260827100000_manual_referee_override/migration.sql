@@ -1,0 +1,2 @@
+ALTER TABLE "Match"
+ADD COLUMN IF NOT EXISTS "refereeManualOverride" BOOLEAN NOT NULL DEFAULT false;

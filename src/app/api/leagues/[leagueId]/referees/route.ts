@@ -5,7 +5,7 @@ import {
   refereeAllowsStart,
   refereeHasConflict,
 } from "@/lib/referee-availability";
-import { getServerSession, requireAdmin } from "@/lib/server-auth";
+import { requireAdmin } from "@/lib/server-auth";
 import { rebalanceLeagueReferees } from "@/lib/automatic-referees";
 
 type Ctx = { params: Promise<{ leagueId: string }> };
@@ -37,9 +37,10 @@ function normalizeAvailability(value: unknown): AvailabilityInput[] | null {
 const availabilitySelect = { id: true, weekday: true, hour: true, minute: true };
 
 export async function GET(req: Request, ctx: Ctx) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { leagueId } = await ctx.params;
-  const session = await getServerSession();
-  const isAdmin = session?.role === "ADMIN";
+  const isAdmin = true;
   const matchId = new URL(req.url).searchParams.get("matchId")?.trim() || null;
 
   const referees = await prisma.referee.findMany({
@@ -196,7 +197,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
       });
 
       const assignedMatches = await tx.match.findMany({
-        where: { leagueId, refereeId: id, homeGoals: null, awayGoals: null },
+        where: { leagueId, refereeId: id, refereeManualOverride: false, homeGoals: null, awayGoals: null },
         orderBy: [{ date: "asc" }, { round: "asc" }],
         select: { id: true, date: true, slotEnd: true, homeTeamId: true, awayTeamId: true, refereeId: true },
       });
