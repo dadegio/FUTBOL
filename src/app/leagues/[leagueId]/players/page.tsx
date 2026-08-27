@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { Search, SlidersHorizontal, Users } from "lucide-react";
+import { ChevronRight, Crown, Search, SlidersHorizontal, Users } from "lucide-react";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card, { CardHeader } from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
@@ -21,6 +21,7 @@ type Row = {
   photoZoom?: number;
   photoPositionX?: number;
   photoPositionY?: number;
+  isTeamCaptain?: boolean;
   registrationStatus?: string;
   isEligibleForMatchSheet?: boolean;
   team: {
@@ -106,8 +107,8 @@ export default function PlayersPage() {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <CardHeader
               tag="Giocatori"
-              title="Rosa torneo"
-              description="Player registry del torneo: cerca, filtra e apri i profili senza esporre dati amministrativi."
+              title="Giocatori"
+              description="Tutte le rose del torneo in un unico posto, con profili più leggibili e foto mostrate senza ritagli aggressivi."
               level={1}
             />
 
@@ -224,7 +225,7 @@ export default function PlayersPage() {
                     </span>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                     {players.map((player) => (
                       <PlayerCard
                         key={player.id}
@@ -255,9 +256,9 @@ function PlayerCard({
   return (
     <Link
       href={`/leagues/${leagueId}/players/${player.id}`}
-      className="group rounded-[18px] border border-[var(--border)] bg-[var(--card)] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition hover:-translate-y-0.5 hover:border-[var(--accent)]/40 hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
+      className="group relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--card)] shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition hover:-translate-y-0.5 hover:border-[var(--accent)]/40 hover:shadow-[0_14px_34px_rgba(0,0,0,0.09)]"
     >
-      <div className="flex items-start gap-4">
+      <div className="grid min-h-[150px] grid-cols-[104px_minmax(0,1fr)] sm:grid-cols-[118px_minmax(0,1fr)]">
         <PlayerAvatar
           name={fullName}
           number={player.number}
@@ -267,40 +268,57 @@ function PlayerCard({
           photoPositionY={player.photoPositionY ?? 50}
         />
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="truncate text-base font-black tracking-[-0.03em] text-[var(--foreground)]">
-                {fullName}
-              </h3>
+        <div className="flex min-w-0 flex-col justify-between p-4 sm:p-5">
+          <div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent)]">
+                    #{player.number}
+                  </span>
+                  {player.isTeamCaptain && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-300">
+                      <Crown size={10} /> Capitano
+                    </span>
+                  )}
+                </div>
 
-              <p className="mt-1 text-sm font-medium text-[var(--muted)]">
-                {player.position || "Ruolo non impostato"}
-              </p>
+                <h3 className="mt-1.5 break-words text-lg font-black leading-tight tracking-[-0.04em] text-[var(--foreground)] sm:text-xl">
+                  {fullName}
+                </h3>
+                <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+                  {player.position || "Ruolo non impostato"}
+                </p>
+              </div>
 
-              <span className={[
-                "mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide",
-                player.isEligibleForMatchSheet
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "bg-amber-400/10 text-amber-300",
-              ].join(" ")}>
-                {player.registrationStatus ?? "Da completare"}
+              <ChevronRight
+                size={18}
+                className="mt-1 shrink-0 text-[var(--muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--accent)]"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <TeamLogo
+                name={player.team.name}
+                badgeUrl={player.team.badgeUrl ?? null}
+              />
+              <span className="min-w-0 truncate text-xs font-bold text-[var(--muted)]">
+                {player.team.name}
               </span>
             </div>
 
-            <span className="rounded-xl bg-[var(--accent)] px-2.5 py-1 text-sm font-black text-white">
-              #{player.number}
-            </span>
-          </div>
-
-          <div className="mt-4 flex items-center gap-2 rounded-2xl bg-[var(--card-2)] px-3 py-2">
-            <TeamLogo
-              name={player.team.name}
-              badgeUrl={player.team.badgeUrl ?? null}
-            />
-
-            <span className="min-w-0 truncate text-xs font-semibold text-[var(--muted)]">
-              {player.team.name}
+            <span
+              className={[
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em]",
+                player.isEligibleForMatchSheet
+                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                  : "bg-amber-400/10 text-amber-300",
+              ].join(" ")}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {player.registrationStatus ?? "Da completare"}
             </span>
           </div>
         </div>
@@ -345,24 +363,34 @@ function PlayerAvatar({
     .slice(0, 2)
     .toUpperCase();
 
+  const frameClass =
+    "relative h-full min-h-[150px] w-full overflow-hidden border-r border-[var(--border)] bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.08),transparent_55%)]";
+
   if (photoUrl) {
     return (
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card-2)]">
-        <img src={photoUrl} alt={name} className="h-full w-full object-cover" style={{ objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom})`, transformOrigin: `${photoPositionX}% ${photoPositionY}%` }} />
-
-        <span className="absolute bottom-0 right-0 flex h-6 min-w-6 items-center justify-center rounded-tl-xl bg-[var(--accent)] px-1 text-[10px] font-black text-white">
-          {number}
+      <div className={frameClass}>
+        <img
+          src={photoUrl}
+          alt={name}
+          className="absolute inset-0 h-full w-full object-contain"
+          style={{
+            objectPosition: `${photoPositionX}% ${photoPositionY}%`,
+            transform: `scale(${Math.min(photoZoom, 1)})`,
+            transformOrigin: `${photoPositionX}% ${photoPositionY}%`,
+          }}
+        />
+        <span className="absolute bottom-2 left-2 rounded-xl border border-white/15 bg-black/55 px-2 py-1 text-[10px] font-black text-white backdrop-blur-sm">
+          #{number}
         </span>
       </div>
     );
   }
 
   return (
-    <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--card-2)] text-lg font-black text-[var(--accent)]">
+    <div className={`${frameClass} flex items-center justify-center text-2xl font-black text-[var(--accent)]`}>
       {initials || "?"}
-
-      <span className="absolute bottom-0 right-0 flex h-6 min-w-6 items-center justify-center rounded-tl-xl bg-[var(--accent)] px-1 text-[10px] font-black text-white">
-        {number}
+      <span className="absolute bottom-2 left-2 rounded-xl border border-white/10 bg-black/30 px-2 py-1 text-[10px] font-black text-[var(--foreground)]">
+        #{number}
       </span>
     </div>
   );
@@ -404,7 +432,7 @@ function PlayerSkeleton() {
     <div className="rounded-[18px] border border-[var(--border)] bg-[var(--card)] p-4">
       <div className="animate-pulse">
         <div className="flex gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-[var(--card-2)]" />
+          <div className="h-[150px] w-[104px] rounded-l-[24px] bg-[var(--card-2)]" />
           <div className="flex-1 space-y-3">
             <div className="h-4 w-2/3 rounded bg-[var(--card-2)]" />
             <div className="h-3 w-1/2 rounded bg-[var(--card-2)]" />

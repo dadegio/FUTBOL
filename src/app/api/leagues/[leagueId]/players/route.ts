@@ -41,6 +41,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ leagueId: strin
       photoZoom: true,
       photoPositionX: true,
       photoPositionY: true,
+      isTeamCaptain: true,
       documentSigned: true,
       mediaConsent: true,
       wildcardUsed: true,

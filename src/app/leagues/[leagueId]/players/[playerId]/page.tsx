@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, CalendarDays, Crown, Goal, Handshake, Pencil, Shield, WalletCards } from "lucide-react";
+import { ArrowLeft, CalendarDays, Crown, Goal, Handshake, Pencil, WalletCards } from "lucide-react";
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
@@ -284,49 +284,63 @@ export default function PlayerPage() {
         {err && <Badge variant="error">{err}</Badge>}
 
         <Card className="overflow-hidden !p-0">
-          <div className="matchroom-hero grid gap-5 p-4 sm:p-5 lg:grid-cols-[230px_minmax(0,1fr)]">
-            <div className="flex min-h-[215px] flex-col items-center justify-center rounded-[24px] border border-white/10 bg-black/20 p-3 text-center sm:min-h-[230px]">
+          <div className="matchroom-hero grid lg:grid-cols-[minmax(280px,34%)_minmax(0,1fr)]">
+            <div className="relative flex min-h-[330px] items-end justify-center overflow-hidden border-b border-white/10 bg-black/20 p-5 sm:min-h-[390px] lg:min-h-[430px] lg:border-b-0 lg:border-r">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.10),transparent_48%)]" />
               <PlayerAvatar firstName={player.firstName} lastName={player.lastName} number={player.number} photoUrl={player.photoUrl ?? null} photoZoom={player.photoZoom ?? 1} photoPositionX={player.photoPositionX ?? 50} photoPositionY={player.photoPositionY ?? 50} />
-              <p className="mt-2 text-sm text-[var(--muted)]">{player.position || "Ruolo non impostato"}</p>
             </div>
 
-            <div className="flex flex-col justify-between gap-6">
+            <div className="flex min-w-0 flex-col justify-between gap-7 p-5 sm:p-7 lg:p-8">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--accent)]">Player Passport</p>
+                  <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">#{player.number}</span>
+                  {player.position && <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)]">{player.position}</span>}
                   {player.isTeamCaptain && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-400/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-300">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-300">
                       <Crown size={12} /> Capitano
                     </span>
                   )}
                 </div>
-                <h1 className="mt-2 text-4xl font-black tracking-[-0.08em] text-[var(--foreground)] sm:text-6xl">{fullName}</h1>
-                <p className="mt-3 text-sm font-semibold text-[var(--muted)]">{player.team?.name ?? "Squadra non disponibile"}</p>
+
+                <p className="mt-5 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--muted)]">Profilo giocatore</p>
+                <h1 className="mt-2 break-words text-4xl font-black leading-[0.94] tracking-[-0.07em] text-[var(--foreground)] sm:text-6xl xl:text-7xl">{fullName}</h1>
+
+                {player.team ? (
+                  <Link href={`/leagues/${leagueId}/teams/${player.team.id}`} className="mt-5 inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2.5 transition hover:border-[var(--accent)]/35 hover:bg-black/30">
+                    <TeamBadge name={player.team.name} badgeUrl={player.team.badgeUrl ?? null} />
+                    <span className="min-w-0 truncate text-sm font-black text-[var(--foreground)]">{player.team.name}</span>
+                  </Link>
+                ) : (
+                  <p className="mt-5 text-sm font-semibold text-[var(--muted)]">Squadra non disponibile</p>
+                )}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <PassportPill label="Stato" value={playerStatusLabel(player)} positive={player.isEligibleForMatchSheet} />
-                <PassportPill label="Presenze" value={appearances} />
-                {isAdmin && <PassportPill label="Quota" value={formatEuro(feeCents ?? appearances * 50)} />}
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <span className={[
+                    "h-2 w-2 rounded-full",
+                    player.isEligibleForMatchSheet ? "bg-[var(--accent)]" : "bg-amber-300",
+                  ].join(" ")} />
+                  <span className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{playerStatusLabel(player)}</span>
+                </div>
+
+                <div className={isAdmin ? "grid grid-cols-2 gap-2 sm:grid-cols-4" : "grid grid-cols-3 gap-2"}>
+                  <HeroStat label="Gol" value={goals} icon={<Goal size={15} />} />
+                  <HeroStat label="Assist" value={assists} icon={<Handshake size={15} />} />
+                  <HeroStat label="Presenze" value={appearances} icon={<CalendarDays size={15} />} />
+                  {isAdmin && <HeroStat label="Quote" value={formatEuro(feeCents ?? appearances * 50)} icon={<WalletCards size={15} />} />}
+                </div>
               </div>
             </div>
           </div>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MiniStat label="Squadra" value={player.team?.name ?? "—"} icon={<Shield size={16} />} />
-          <MiniStat label="Gol" value={goals} icon={<Goal size={16} />} />
-          <MiniStat label="Assist" value={assists} icon={<Handshake size={16} />} />
-          <MiniStat label="Presenze" value={appearances} icon={<CalendarDays size={16} />} />
-          {isAdmin && <MiniStat label="Quote" value={formatEuro(feeCents ?? appearances * 50)} icon={<WalletCards size={16} />} />}
-        </div>
-
         <div className={isAdmin ? "grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)] 2xl:grid-cols-[minmax(0,1.45fr)_420px]" : "grid gap-5"}>
           <Card className={!isAdmin ? "xl:col-span-2" : undefined}>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-black text-[var(--foreground)]">Profilo sportivo</h2>
-                <p className="mt-1 text-sm text-[var(--muted)]">Dati pubblici e stato sintetico iscrizione.</p>
+                <h2 className="text-xl font-black text-[var(--foreground)]">Scheda giocatore</h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">Informazioni sportive essenziali, senza dati amministrativi.</p>
               </div>
               {canEditSport && (
                 <button onClick={() => setEditing((v) => !v)} className="grid h-11 w-11 place-items-center rounded-2xl border border-[var(--border)] bg-[var(--card-2)] text-[var(--muted)] hover:text-[var(--foreground)]">
@@ -471,12 +485,12 @@ function PlayerAvatar({ firstName, lastName, number, photoUrl, photoZoom = 1, ph
   const fullName = `${firstName} ${lastName}`;
   const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase();
   const frameClass =
-    "relative aspect-[4/5] w-full max-w-[168px] shrink-0 overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--background)] shadow-sm sm:max-w-[180px]";
+    "relative z-[1] aspect-[4/5] w-full max-w-[250px] shrink-0 overflow-hidden rounded-[28px] border border-white/10 bg-[var(--background)] shadow-[0_20px_60px_rgba(0,0,0,0.22)] sm:max-w-[285px]";
 
   if (photoUrl) {
     return (
       <div className={frameClass}>
-        <img src={photoUrl} alt={`Foto ${fullName}`} className="absolute inset-0 h-full w-full object-contain" style={{ objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${photoZoom})`, transformOrigin: `${photoPositionX}% ${photoPositionY}%` }} />
+        <img src={photoUrl} alt={`Foto ${fullName}`} className="absolute inset-0 h-full w-full object-contain" style={{ objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${Math.min(photoZoom, 1)})`, transformOrigin: `${photoPositionX}% ${photoPositionY}%` }} />
         <span className="absolute bottom-0 right-0 flex h-12 min-w-12 items-center justify-center rounded-tl-3xl bg-[var(--accent)] px-3 text-base font-black text-black">{number}</span>
       </div>
     );
@@ -490,12 +504,21 @@ function PlayerAvatar({ firstName, lastName, number, photoUrl, photoZoom = 1, ph
   );
 }
 
-function PassportPill({ label, value, positive }: { label: string; value: string | number; positive?: boolean }) {
-  return <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3"><p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">{label}</p><p className={["mt-1 text-base font-black", positive ? "text-[var(--accent)]" : "text-[var(--foreground)]"].join(" ")}>{value}</p></div>;
+function HeroStat({ label, value, icon }: { label: string; value: string | number; icon: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-3 sm:px-4">
+      <div className="flex items-center gap-1.5 text-[var(--muted)]">{icon}<span className="text-[9px] font-black uppercase tracking-[0.14em]">{label}</span></div>
+      <p className="mt-1.5 truncate text-xl font-black tracking-[-0.04em] text-[var(--foreground)] sm:text-2xl">{value}</p>
+    </div>
+  );
 }
 
-function MiniStat({ label, value, icon }: { label: string; value: string | number; icon: React.ReactNode }) {
-  return <Card variant="inner"><div className="flex items-center gap-2 text-[var(--foreground)]/50">{icon}<p className="text-xs font-medium uppercase tracking-widest">{label}</p></div><p className="mt-3 text-2xl font-black text-[var(--foreground)]">{value}</p></Card>;
+function TeamBadge({ name, badgeUrl }: { name: string; badgeUrl?: string | null }) {
+  const initials = name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+  if (badgeUrl) {
+    return <img src={badgeUrl} alt={`Logo ${name}`} className="h-9 w-9 shrink-0 rounded-xl object-contain" />;
+  }
+  return <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/5 text-[10px] font-black text-[var(--muted)]">{initials || "?"}</span>;
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
