@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { LogIn, LogOut, UserCircle, X, Trophy } from "lucide-react";
+import { LogIn, Menu, UserCircle, X, Trophy } from "lucide-react";
 import Sidebar from "./sidebar";
 import BottomTabs from "./bottom-tabs";
+import MobileMenu from "./mobile-menu";
 import Breadcrumbs from "./breadcrumbs";
-import { useAuth, clearAuthToken } from "@/lib/client-auth";
+import { useAuth } from "@/lib/client-auth";
 
 export default function DashboardShell({
   children,
@@ -16,9 +16,9 @@ export default function DashboardShell({
   children: React.ReactNode;
   leagueId?: string;
 }) {
-  const { user, loading: authLoading, refresh: refreshAuth } = useAuth();
-  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [popupOpen, setPopupOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Show popup once per session when a guest opens a league
   useEffect(() => {
@@ -33,11 +33,6 @@ export default function DashboardShell({
     setPopupOpen(false);
   }
 
-  async function handleLogout() {
-    clearAuthToken();
-    await refreshAuth();
-    router.refresh();
-  }
 
 return (
     <div className="min-h-screen max-w-full overflow-x-hidden px-3 py-3 sm:px-4 sm:py-4 md:px-5 md:py-5 lg:px-7 lg:py-7 xl:px-9 2xl:px-12">
@@ -51,19 +46,10 @@ return (
           {!authLoading && (
             <div className="flex shrink-0 items-center gap-2">
               {user ? (
-                <>
-                  <span className="flex items-center gap-1.5 text-xs text-[var(--foreground)]/60">
-                    <UserCircle size={15} />
-                    {user.username}
-                  </span>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-1 rounded-xl border border-[var(--border)] px-2.5 py-1.5 text-xs text-[var(--foreground)]/60 transition-colors hover:text-[var(--foreground)]"
-                  >
-                    <LogOut size={13} />
-                    Esci
-                  </button>
-                </>
+                <span className="hidden items-center gap-1.5 text-xs text-[var(--foreground)]/60 min-[380px]:flex">
+                  <UserCircle size={15} />
+                  <span className="max-w-24 truncate">{user.username}</span>
+                </span>
               ) : (
                 <Link
                   href="/login"
@@ -73,6 +59,14 @@ return (
                   Accedi
                 </Link>
               )}
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="Apri menu"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--border)] bg-[var(--card-2)] text-[var(--foreground)]/70"
+              >
+                <Menu size={19} />
+              </button>
             </div>
           )}
         </div>
@@ -89,6 +83,12 @@ return (
 
       {/* Mobile bottom tab bar */}
       {leagueId && <BottomTabs leagueId={leagueId} />}
+
+      <MobileMenu
+        leagueId={leagueId}
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+      />
 
       {/* Login nudge popup */}
       {popupOpen && (
