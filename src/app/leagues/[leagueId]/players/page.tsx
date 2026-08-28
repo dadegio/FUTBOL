@@ -9,6 +9,7 @@ import Card, { CardHeader } from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
 import Badge from "src/app/_components/ui/badge";
+import OptimizedPlayerImage from "src/app/_components/optimized-player-image";
 import { authFetch } from "@/lib/client-auth";
 
 type Row = {
@@ -97,6 +98,11 @@ export default function PlayersPage() {
       ] as [string, Row[]])
       .sort(([a], [b]) => a.localeCompare(b));
   }, [rows]);
+
+  const eagerPlayerIds = useMemo(
+    () => new Set(rows.slice(0, 6).map((player) => player.id)),
+    [rows]
+  );
 
   if (!leagueId) return null;
 
@@ -231,6 +237,7 @@ export default function PlayersPage() {
                         key={player.id}
                         player={player}
                         leagueId={leagueId}
+                        eagerPhoto={eagerPlayerIds.has(player.id)}
                       />
                     ))}
                   </div>
@@ -247,9 +254,11 @@ export default function PlayersPage() {
 function PlayerCard({
   player,
   leagueId,
+  eagerPhoto = false,
 }: {
   player: Row;
   leagueId: string;
+  eagerPhoto?: boolean;
 }) {
   const fullName = `${player.firstName} ${player.lastName}`;
 
@@ -266,6 +275,7 @@ function PlayerCard({
           photoZoom={player.photoZoom ?? 1}
           photoPositionX={player.photoPositionX ?? 50}
           photoPositionY={player.photoPositionY ?? 50}
+          eager={eagerPhoto}
         />
 
         <div className="flex min-w-0 flex-col justify-between p-4 sm:p-5">
@@ -348,6 +358,7 @@ function PlayerAvatar({
   photoZoom = 1,
   photoPositionX = 50,
   photoPositionY = 50,
+  eager = false,
 }: {
   name: string;
   number: number;
@@ -355,6 +366,7 @@ function PlayerAvatar({
   photoZoom?: number;
   photoPositionX?: number;
   photoPositionY?: number;
+  eager?: boolean;
 }) {
   const initials = name
     .split(" ")
@@ -369,9 +381,11 @@ function PlayerAvatar({
   if (photoUrl) {
     return (
       <div className={frameClass}>
-        <img
+        <OptimizedPlayerImage
           src={photoUrl}
           alt={name}
+          sizes="(max-width: 640px) 104px, 118px"
+          eager={eager}
           className="absolute inset-0 h-full w-full object-contain"
           style={{
             objectPosition: `${photoPositionX}% ${photoPositionY}%`,

@@ -10,6 +10,7 @@ import Button from "src/app/_components/ui/button";
 import Badge from "src/app/_components/ui/badge";
 import Input from "src/app/_components/ui/input";
 import Select from "src/app/_components/ui/select";
+import OptimizedPlayerImage from "src/app/_components/optimized-player-image";
 import { useAuth } from "@/lib/client-auth";
 
 type Player = {
@@ -490,7 +491,7 @@ function PlayerAvatar({ firstName, lastName, number, photoUrl, photoZoom = 1, ph
   if (photoUrl) {
     return (
       <div className={frameClass}>
-        <img src={photoUrl} alt={`Foto ${fullName}`} className="absolute inset-0 h-full w-full object-contain" style={{ objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${Math.min(photoZoom, 1)})`, transformOrigin: `${photoPositionX}% ${photoPositionY}%` }} />
+        <OptimizedPlayerImage src={photoUrl} alt={`Foto ${fullName}`} sizes="(max-width: 640px) 250px, 285px" eager className="absolute inset-0 h-full w-full object-contain" style={{ objectPosition: `${photoPositionX}% ${photoPositionY}%`, transform: `scale(${Math.min(photoZoom, 1)})`, transformOrigin: `${photoPositionX}% ${photoPositionY}%` }} />
         <span className="absolute bottom-0 right-0 flex h-12 min-w-12 items-center justify-center rounded-tl-3xl bg-[var(--accent)] px-3 text-base font-black text-black">{number}</span>
       </div>
     );

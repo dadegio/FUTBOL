@@ -18,6 +18,7 @@ import {
 import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import Badge from "src/app/_components/ui/badge";
+import OptimizedPlayerImage from "src/app/_components/optimized-player-image";
 
 type FormResult = "W" | "D" | "L";
 
@@ -821,9 +822,10 @@ function PlayerAvatar({ player }: { player: PlayerStat }) {
   }
   return (
     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card-2)]">
-      <img
+      <OptimizedPlayerImage
         src={player.photoUrl}
         alt={`${player.firstName} ${player.lastName}`}
+        sizes="48px"
         className="absolute inset-0 h-full w-full object-contain"
         style={{
           objectPosition: `${player.photoPositionX}% ${player.photoPositionY}%`,

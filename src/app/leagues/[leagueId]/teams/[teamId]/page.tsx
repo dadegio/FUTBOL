@@ -10,6 +10,7 @@ import Button from "src/app/_components/ui/button";
 import Badge from "src/app/_components/ui/badge";
 import Input from "src/app/_components/ui/input";
 import Select from "src/app/_components/ui/select";
+import OptimizedPlayerImage from "src/app/_components/optimized-player-image";
 import { useAuth, useCanEditTeam, authFetch } from "@/lib/client-auth";
 import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
@@ -318,6 +319,11 @@ export default function TeamPage() {
         : []),
     ];
   }, [allPlayers]);
+
+  const eagerPlayerIds = useMemo(
+    () => new Set(allPlayers.slice(0, 4).map((player) => player.id)),
+    [allPlayers]
+  );
 
   if (!team) {
     return (
@@ -688,6 +694,7 @@ export default function TeamPage() {
                       role={role}
                       canEdit={canEdit}
                       isAdmin={isAdmin}
+                      eagerPhoto={eagerPlayerIds.has(player.id)}
                       onDelete={() =>
                         deletePlayer(
                           player.id,
@@ -712,6 +719,7 @@ function PlayerRow({
   role,
   canEdit,
   isAdmin,
+  eagerPhoto = false,
   onDelete,
 }: {
   leagueId: string;
@@ -719,6 +727,7 @@ function PlayerRow({
   role: string;
   canEdit: boolean;
   isAdmin: boolean;
+  eagerPhoto?: boolean;
   onDelete: () => void;
 }) {
   const shortRole = SHORT_ROLE[role] ?? "—";
@@ -735,6 +744,7 @@ function PlayerRow({
         photoZoom={player.photoZoom ?? 1}
         photoPositionX={player.photoPositionX ?? 50}
         photoPositionY={player.photoPositionY ?? 50}
+        eager={eagerPhoto}
       />
 
       <Link
@@ -827,12 +837,14 @@ function PlayerPhoto({
   photoZoom = 1,
   photoPositionX = 50,
   photoPositionY = 50,
+  eager = false,
 }: {
   name: string;
   photoUrl?: string | null;
   photoZoom?: number;
   photoPositionX?: number;
   photoPositionY?: number;
+  eager?: boolean;
 }) {
   const initials = name
     .split(" ")
@@ -844,10 +856,12 @@ function PlayerPhoto({
   if (photoUrl) {
     return (
       <div className="relative h-[95px] w-[76px] shrink-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--background)] sm:h-[115px] sm:w-[92px]">
-        <img
+        <OptimizedPlayerImage
           src={photoUrl}
           alt={`Foto ${name}`}
-          className="h-full w-full object-contain"
+          sizes="(max-width: 640px) 76px, 92px"
+          eager={eager}
+          className="absolute inset-0 h-full w-full object-contain"
           style={{
             objectPosition: `${photoPositionX}% ${photoPositionY}%`,
             transform: `scale(${photoZoom})`,
