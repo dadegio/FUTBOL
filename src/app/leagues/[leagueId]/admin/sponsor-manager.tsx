@@ -251,7 +251,7 @@ export default function SponsorManager({ leagueId }: { leagueId: string }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="truncate text-base font-black text-[var(--foreground)]">{sponsor.name}</h3>
-                        {!sponsor.active && <Badge variant="warning">nascosto</Badge>}
+                        {!sponsor.active && <Badge variant="default">nascosto</Badge>}
                         {sponsor.category && <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">{sponsor.category}</span>}
                       </div>
                       {sponsor.description && <p className="mt-1 line-clamp-2 text-sm text-[var(--muted)]">{sponsor.description}</p>}
