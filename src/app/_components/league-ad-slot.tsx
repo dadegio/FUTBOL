@@ -31,8 +31,10 @@ function openCookiePreferences() {
 
 export default function LeagueAdSlot({ league, placement, className = "" }: Props) {
   const [marketingConsent, setMarketingConsent] = useState(false);
-  const slot = placement === "home" ? league?.adHomeSlot : league?.adLeagueSlot;
-  const client = league?.adClientId?.trim();
+  const rawSlot = placement === "home" ? league?.adHomeSlot : league?.adLeagueSlot;
+  const rawClient = league?.adClientId?.trim();
+  const slot = rawSlot || "";
+  const client = rawClient || "";
   const provider = (league?.adProvider || "ADSENSE").trim().toUpperCase();
   const canUseAdsense = league?.adsEnabled === true && provider === "ADSENSE" && Boolean(client && slot);
 
