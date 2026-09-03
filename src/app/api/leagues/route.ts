@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/server-auth";
 
 const PLAYOFF_FORMATS = new Set(["SINGLE_ELIM", "TWO_LEG"]);
 const PLAYOFF_COUNTS = new Set([2, 4, 8, 16]);
+const THEME_MODES = new Set(["IMPERIAL", "GENERIC", "CUSTOM"]);
 
 export async function GET() {
   const leagues = await prisma.league.findMany({
@@ -44,6 +45,9 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const name = String(body?.name ?? "").trim();
+  const themeMode = THEME_MODES.has(String(body?.themeMode ?? "GENERIC"))
+    ? String(body?.themeMode ?? "GENERIC")
+    : "GENERIC";
 
   if (!name) {
     return NextResponse.json({ error: "Nome lega mancante" }, { status: 400 });
@@ -102,6 +106,7 @@ export async function POST(req: Request) {
     const createdLeague = await tx.league.create({
       data: {
         name,
+        themeMode,
         ...(playoffEnabled
           ? {
               playoffFormat: playoffFormat as "SINGLE_ELIM" | "TWO_LEG",

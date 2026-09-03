@@ -3,17 +3,23 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import Link from "next/link";
-import { ArrowRight, CopyPlus, Plus } from "lucide-react";
+import { ArrowRight, CopyPlus, Layers3, Plus, Search } from "lucide-react";
 import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
 import Badge from "src/app/_components/ui/badge";
-import SponsorBanner from "src/app/_components/sponsor-banner";
 import { useIsAdmin, authFetch } from "@/lib/client-auth";
+import { resolveLeagueBranding } from "@/lib/league-branding";
 
 type League = {
   id: string;
   name: string;
+  themeMode?: string | null;
+  brandLogoUrl?: string | null;
+  brandCoverUrl?: string | null;
+  brandPrimaryColor?: string | null;
+  brandSecondaryColor?: string | null;
+  brandBackgroundColor?: string | null;
   playoffFormat?: "SINGLE_ELIM" | "TWO_LEG" | null;
   teams?: Array<{
     id: string;
@@ -72,6 +78,7 @@ export default function HomePage() {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingLeagues, setLoadingLeagues] = useState(true);
+  const [leagueSearch, setLeagueSearch] = useState("");
   const [showCreateLeague, setShowCreateLeague] = useState(false);
   const [existingTeams, setExistingTeams] = useState<ExistingTeam[]>([]);
   const [loadingExistingTeams, setLoadingExistingTeams] = useState(false);
@@ -155,49 +162,60 @@ export default function HomePage() {
   }
 
   const totalTeams = leagues.reduce((sum, league) => sum + (league.teams?.length ?? 0), 0);
+  const totalPlayers = leagues.reduce((sum, league) => sum + (league.teams?.reduce((n, team) => n + (team.players?.length ?? 0), 0) ?? 0), 0);
+  const normalizedLeagueSearch = leagueSearch.trim().toLocaleLowerCase("it");
+  const visibleLeagues = leagues.filter((league) => {
+    if (!normalizedLeagueSearch) return true;
+    const haystack = [league.name, ...(league.teams?.map((team) => team.name) ?? [])].join(" ").toLocaleLowerCase("it");
+    return haystack.includes(normalizedLeagueSearch);
+  });
 
   return (
-    <div className="w-full space-y-6 px-4 py-5 sm:px-6 lg:px-10 lg:py-8 2xl:px-14">
-      {err && <Badge variant="error" className="w-full">{err}</Badge>}
+    <div className="tournament-hub min-h-screen w-full bg-[#070b12] px-4 py-5 text-[#f6f7fb] sm:px-6 lg:px-10 lg:py-8 2xl:px-14">
+      <div className="mx-auto w-full max-w-[1500px] space-y-6">
+        {err && <Badge variant="error" className="w-full">{err}</Badge>}
 
-      <section className="matchroom-hero rounded-[34px] border border-[var(--border)] p-5 shadow-[0_28px_90px_rgba(0,0,0,0.38)] sm:p-8 lg:p-10">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-end">
-          <div>
-            <div className="imperial-chip inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.24em]">
-              <img src="/cammino-imperiale-logo.png" alt="" className="h-4 w-4 object-contain" />
-              Cammino Imperiale
+        <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_10%_0%,rgba(102,227,255,.16),transparent_30rem),radial-gradient(circle_at_90%_20%,rgba(108,99,255,.15),transparent_28rem),linear-gradient(145deg,#111827,#070b12)] p-5 shadow-[0_28px_90px_rgba(0,0,0,.34)] sm:p-8 lg:p-10">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-end">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-cyan-200">
+                <Layers3 size={14} /> Centro tornei
+              </div>
+              <h1 className="mt-5 max-w-4xl text-4xl font-black tracking-[-0.06em] sm:text-6xl lg:text-7xl">
+                Tutte le competizioni, in un unico posto.
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/60 sm:text-base">
+                Scegli un torneo per entrare nella sua area dedicata. Ogni competizione può avere logo, copertina e colori propri.
+              </p>
             </div>
-            <h1 className="imperial-title mt-5 max-w-4xl text-5xl font-black text-[var(--foreground)] sm:text-7xl lg:text-8xl">
-              scegli il cammino, entra in campo.
-            </h1>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--muted)] sm:text-lg">
-              Una control room compatta per campionati, rose, classifiche, playoff e statistiche. Tutto pronto per il tuo cammino verso il titolo.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <HeroMetric label="Tornei" value={loadingLeagues ? "…" : leagues.length} />
-            <HeroMetric label="Squadre" value={loadingLeagues ? "…" : totalTeams} />
-            <HeroMetric label="Ruolo" value={isAdmin ? "Admin" : "Viewer"} />
-            <HeroMetric label="Playoff" value={leagues.some((l) => l.playoffFormat) ? "On" : "Off"} />
+            <div className="grid grid-cols-2 gap-3">
+              <HubMetric label="Tornei" value={loadingLeagues ? "…" : leagues.length} />
+              <HubMetric label="Squadre" value={loadingLeagues ? "…" : totalTeams} />
+              <HubMetric label="Giocatori" value={loadingLeagues ? "…" : totalPlayers} />
+              <HubMetric label="Accesso" value={isAdmin ? "Admin" : "Pubblico"} />
+            </div>
           </div>
-        </div>
-      </section>
-
-      <SponsorBanner />
+        </section>
 
         <div className={isAdmin && showCreateLeague ? "desktop-control-grid gap-6" : "space-y-6"}>
           <section className="space-y-5">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--accent)]">Sentiero del torneo</p>
-              <h2 className="mt-1 text-2xl font-black tracking-[-0.06em] text-[var(--foreground)]">Arene disponibili</h2>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">Competizioni</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">Tornei disponibili</h2>
             </div>
-            {isAdmin && <Button onClick={() => setShowCreateLeague((v) => !v)}>{showCreateLeague ? "Chiudi" : "Nuovo torneo"}</Button>}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 sm:w-72">
+                <Search size={16} className="shrink-0 text-white/45" />
+                <input value={leagueSearch} onChange={(e) => setLeagueSearch(e.target.value)} placeholder="Cerca torneo o squadra" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35" />
+              </label>
+              {isAdmin && <Button onClick={() => setShowCreateLeague((v) => !v)}>{showCreateLeague ? "Chiudi" : "Nuovo torneo"}</Button>}
+            </div>
           </div>
 
           {loadingLeagues ? (
-            <div className="grid gap-4 md:grid-cols-2"><LeagueCardSkeleton /><LeagueCardSkeleton /></div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><LeagueCardSkeleton /><LeagueCardSkeleton /><LeagueCardSkeleton /></div>
           ) : leagues.length === 0 ? (
             <Card className="turf-card py-14 text-center">
               <div className="w-full max-w-md space-y-3 lg:max-w-none">
@@ -206,9 +224,11 @@ export default function HomePage() {
                 {isAdmin && <Button onClick={() => setShowCreateLeague(true)}>Crea torneo</Button>}
               </div>
             </Card>
+          ) : visibleLeagues.length === 0 ? (
+            <Card className="py-12 text-center"><p className="font-black">Nessun torneo trovato</p><p className="mt-1 text-sm text-[var(--muted)]">Prova con un altro nome o con una squadra.</p></Card>
           ) : (
-            <div className="grid gap-4 xl:grid-cols-2">
-              {leagues.map((league) => (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {visibleLeagues.map((league) => (
                 <LeagueSwitchCard
                   key={league.id}
                   league={league}
@@ -243,12 +263,18 @@ export default function HomePage() {
           </aside>
         )}
       </div>
+      </div>
     </div>
   );
 }
 
-function HeroMetric({ label, value }: { label: string; value: string | number }) {
-  return <div className="imperial-plate rounded-[24px] px-4 py-4"><p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">{label}</p><p className="mt-1 text-2xl font-black text-[var(--foreground)]">{value}</p></div>;
+function HubMetric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-[22px] border border-white/10 bg-white/[0.045] px-4 py-4">
+      <p className="text-[10px] font-black uppercase tracking-widest text-white/40">{label}</p>
+      <p className="mt-1 text-2xl font-black text-white">{value}</p>
+    </div>
+  );
 }
 
 function LeagueSwitchCard({
@@ -262,22 +288,61 @@ function LeagueSwitchCard({
 }) {
   const teams = league.teams?.length ?? 0;
   const players = league.teams?.reduce((sum, team) => sum + (team.players?.length ?? 0), 0) ?? 0;
+  const brand = resolveLeagueBranding(league);
+  const logo = brand.logoUrl;
+
   return (
-  <Card className="group turf-card transition hover:-translate-y-1 hover:border-[var(--accent)]/60">
-  <div className="flex min-h-[180px] flex-col justify-between gap-6">
+    <article
+      className="group relative min-h-[300px] overflow-hidden rounded-[28px] border border-white/10 bg-[#10151f] shadow-[0_20px_60px_rgba(0,0,0,.24)] transition hover:-translate-y-1 hover:border-white/20"
+      style={{
+        backgroundColor: brand.background,
+        backgroundImage: brand.coverUrl
+          ? `linear-gradient(180deg, rgba(4,7,12,.08), rgba(4,7,12,.88)), url(${JSON.stringify(brand.coverUrl)})`
+          : `radial-gradient(circle at 10% 0%, ${brand.primary}3d, transparent 24rem), radial-gradient(circle at 100% 15%, ${brand.secondary}2d, transparent 22rem), linear-gradient(145deg, ${brand.background}, #080b11)`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <div className="flex min-h-[300px] flex-col justify-between p-5">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <span className="inline-flex imperial-chip rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider">{league.playoffFormat ? "Playoff previsti" : "Stagione regolare"}</span>
-            <h3 className="imperial-title mt-4 text-3xl font-black text-[var(--foreground)]">{league.name}</h3>
+          <div className="flex min-w-0 items-center gap-3">
+            {logo ? (
+              <img src={logo} alt="" className="h-14 w-14 shrink-0 rounded-2xl border border-white/10 bg-black/15 object-contain p-1.5" />
+            ) : (
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-white/10 bg-black/15 text-xl font-black text-white">
+                {league.name.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <span className="inline-flex rounded-full border border-white/12 bg-black/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.15em] text-white/65">
+                {league.playoffFormat ? "Playoff previsti" : "Stagione regolare"}
+              </span>
+              <h3 className="mt-2 line-clamp-2 text-2xl font-black tracking-[-0.045em] text-white">{league.name}</h3>
+            </div>
           </div>
-          {isAdmin && <button onClick={onDelete} className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-black text-red-300">Elimina</button>}
+          {isAdmin && (
+            <button onClick={onDelete} className="shrink-0 rounded-xl border border-red-300/20 bg-red-500/15 px-3 py-2 text-[11px] font-black text-red-100">
+              Elimina
+            </button>
+          )}
         </div>
-        <div className="flex items-end justify-between gap-4">
-          <div className="flex gap-3 text-sm text-[var(--muted)]"><span><b className="text-[var(--foreground)]">{teams}</b> squadre</span><span><b className="text-[var(--foreground)]">{players}</b> giocatori</span></div>
-          <Link href={`/leagues/${league.id}`} className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(210,174,114,0.38)] bg-[linear-gradient(135deg,var(--imperial-green-2),var(--imperial-green))] px-4 py-2 text-sm font-black text-[var(--imperial-text)] shadow-[0_12px_34px_rgba(0,0,0,0.26)]">Entra <ArrowRight size={15} /></Link>
+
+        <div>
+          <div className="mb-4 flex flex-wrap gap-2 text-xs font-semibold text-white/65">
+            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5"><b className="text-white">{teams}</b> squadre</span>
+            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5"><b className="text-white">{players}</b> giocatori</span>
+            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">{brand.mode === "IMPERIAL" ? "Tema storico" : brand.mode === "CUSTOM" ? "Tema personalizzato" : "Tema neutro"}</span>
+          </div>
+          <Link
+            href={`/leagues/${league.id}`}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black text-white shadow-[0_12px_34px_rgba(0,0,0,.25)] transition hover:brightness-110"
+            style={{ background: `linear-gradient(135deg, ${brand.secondary}, ${brand.primary})` }}
+          >
+            Entra nel torneo <ArrowRight size={16} />
+          </Link>
         </div>
       </div>
-    </Card>
+    </article>
   );
 }
 

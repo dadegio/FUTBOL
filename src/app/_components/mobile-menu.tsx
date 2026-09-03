@@ -19,11 +19,13 @@ import {
   Youtube,
 } from "lucide-react";
 import { clearAuthToken, useAuth, useIsAdmin } from "@/lib/client-auth";
+import { resolveLeagueBranding, type LeagueBranding } from "@/lib/league-branding";
 
 type MobileMenuProps = {
   leagueId?: string;
   open: boolean;
   onClose: () => void;
+  branding?: LeagueBranding | null;
 };
 
 function MenuLink({
@@ -47,7 +49,7 @@ function MenuLink({
       className={[
         "flex min-h-12 items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition-colors",
         active
-          ? "border-[rgba(210,174,114,0.32)] bg-[var(--accent-soft)] font-bold text-[var(--accent)]"
+          ? "border-[var(--border-strong)] bg-[var(--accent-soft)] font-bold text-[var(--accent)]"
           : "border-[var(--border)] bg-[var(--card-2)] font-semibold text-[var(--foreground)]/75",
       ].join(" ")}
     >
@@ -57,13 +59,14 @@ function MenuLink({
   );
 }
 
-export default function MobileMenu({ leagueId, open, onClose }: MobileMenuProps) {
+export default function MobileMenu({ leagueId, open, onClose, branding }: MobileMenuProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, refresh } = useAuth();
   const isAdmin = useIsAdmin();
   const [search, setSearch] = useState("");
   const [hasPlayoffs, setHasPlayoffs] = useState(false);
+  const resolvedBrand = resolveLeagueBranding(branding);
 
   useEffect(() => {
     if (!open) return;
@@ -142,11 +145,14 @@ export default function MobileMenu({ leagueId, open, onClose }: MobileMenuProps)
 
       <div className="absolute inset-y-0 right-0 flex w-[min(92vw,390px)] flex-col border-l border-[var(--border)] bg-[var(--card)] shadow-2xl">
         <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">Navigazione</p>
-            <p className="mt-1 truncate text-sm font-semibold text-[var(--foreground)]">
-              {user ? user.username : "Cammino Imperiale"}
-            </p>
+          <div className="flex min-w-0 items-center gap-3">
+            {branding && resolvedBrand.logoUrl && <img src={resolvedBrand.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg object-contain" />}
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">Navigazione</p>
+              <p className="mt-1 truncate text-sm font-semibold text-[var(--foreground)]">
+                {branding?.name || (user ? user.username : "Tornei")}
+              </p>
+            </div>
           </div>
           <button
             type="button"

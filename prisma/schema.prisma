@@ -46,6 +46,13 @@ model League {
   name      String
   createdAt DateTime @default(now())
 
+  themeMode            String  @default("GENERIC")
+  brandLogoUrl         String?
+  brandCoverUrl        String?
+  brandPrimaryColor    String?
+  brandSecondaryColor  String?
+  brandBackgroundColor String?
+
   playoffFormat    PlayoffFormat?
   playoffTeamCount Int?
   playoffSeeded    Boolean        @default(true)

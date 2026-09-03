@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/server-auth";
+import { isHexColor } from "@/lib/league-branding";
 
 const PLAYOFF_FORMATS = new Set(["SINGLE_ELIM", "TWO_LEG"]);
 const PLAYOFF_COUNTS = new Set([2, 4, 8, 16]);
+const THEME_MODES = new Set(["IMPERIAL", "GENERIC", "CUSTOM"]);
+
+function normalizeOptionalUrl(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  if (text.startsWith("/") || /^https?:\/\//i.test(text)) return text;
+  return undefined;
+}
 
 export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string }> }) {
   const { leagueId } = await ctx.params;
@@ -13,6 +22,12 @@ export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string 
     select: {
       id: true,
       name: true,
+      themeMode: true,
+      brandLogoUrl: true,
+      brandCoverUrl: true,
+      brandPrimaryColor: true,
+      brandSecondaryColor: true,
+      brandBackgroundColor: true,
       playoffFormat: true,
       playoffTeamCount: true,
       playoffSeeded: true,
@@ -35,7 +50,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leagueId: str
 
   const league = await prisma.league.findUnique({
     where: { id: leagueId },
-    select: { id: true, playoffFormat: true },
+    select: { id: true, playoffFormat: true, themeMode: true },
   });
 
   if (!league) {
@@ -44,6 +59,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leagueId: str
 
   const data: {
     name?: string;
+    themeMode?: string;
+    brandLogoUrl?: string | null;
+    brandCoverUrl?: string | null;
+    brandPrimaryColor?: string | null;
+    brandSecondaryColor?: string | null;
+    brandBackgroundColor?: string | null;
     playoffFormat?: "SINGLE_ELIM" | "TWO_LEG" | null;
     playoffTeamCount?: number | null;
     playoffSeeded?: boolean;
@@ -55,6 +76,32 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leagueId: str
       return NextResponse.json({ error: "Nome torneo non valido" }, { status: 400 });
     }
     data.name = name;
+  }
+
+  if (body?.themeMode !== undefined) {
+    const themeMode = String(body.themeMode).trim();
+    if (!THEME_MODES.has(themeMode)) {
+      return NextResponse.json({ error: "Tema torneo non valido" }, { status: 400 });
+    }
+    data.themeMode = themeMode;
+  }
+
+  for (const key of ["brandLogoUrl", "brandCoverUrl"] as const) {
+    if (body?.[key] === undefined) continue;
+    const value = normalizeOptionalUrl(body[key]);
+    if (value === undefined) {
+      return NextResponse.json({ error: "URL grafica non valido" }, { status: 400 });
+    }
+    data[key] = value;
+  }
+
+  for (const key of ["brandPrimaryColor", "brandSecondaryColor", "brandBackgroundColor"] as const) {
+    if (body?.[key] === undefined) continue;
+    const value = String(body[key] ?? "").trim();
+    if (value && !isHexColor(value)) {
+      return NextResponse.json({ error: "Colore non valido: usa il formato #RRGGBB" }, { status: 400 });
+    }
+    data[key] = value || null;
   }
 
   if (body?.playoffEnabled !== undefined) {
@@ -107,6 +154,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leagueId: str
     select: {
       id: true,
       name: true,
+      themeMode: true,
+      brandLogoUrl: true,
+      brandCoverUrl: true,
+      brandPrimaryColor: true,
+      brandSecondaryColor: true,
+      brandBackgroundColor: true,
       playoffFormat: true,
       playoffTeamCount: true,
       playoffSeeded: true,

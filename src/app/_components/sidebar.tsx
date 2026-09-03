@@ -17,9 +17,11 @@ import {
 } from "lucide-react";
 import AuthButton from "./auth-button";
 import { useIsAdmin } from "@/lib/client-auth";
+import { resolveLeagueBranding, type LeagueBranding } from "@/lib/league-branding";
 
 type SidebarProps = {
   leagueId?: string;
+  branding?: LeagueBranding | null;
 };
 
 function NavItem({
@@ -40,8 +42,8 @@ function NavItem({
       className={[
         "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
         active
-          ? "border border-[rgba(210,174,114,0.28)] bg-[var(--accent-soft)] font-bold text-[var(--accent)]"
-          : "border border-transparent font-normal text-[var(--muted)] hover:border-[rgba(210,174,114,0.14)] hover:bg-[var(--card-2)] hover:text-[var(--foreground)]",
+          ? "border border-[var(--border-strong)] bg-[var(--accent-soft)] font-bold text-[var(--accent)]"
+          : "border border-transparent font-normal text-[var(--muted)] hover:border-[var(--border)] hover:bg-[var(--card-2)] hover:text-[var(--foreground)]",
       ].join(" ")}
     >
       <span className={active ? "opacity-100" : "opacity-60"}>{icon}</span>
@@ -50,13 +52,18 @@ function NavItem({
   );
 }
 
-export default function Sidebar({ leagueId }: SidebarProps) {
+export default function Sidebar({ leagueId, branding }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isAdmin = useIsAdmin();
   const [search, setSearch] = useState("");
   const [leagueName, setLeagueName] = useState<string | null>(null);
   const [hasPlayoffs, setHasPlayoffs] = useState(false);
+  const resolvedBrand = resolveLeagueBranding(branding);
+
+  useEffect(() => {
+    if (branding?.name) setLeagueName(branding.name);
+  }, [branding?.name]);
 
   useEffect(() => {
     if (!leagueId) return;
@@ -94,18 +101,29 @@ export default function Sidebar({ leagueId }: SidebarProps) {
 
   return (
     <aside className="turf-card hidden w-[260px] shrink-0 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 lg:block">
-      {/* Logo */}
+      {/* Identità del torneo */}
       <div className="mb-5">
         <Link href="/" className="flex items-center gap-3">
-          <img
-            src="/cammino-imperiale-logo.png"
-            alt="Cammino Imperiale"
-            className="h-12 w-12 shrink-0 object-contain drop-shadow-[0_0_18px_rgba(177,42,31,0.22)]"
-          />
-          <span className="imperial-title leading-none text-[22px] font-bold tracking-[0.08em] text-[var(--accent)]">
-            CAMMINO<br />
-            IMPERIALE
-          </span>
+          {resolvedBrand.logoUrl ? (
+            <img
+              src={resolvedBrand.logoUrl}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded-xl object-contain"
+            />
+          ) : (
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-[var(--border)] bg-[var(--accent-soft)] text-lg font-black text-[var(--accent)]">
+              {(leagueName || "T").slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          {resolvedBrand.mode === "IMPERIAL" ? (
+            <span className="imperial-title leading-none text-[22px] font-bold tracking-[0.08em] text-[var(--accent)]">
+              CAMMINO<br />IMPERIALE
+            </span>
+          ) : (
+            <span className="min-w-0 text-[18px] font-black leading-tight tracking-[-0.03em] text-[var(--accent)]">
+              <span className="block line-clamp-2">{leagueName || "Torneo"}</span>
+            </span>
+          )}
         </Link>
       </div>
 
@@ -136,7 +154,7 @@ export default function Sidebar({ leagueId }: SidebarProps) {
         {leagueId && (
           <button
             type="submit"
-            className="rounded-lg border border-[rgba(210,174,114,0.32)] bg-[var(--imperial-green-2)] px-2.5 py-1 text-xs font-semibold text-[var(--imperial-text)]"
+            className="rounded-lg border border-[var(--border-strong)] bg-[var(--imperial-green-2)] px-2.5 py-1 text-xs font-semibold text-[var(--imperial-text)]"
           >
             Vai
           </button>

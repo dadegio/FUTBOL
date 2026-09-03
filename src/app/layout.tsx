@@ -23,12 +23,12 @@ const teko = Teko({
 });
 
 export const metadata: Metadata = {
-  title: "Cammino Imperiale",
-  description: "Control room per tornei di calcio",
+  title: "Tornei",
+  description: "Gestione, calendario e statistiche per tornei di calcio",
     manifest: "/manifest.json",
     icons: {
     icon: "/favicon.ico",
-    apple: "/cammino-imperiale-logo.png",
+    apple: "/icon-192.png",
     },
 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {

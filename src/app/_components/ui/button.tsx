@@ -8,7 +8,7 @@ const base =
 
 const variants = {
   primary:
-    "border-[rgba(210,174,114,0.38)] bg-[linear-gradient(135deg,var(--imperial-green-2),var(--imperial-green))] text-[var(--imperial-text)] shadow-[0_12px_34px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(244,234,216,0.08)] hover:border-[rgba(224,193,129,0.58)] hover:bg-[linear-gradient(135deg,#326b49,#1f4a34)]",
+    "border-[var(--border-strong)] bg-[linear-gradient(135deg,var(--accent-2),var(--accent))] text-[var(--imperial-text)] shadow-[0_12px_34px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(244,234,216,0.08)] hover:border-[var(--accent)] hover:brightness-110",
   secondary:
     "border-[var(--border-strong)] bg-[var(--card-2)] text-[var(--foreground)] hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]",
   destructive:

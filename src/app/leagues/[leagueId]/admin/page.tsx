@@ -10,10 +10,17 @@ import Button from "src/app/_components/ui/button";
 import { authFetch } from "@/lib/client-auth";
 import RefereeManager from "./referee-manager";
 import FieldManager from "./field-manager";
+import BrandingManager from "./branding-manager";
 
 type LeagueSettings = {
   id: string;
   name: string;
+  themeMode?: string | null;
+  brandLogoUrl?: string | null;
+  brandCoverUrl?: string | null;
+  brandPrimaryColor?: string | null;
+  brandSecondaryColor?: string | null;
+  brandBackgroundColor?: string | null;
   playoffFormat?: "SINGLE_ELIM" | "TWO_LEG" | null;
   playoffTeamCount?: number | null;
   playoffSeeded?: boolean;
@@ -123,6 +130,10 @@ export default function LeagueAdminPage() {
         {err && <Badge variant="error">{err}</Badge>}
         {loading && <p className="text-sm text-[var(--muted)]">Caricamento…</p>}
         {settingsMsg && <Badge variant="success">{settingsMsg}</Badge>}
+
+        {settings && (
+          <BrandingManager leagueId={leagueId} value={settings} onChange={setSettings} />
+        )}
 
         {settings && (
           <Card>
