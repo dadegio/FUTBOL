@@ -3,18 +3,16 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
-  requireAdmin,
+  requireLeagueAdmin,
   requireAdminOrCaptainOfPlayoffSeries,
 } from "@/lib/server-auth";
 
 type Ctx = { params: Promise<{ leagueId: string; seriesId: string }> };
 
 export async function PUT(req: Request, ctx: Ctx) {
-
-  const authErr = await requireAdmin();
-  if (authErr) return authErr;
-
   const { leagueId, seriesId } = await ctx.params;
+  const authErr = await requireLeagueAdmin(leagueId);
+  if (authErr) return authErr;
   const body = await req.json().catch(() => ({}));
 
   const series = await prisma.playoffSeries.findUnique({

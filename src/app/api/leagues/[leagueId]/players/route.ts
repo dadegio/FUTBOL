@@ -58,7 +58,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ leagueId: strin
     },
   });
 
-  const sanitized = players.map((player) => sanitizePlayerForRole(player, session));
+  const sanitized = players.map((player) => sanitizePlayerForRole(player, session, leagueId));
 
   const filtered = statusFilter
     ? sanitized.filter((player) => {

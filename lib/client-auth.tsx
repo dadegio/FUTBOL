@@ -100,7 +100,19 @@ export function useAuth(): AuthState {
 
 export function useIsAdmin(): boolean {
   const { user } = useAuth();
+  return user?.role === "ADMIN" || user?.role === "LEAGUE_ADMIN";
+}
+
+export function useIsSuperAdmin(): boolean {
+  const { user } = useAuth();
   return user?.role === "ADMIN";
+}
+
+export function useCanAdminLeague(leagueId: string | undefined): boolean {
+  const { user } = useAuth();
+  if (!user || !leagueId) return false;
+  return user.role === "ADMIN" ||
+    (user.role === "LEAGUE_ADMIN" && user.leagueId === leagueId);
 }
 
 export function useIsCaptainOfTeam(teamId: string | undefined): boolean {
@@ -108,9 +120,10 @@ export function useIsCaptainOfTeam(teamId: string | undefined): boolean {
   return user?.role === "CAPTAIN" && user.teamId === teamId;
 }
 
-export function useCanEditTeam(teamId: string | undefined): boolean {
+export function useCanEditTeam(teamId: string | undefined, leagueId?: string): boolean {
   const { user } = useAuth();
   if (!user) return false;
   if (user.role === "ADMIN") return true;
+  if (user.role === "LEAGUE_ADMIN" && leagueId && user.leagueId === leagueId) return true;
   return user.role === "CAPTAIN" && user.teamId === teamId;
 }

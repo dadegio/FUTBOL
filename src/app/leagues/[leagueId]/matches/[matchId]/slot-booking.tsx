@@ -35,6 +35,12 @@ type SlotsResponse = {
     startsAt: string;
     endsAt: string;
   };
+  bookingWindow: {
+    opensAt: string;
+    closesAt: string;
+    isOpen: boolean;
+    adminBypass: boolean;
+  };
   slots: Slot[];
 };
 
@@ -83,6 +89,7 @@ export default function MatchSlotBooking({
   const [selected, setSelected] = useState("");
   const [matchWeek, setMatchWeek] =
     useState<SlotsResponse["matchWeek"] | null>(null);
+  const [bookingWindow, setBookingWindow] = useState<SlotsResponse["bookingWindow"] | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -99,7 +106,7 @@ export default function MatchSlotBooking({
     setErr(null);
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `/api/leagues/${leagueId}/slots?matchId=${encodeURIComponent(matchId)}`,
         { cache: "no-store" }
       );
@@ -110,6 +117,7 @@ export default function MatchSlotBooking({
       setSlots(response.slots);
       setCurrentBooking(response.currentBooking);
       setMatchWeek(response.matchWeek);
+      setBookingWindow(response.bookingWindow);
 
       const current = response.slots.find((slot) => slot.isCurrentMatch);
       if (current) setSelected(slotValue(current));
@@ -125,6 +133,8 @@ export default function MatchSlotBooking({
   useEffect(() => {
     loadSlots();
   }, [loadSlots]);
+
+  const bookingAllowed = bookingWindow?.isOpen !== false;
 
   const availableSlots = useMemo(
     () => slots.filter((slot) => slot.available),
@@ -229,7 +239,7 @@ export default function MatchSlotBooking({
             <Select
               value={selected}
               onChange={(event) => setSelected(event.target.value)}
-              disabled={loading || saving}
+              disabled={loading || saving || !bookingAllowed}
               className="min-w-0 flex-1"
             >
               <option value="" className="text-black">
@@ -246,14 +256,14 @@ export default function MatchSlotBooking({
                 </option>
               ))}
             </Select>
-            <Button onClick={book} disabled={!selected || loading || saving}>
+            <Button onClick={book} disabled={!selected || loading || saving || !bookingAllowed}>
               {saving ? "…" : currentBooking ? "Cambia slot" : "Prenota"}
             </Button>
             {currentBooking && (
               <Button
                 variant="secondary"
                 onClick={release}
-                disabled={saving}
+                disabled={saving || !bookingAllowed}
               >
                 Libera
               </Button>
@@ -262,7 +272,20 @@ export default function MatchSlotBooking({
         )}
       </div>
 
-      {canBook && !loading && availableSlots.length === 0 && (
+
+      {canBook && bookingWindow && !bookingWindow.isOpen && (
+        <div className="mt-3 rounded-2xl border border-amber-300/40 bg-amber-50/70 px-4 py-3 text-xs font-semibold text-amber-900">
+          Prenotazioni bloccate. Per i capitani si aprono mercoledì e si chiudono sabato della settimana precedente alla partita.
+          <div className="mt-1 font-normal opacity-80">
+            Finestra: {new Date(bookingWindow.opensAt).toLocaleString("it-IT")} – {new Date(new Date(bookingWindow.closesAt).getTime() - 1).toLocaleString("it-IT")}
+          </div>
+        </div>
+      )}
+      {canBook && bookingWindow?.adminBypass && (
+        <p className="mt-3 text-xs font-semibold text-[var(--accent)]">Override admin attivo: puoi modificare la prenotazione in qualsiasi momento.</p>
+      )}
+
+      {canBook && bookingAllowed && !loading && availableSlots.length === 0 && (
         <p className="mt-3 text-xs text-[var(--muted)]">
           Nessuno slot libero nella settimana assegnata a questa giornata.
         </p>

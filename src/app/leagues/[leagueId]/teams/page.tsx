@@ -9,7 +9,7 @@ import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
 import Badge from "src/app/_components/ui/badge";
-import { authFetch, useIsAdmin } from "@/lib/client-auth";
+import { authFetch, useCanAdminLeague } from "@/lib/client-auth";
 import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 
 type TeamRow = {
@@ -35,7 +35,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export default function TeamsPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
-  const isAdmin = useIsAdmin();
+  const isAdmin = useCanAdminLeague(leagueId);
 
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [name, setName] = useState("");

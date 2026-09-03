@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "@/lib/server-auth";
+import { getServerSession, isLeagueAdminSession } from "@/lib/server-auth";
 import { sanitizePlayerForRole } from "@/lib/player-visibility";
 
 export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }> }) {
@@ -87,15 +87,15 @@ export async function GET(_: Request, ctx: { params: Promise<{ matchId: string }
   return NextResponse.json({
     ...match,
     referee: match.referee
-      ? { id: match.referee.id, name: session?.role === "ADMIN" ? match.referee.name : null }
+      ? { id: match.referee.id, name: isLeagueAdminSession(session, match.leagueId) ? match.referee.name : null }
       : null,
     homeTeam: {
       ...match.homeTeam,
-      players: match.homeTeam.players.map((player) => sanitizePlayerForRole(player, session)),
+      players: match.homeTeam.players.map((player) => sanitizePlayerForRole(player, session, match.leagueId)),
     },
     awayTeam: {
       ...match.awayTeam,
-      players: match.awayTeam.players.map((player) => sanitizePlayerForRole(player, session)),
+      players: match.awayTeam.players.map((player) => sanitizePlayerForRole(player, session, match.leagueId)),
     },
   });
 }

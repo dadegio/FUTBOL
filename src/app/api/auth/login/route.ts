@@ -28,9 +28,10 @@ export async function POST(req: Request) {
     token = createToken({
       userId: user.id,
       username: user.username,
-      role: user.role as "ADMIN" | "CAPTAIN" | "REFEREE",
+      role: user.role as "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE",
       teamId: user.teamId ?? null,
       refereeId: user.refereeId ?? null,
+      leagueId: user.leagueId ?? null,
     });
   } catch (e: any) {
     console.error("[login] createToken failed:", e?.message);
@@ -48,6 +49,7 @@ export async function POST(req: Request) {
       role: user.role,
       teamId: user.teamId ?? null,
       refereeId: user.refereeId ?? null,
+      leagueId: user.leagueId ?? null,
     },
   });
 }

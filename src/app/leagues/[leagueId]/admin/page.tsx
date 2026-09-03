@@ -11,6 +11,7 @@ import { authFetch } from "@/lib/client-auth";
 import RefereeManager from "./referee-manager";
 import FieldManager from "./field-manager";
 import BrandingManager from "./branding-manager";
+import SponsorManager from "./sponsor-manager";
 
 type LeagueSettings = {
   id: string;
@@ -21,6 +22,14 @@ type LeagueSettings = {
   brandPrimaryColor?: string | null;
   brandSecondaryColor?: string | null;
   brandBackgroundColor?: string | null;
+  cookieBannerEnabled?: boolean | null;
+  privacyPolicyUrl?: string | null;
+  cookiePolicyUrl?: string | null;
+  adsEnabled?: boolean | null;
+  adProvider?: string | null;
+  adClientId?: string | null;
+  adHomeSlot?: string | null;
+  adLeagueSlot?: string | null;
   playoffFormat?: "SINGLE_ELIM" | "TWO_LEG" | null;
   playoffTeamCount?: number | null;
   playoffSeeded?: boolean;
@@ -200,6 +209,8 @@ export default function LeagueAdminPage() {
           <FieldManager leagueId={leagueId} />
           <RefereeManager leagueId={leagueId} />
         </div>
+
+        <SponsorManager leagueId={leagueId} />
 
         {summary && (
           <>

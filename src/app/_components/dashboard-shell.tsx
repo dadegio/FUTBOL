@@ -33,7 +33,12 @@ export default function DashboardShell({
     const loadBranding = () => {
       fetch(`/api/leagues/${leagueId}`, { cache: "no-store" })
         .then((res) => res.json())
-        .then((data) => { if (!cancelled && data?.id) setLeagueBrand(data); })
+        .then((data) => {
+          if (!cancelled && data?.id) {
+            setLeagueBrand(data);
+            window.dispatchEvent(new CustomEvent("league-branding-updated", { detail: data }));
+          }
+        })
         .catch(() => {});
     };
 

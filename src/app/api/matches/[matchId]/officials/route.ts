@@ -6,7 +6,7 @@ import {
   refereeAllowsStart,
   refereeHasConflict,
 } from "@/lib/referee-availability";
-import { requireAdmin } from "@/lib/server-auth";
+import { requireLeagueAdminForMatch } from "@/lib/server-auth";
 
 type Ctx = { params: Promise<{ matchId: string }> };
 
@@ -111,10 +111,9 @@ async function getAdminRefereeState(matchId: string) {
 }
 
 export async function GET(_: Request, ctx: Ctx) {
-  const authErr = await requireAdmin();
-  if (authErr) return authErr;
-
   const { matchId } = await ctx.params;
+  const authErr = await requireLeagueAdminForMatch(matchId);
+  if (authErr) return authErr;
   const state = await getAdminRefereeState(matchId);
   if (!state) {
     return NextResponse.json({ error: "Partita non trovata" }, { status: 404 });
@@ -123,10 +122,9 @@ export async function GET(_: Request, ctx: Ctx) {
 }
 
 export async function PATCH(req: Request, ctx: Ctx) {
-  const authErr = await requireAdmin();
-  if (authErr) return authErr;
-
   const { matchId } = await ctx.params;
+  const authErr = await requireLeagueAdminForMatch(matchId);
+  if (authErr) return authErr;
   const body = await req.json().catch(() => ({}));
   const mode = body?.mode === "manual" ? "manual" : "automatic";
 

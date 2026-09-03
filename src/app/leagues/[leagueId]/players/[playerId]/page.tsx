@@ -105,7 +105,7 @@ async function uploadImage(file: File): Promise<string> {
 export default function PlayerPage() {
   const { leagueId, playerId } = useParams<{ leagueId: string; playerId: string }>();
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN" || (user?.role === "LEAGUE_ADMIN" && user.leagueId === leagueId);
 
   const [player, setPlayer] = useState<Player | null>(null);
   const [goals, setGoals] = useState(0);

@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateBracket } from "@/lib/bracket";
-import { requireAdmin } from "@/lib/server-auth";
+import { requireLeagueAdmin } from "@/lib/server-auth";
 
 type Ctx = { params: Promise<{ leagueId: string }> };
 
@@ -61,10 +61,9 @@ export async function GET(_: Request, ctx: Ctx) {
 }
 
 export async function POST(req: Request, ctx: Ctx) {
-  const authErr = await requireAdmin();
-  if (authErr) return authErr;
-
   const { leagueId } = await ctx.params;
+  const authErr = await requireLeagueAdmin(leagueId);
+  if (authErr) return authErr;
   const body = await req.json().catch(() => ({}));
 
   const league = await prisma.league.findUnique({
@@ -209,10 +208,9 @@ export async function POST(req: Request, ctx: Ctx) {
 }
 
 export async function DELETE(_: Request, ctx: Ctx) {
-  const authErr = await requireAdmin();
-  if (authErr) return authErr;
-
   const { leagueId } = await ctx.params;
+  const authErr = await requireLeagueAdmin(leagueId);
+  if (authErr) return authErr;
 
   await prisma.$transaction(async (tx) => {
     // Delete playoff matches (seriesId is not null)

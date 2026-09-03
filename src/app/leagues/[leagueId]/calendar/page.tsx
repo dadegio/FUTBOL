@@ -167,7 +167,7 @@ function toDatetimeLocalValue(date: Date) {
 export default function CalendarPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN" || (user?.role === "LEAGUE_ADMIN" && user.leagueId === leagueId);
 
   const [matches, setMatches] = useState<Match[]>([]);
   const [teamCount, setTeamCount] = useState(0);

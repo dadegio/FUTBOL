@@ -22,12 +22,13 @@ export type PlayerVisibilityInput = PlayerEligibilityInput & {
   [key: string]: unknown;
 };
 
-export function canSeeAdminPlayerDetails(user: SessionUser | null | undefined) {
-  return user?.role === "ADMIN";
+export function canSeeAdminPlayerDetails(user: SessionUser | null | undefined, leagueId?: string | null) {
+  return user?.role === "ADMIN" ||
+    (user?.role === "LEAGUE_ADMIN" && Boolean(leagueId) && user.leagueId === leagueId);
 }
 
-export function canEditAdminPlayerDetails(user: SessionUser | null | undefined) {
-  return user?.role === "ADMIN";
+export function canEditAdminPlayerDetails(user: SessionUser | null | undefined, leagueId?: string | null) {
+  return canSeeAdminPlayerDetails(user, leagueId);
 }
 
 export function publicPlayerStatus(player: PlayerEligibilityInput) {
@@ -39,7 +40,8 @@ export function publicPlayerStatus(player: PlayerEligibilityInput) {
 
 export function sanitizePlayerForRole<T extends PlayerVisibilityInput>(
   player: T,
-  user: SessionUser | null | undefined
+  user: SessionUser | null | undefined,
+  leagueId?: string | null
 ) {
   const status = publicPlayerStatus(player);
 
@@ -59,7 +61,7 @@ export function sanitizePlayerForRole<T extends PlayerVisibilityInput>(
     ...status,
   };
 
-  if (canSeeAdminPlayerDetails(user)) {
+  if (canSeeAdminPlayerDetails(user, leagueId)) {
     return {
       ...player,
       ...status,

@@ -8,7 +8,7 @@ import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import Input from "src/app/_components/ui/input";
 import Badge from "src/app/_components/ui/badge";
-import { useIsAdmin, authFetch } from "@/lib/client-auth";
+import { useIsSuperAdmin, authFetch } from "@/lib/client-auth";
 import { resolveLeagueBranding } from "@/lib/league-branding";
 
 type League = {
@@ -43,7 +43,7 @@ type ExistingTeam = {
 };
 
 async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await authFetch(url, { cache: "no-store" });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(getApiText(data, "error", "Errore"));
   return data as T;
@@ -71,7 +71,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function HomePage() {
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsSuperAdmin();
 
   const [leagues, setLeagues] = useState<League[]>([]);
   const [name, setName] = useState("");
@@ -175,25 +175,33 @@ export default function HomePage() {
       <div className="mx-auto w-full max-w-[1500px] space-y-6">
         {err && <Badge variant="error" className="w-full">{err}</Badge>}
 
-        <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_10%_0%,rgba(102,227,255,.16),transparent_30rem),radial-gradient(circle_at_90%_20%,rgba(108,99,255,.15),transparent_28rem),linear-gradient(145deg,#111827,#070b12)] p-5 shadow-[0_28px_90px_rgba(0,0,0,.34)] sm:p-8 lg:p-10">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-end">
+        <section className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[#071018] p-5 shadow-[0_28px_90px_rgba(0,0,0,.34)] sm:p-8 lg:p-10">
+          <div className="absolute inset-0 opacity-70 [background:radial-gradient(circle_at_18%_18%,rgba(102,227,255,.16),transparent_24rem),radial-gradient(circle_at_90%_0%,rgba(201,167,102,.13),transparent_28rem),linear-gradient(135deg,rgba(255,255,255,.055)_0_1px,transparent_1px_100%)] [background-size:auto,auto,44px_44px]" />
+          <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-end">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-cyan-200">
-                <Layers3 size={14} /> Centro tornei
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-cyan-200">
+                <Layers3 size={14} /> Tournament desk
               </div>
-              <h1 className="mt-5 max-w-4xl text-4xl font-black tracking-[-0.06em] sm:text-6xl lg:text-7xl">
-                Tutte le competizioni, in un unico posto.
+              <h1 className="mt-5 max-w-4xl text-4xl font-black tracking-[-0.07em] sm:text-6xl lg:text-7xl">
+                Scegli il campo operativo.
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/60 sm:text-base">
-                Scegli un torneo per entrare nella sua area dedicata. Ogni competizione può avere logo, copertina e colori propri.
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/62 sm:text-base">
+                Ogni torneo ha la sua identità, i suoi admin e le sue regole. Da qui entri nella competizione giusta senza portarti dietro grafiche o sponsor di un'altra stagione.
               </p>
+              <div className="mt-6 flex flex-wrap gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-white/52">
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">Campi</span>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">Arbitri</span>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">Rose</span>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">Statistiche</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <HubMetric label="Tornei" value={loadingLeagues ? "…" : leagues.length} />
-              <HubMetric label="Squadre" value={loadingLeagues ? "…" : totalTeams} />
-              <HubMetric label="Giocatori" value={loadingLeagues ? "…" : totalPlayers} />
-              <HubMetric label="Accesso" value={isAdmin ? "Admin" : "Pubblico"} />
+            <div className="rounded-[30px] border border-white/10 bg-black/20 p-3">
+              <div className="grid grid-cols-3 gap-3">
+                <HubMetric label="Tornei" value={loadingLeagues ? "…" : leagues.length} />
+                <HubMetric label="Squadre" value={loadingLeagues ? "…" : totalTeams} />
+                <HubMetric label="Giocatori" value={loadingLeagues ? "…" : totalPlayers} />
+              </div>
             </div>
           </div>
         </section>
@@ -202,13 +210,13 @@ export default function HomePage() {
           <section className="space-y-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">Competizioni</p>
-              <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">Tornei disponibili</h2>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">Selezione</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">Stagioni attive</h2>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 sm:w-72">
                 <Search size={16} className="shrink-0 text-white/45" />
-                <input value={leagueSearch} onChange={(e) => setLeagueSearch(e.target.value)} placeholder="Cerca torneo o squadra" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35" />
+                <input value={leagueSearch} onChange={(e) => setLeagueSearch(e.target.value)} placeholder="Cerca torneo, squadra o stagione" className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35" />
               </label>
               {isAdmin && <Button onClick={() => setShowCreateLeague((v) => !v)}>{showCreateLeague ? "Chiudi" : "Nuovo torneo"}</Button>}
             </div>
@@ -219,8 +227,8 @@ export default function HomePage() {
           ) : leagues.length === 0 ? (
             <Card className="turf-card py-14 text-center">
               <div className="w-full max-w-md space-y-3 lg:max-w-none">
-                <div className="text-lg font-black text-[var(--foreground)]">Nessun torneo salvato</div>
-                <p className="text-sm text-[var(--muted)]">{isAdmin ? "Crea il primo torneo per iniziare." : "Al momento non ci sono tornei disponibili."}</p>
+                <div className="text-lg font-black text-[var(--foreground)]">Nessuna stagione aperta</div>
+                <p className="text-sm text-[var(--muted)]">{isAdmin ? "Crea il primo torneo e assegnagli logo, colori e admin dedicato." : "Al momento non ci sono tornei disponibili."}</p>
                 {isAdmin && <Button onClick={() => setShowCreateLeague(true)}>Crea torneo</Button>}
               </div>
             </Card>
@@ -293,7 +301,7 @@ function LeagueSwitchCard({
 
   return (
     <article
-      className="group relative min-h-[300px] overflow-hidden rounded-[28px] border border-white/10 bg-[#10151f] shadow-[0_20px_60px_rgba(0,0,0,.24)] transition hover:-translate-y-1 hover:border-white/20"
+      className="group relative min-h-[315px] overflow-hidden rounded-[30px] border border-white/10 bg-[#10151f] shadow-[0_20px_60px_rgba(0,0,0,.24)] transition hover:-translate-y-1 hover:border-white/20"
       style={{
         backgroundColor: brand.background,
         backgroundImage: brand.coverUrl
@@ -303,7 +311,7 @@ function LeagueSwitchCard({
         backgroundPosition: "center",
       }}
     >
-      <div className="flex min-h-[300px] flex-col justify-between p-5">
+      <div className="flex min-h-[315px] flex-col justify-between p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             {logo ? (
@@ -315,7 +323,7 @@ function LeagueSwitchCard({
             )}
             <div className="min-w-0">
               <span className="inline-flex rounded-full border border-white/12 bg-black/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.15em] text-white/65">
-                {league.playoffFormat ? "Playoff previsti" : "Stagione regolare"}
+                {league.playoffFormat ? "Regular + playoff" : "Regular season"}
               </span>
               <h3 className="mt-2 line-clamp-2 text-2xl font-black tracking-[-0.045em] text-white">{league.name}</h3>
             </div>
@@ -331,14 +339,13 @@ function LeagueSwitchCard({
           <div className="mb-4 flex flex-wrap gap-2 text-xs font-semibold text-white/65">
             <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5"><b className="text-white">{teams}</b> squadre</span>
             <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5"><b className="text-white">{players}</b> giocatori</span>
-            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5">{brand.mode === "IMPERIAL" ? "Tema storico" : brand.mode === "CUSTOM" ? "Tema personalizzato" : "Tema neutro"}</span>
           </div>
           <Link
             href={`/leagues/${league.id}`}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black text-white shadow-[0_12px_34px_rgba(0,0,0,.25)] transition hover:brightness-110"
             style={{ background: `linear-gradient(135deg, ${brand.secondary}, ${brand.primary})` }}
           >
-            Entra nel torneo <ArrowRight size={16} />
+            Apri control room <ArrowRight size={16} />
           </Link>
         </div>
       </div>

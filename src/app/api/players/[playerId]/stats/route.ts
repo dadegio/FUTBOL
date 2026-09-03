@@ -12,7 +12,8 @@ export async function GET(
 ) {
   const { playerId } = await ctx.params;
   const session = await getServerSession();
-  const showAdminDetails = canSeeAdminPlayerDetails(session);
+  const playerLeague = await prisma.player.findUnique({ where: { id: playerId }, select: { team: { select: { leagueId: true } } } });
+  const showAdminDetails = canSeeAdminPlayerDetails(session, playerLeague?.team.leagueId);
 
   const player = await prisma.player.findUnique({
     where: { id: playerId },

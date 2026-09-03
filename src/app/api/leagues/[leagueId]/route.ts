@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/server-auth";
+import { requireAdmin, requireLeagueAdmin } from "@/lib/server-auth";
 import { isHexColor } from "@/lib/league-branding";
 
 const PLAYOFF_FORMATS = new Set(["SINGLE_ELIM", "TWO_LEG"]);
@@ -28,6 +28,14 @@ export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string 
       brandPrimaryColor: true,
       brandSecondaryColor: true,
       brandBackgroundColor: true,
+      cookieBannerEnabled: true,
+      privacyPolicyUrl: true,
+      cookiePolicyUrl: true,
+      adsEnabled: true,
+      adProvider: true,
+      adClientId: true,
+      adHomeSlot: true,
+      adLeagueSlot: true,
       playoffFormat: true,
       playoffTeamCount: true,
       playoffSeeded: true,
@@ -42,10 +50,9 @@ export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string 
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ leagueId: string }> }) {
-  const authErr = await requireAdmin();
-  if (authErr) return authErr;
-
   const { leagueId } = await ctx.params;
+  const authErr = await requireLeagueAdmin(leagueId);
+  if (authErr) return authErr;
   const body = await req.json().catch(() => ({}));
 
   const league = await prisma.league.findUnique({
@@ -65,6 +72,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leagueId: str
     brandPrimaryColor?: string | null;
     brandSecondaryColor?: string | null;
     brandBackgroundColor?: string | null;
+    cookieBannerEnabled?: boolean;
+    privacyPolicyUrl?: string | null;
+    cookiePolicyUrl?: string | null;
+    adsEnabled?: boolean;
+    adProvider?: string | null;
+    adClientId?: string | null;
+    adHomeSlot?: string | null;
+    adLeagueSlot?: string | null;
     playoffFormat?: "SINGLE_ELIM" | "TWO_LEG" | null;
     playoffTeamCount?: number | null;
     playoffSeeded?: boolean;
@@ -101,6 +116,34 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leagueId: str
     if (value && !isHexColor(value)) {
       return NextResponse.json({ error: "Colore non valido: usa il formato #RRGGBB" }, { status: 400 });
     }
+    data[key] = value || null;
+  }
+
+  for (const key of ["privacyPolicyUrl", "cookiePolicyUrl"] as const) {
+    if (body?.[key] === undefined) continue;
+    const value = normalizeOptionalUrl(body[key]);
+    if (value === undefined) {
+      return NextResponse.json({ error: "URL policy non valido" }, { status: 400 });
+    }
+    data[key] = value;
+  }
+
+  if (body?.cookieBannerEnabled !== undefined) {
+    data.cookieBannerEnabled = body.cookieBannerEnabled !== false;
+  }
+
+  if (body?.adsEnabled !== undefined) {
+    data.adsEnabled = body.adsEnabled === true;
+  }
+
+  if (body?.adProvider !== undefined) {
+    const provider = String(body.adProvider ?? "").trim().toUpperCase();
+    data.adProvider = provider || null;
+  }
+
+  for (const key of ["adClientId", "adHomeSlot", "adLeagueSlot"] as const) {
+    if (body?.[key] === undefined) continue;
+    const value = String(body[key] ?? "").trim();
     data[key] = value || null;
   }
 
@@ -160,6 +203,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leagueId: str
       brandPrimaryColor: true,
       brandSecondaryColor: true,
       brandBackgroundColor: true,
+      cookieBannerEnabled: true,
+      privacyPolicyUrl: true,
+      cookiePolicyUrl: true,
+      adsEnabled: true,
+      adProvider: true,
+      adClientId: true,
+      adHomeSlot: true,
+      adLeagueSlot: true,
       playoffFormat: true,
       playoffTeamCount: true,
       playoffSeeded: true,
@@ -170,10 +221,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ leagueId: str
 }
 
 export async function DELETE(_: Request, ctx: { params: Promise<{ leagueId: string }> }) {
+  const { leagueId } = await ctx.params;
   const authErr = await requireAdmin();
   if (authErr) return authErr;
-
-  const { leagueId } = await ctx.params;
 
   const league = await prisma.league.findUnique({
     where: { id: leagueId },

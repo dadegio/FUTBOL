@@ -102,8 +102,8 @@ export default function TeamPage() {
   }>();
 
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
-  const canEdit = useCanEditTeam(teamId);
+  const isAdmin = user?.role === "ADMIN" || (user?.role === "LEAGUE_ADMIN" && user.leagueId === leagueId);
+  const canEdit = useCanEditTeam(teamId, leagueId);
 
   const [team, setTeam] = useState<Team | null>(null);
   const [name, setName] = useState("");

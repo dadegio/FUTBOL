@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/server-auth";
+import { requireLeagueAdmin } from "@/lib/server-auth";
 import { hashPassword } from "@/lib/session";
 import {
   generateTemporaryPassword,
@@ -12,10 +12,9 @@ type Ctx = {
 };
 
 export async function POST(_: Request, ctx: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-
   const { leagueId, refereeId } = await ctx.params;
+  const denied = await requireLeagueAdmin(leagueId);
+  if (denied) return denied;
   const referee = await prisma.referee.findFirst({
     where: {
       id: refereeId,

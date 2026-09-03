@@ -2,14 +2,13 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/server-auth";
+import { requireLeagueAdmin } from "@/lib/server-auth";
 import { FUTPOLI_RULES, isPlayerEligibleForMatchSheet } from "@/lib/tournament-rules";
 
 export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string }> }) {
-  const authErr = await requireAdmin();
-  if (authErr) return authErr;
-
   const { leagueId } = await ctx.params;
+  const authErr = await requireLeagueAdmin(leagueId);
+  if (authErr) return authErr;
 
   const [league, teams, players, sheetCount, matches] = await Promise.all([
     prisma.league.findUnique({ where: { id: leagueId }, select: { id: true, name: true } }),

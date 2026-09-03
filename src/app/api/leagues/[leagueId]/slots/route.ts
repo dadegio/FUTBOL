@@ -4,6 +4,8 @@ import {
   getFieldSlotOccurrences,
   getSlotWeekWindow,
 } from "@/lib/field-slots";
+import { getServerSession, isLeagueAdminSession } from "@/lib/server-auth";
+import { getCaptainBookingWindowStatus } from "@/lib/booking-window";
 
 type Ctx = { params: Promise<{ leagueId: string }> };
 
@@ -59,6 +61,15 @@ export async function GET(req: Request, ctx: Ctx) {
   }
 
   const matchWeek = getSlotWeekWindow(weekAnchor);
+  const session = await getServerSession();
+  const bookingWindowStatus = getCaptainBookingWindowStatus(weekAnchor);
+  const adminBypass = isLeagueAdminSession(session, leagueId);
+  const bookingWindow = {
+    opensAt: bookingWindowStatus.opensAt,
+    closesAt: bookingWindowStatus.closesAt,
+    isOpen: adminBypass || bookingWindowStatus.isOpen,
+    adminBypass,
+  };
   const fields = await prisma.field.findMany({
     where: { leagueId, active: true },
     select: {
@@ -129,6 +140,7 @@ export async function GET(req: Request, ctx: Ctx) {
 
   return NextResponse.json({
     timeZone: "Europe/Rome",
+    bookingWindow,
     fields,
     matchWeek: {
       round: currentMatch.round,

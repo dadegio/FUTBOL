@@ -28,7 +28,7 @@ export default function AuthButton() {
     router.push("/");
   }
 
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = user.role === "ADMIN" || user.role === "LEAGUE_ADMIN";
 
   return (
     <div className="space-y-1">
@@ -47,7 +47,7 @@ export default function AuthButton() {
           </div>
           <div className="text-[10px] font-medium text-[var(--muted)]">
             {isAdmin
-              ? "Admin"
+              ? user.role === "ADMIN" ? "Super Admin" : "Admin torneo"
               : user.role === "REFEREE"
                 ? "Arbitro"
                 : "Capitano"}

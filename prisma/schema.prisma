@@ -14,6 +14,7 @@ enum PlayoffFormat {
 
 enum Role {
   ADMIN
+  LEAGUE_ADMIN
   CAPTAIN
   REFEREE
 }
@@ -34,11 +35,15 @@ model User {
   role         Role
   teamId       String?  @unique
   refereeId    String?  @unique
+  leagueId     String?
   team         Team?    @relation("TeamCaptain", fields: [teamId], references: [id], onDelete: SetNull)
   referee      Referee? @relation("RefereeAccount", fields: [refereeId], references: [id], onDelete: SetNull)
+  adminLeague  League?  @relation("LeagueAdmins", fields: [leagueId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
   bookedMatches Match[] @relation("MatchBookedBy")
+
+  @@index([leagueId])
 }
 
 model League {
@@ -53,6 +58,15 @@ model League {
   brandSecondaryColor  String?
   brandBackgroundColor String?
 
+  cookieBannerEnabled Boolean @default(true)
+  privacyPolicyUrl    String?
+  cookiePolicyUrl     String?
+  adsEnabled          Boolean @default(false)
+  adProvider          String?
+  adClientId          String?
+  adHomeSlot          String?
+  adLeagueSlot        String?
+
   playoffFormat    PlayoffFormat?
   playoffTeamCount Int?
   playoffSeeded    Boolean        @default(true)
@@ -62,6 +76,33 @@ model League {
   playoffSeries PlayoffSeries[]
   referees      Referee[]
   fields        Field[]
+  admins        User[]          @relation("LeagueAdmins")
+  sponsors      Sponsor[]
+}
+
+
+model Sponsor {
+  id          String   @id @default(cuid())
+  leagueId    String
+  name        String
+  category    String?
+  description String?
+  logoUrl     String?
+  websiteUrl  String?
+  instagramUrl String?
+  phone       String?
+  email       String?
+  address     String?
+  contactName String?
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  @@index([leagueId, active])
+  @@index([leagueId, sortOrder])
 }
 
 model Team {

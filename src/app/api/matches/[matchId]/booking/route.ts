@@ -7,6 +7,7 @@ import {
 import { findFieldSlot, isWithinSlotWeek } from "@/lib/field-slots";
 import { matchOverlapsWindow, refereeAllowsStart, refereeHasConflict } from "@/lib/referee-availability";
 import { rebalanceLeagueReferees } from "@/lib/automatic-referees";
+import { getCaptainBookingWindowStatus } from "@/lib/booking-window";
 
 type Ctx = { params: Promise<{ matchId: string }> };
 
@@ -52,6 +53,13 @@ export async function POST(req: Request, ctx: Ctx) {
         });
 
         if (!match) throw new Error("MATCH_NOT_FOUND");
+        if (session.role === "CAPTAIN") {
+          const weekAnchor = match.slotWeekStart ?? match.date;
+          if (!weekAnchor) throw new Error("MATCH_WEEK_MISSING");
+          if (!getCaptainBookingWindowStatus(weekAnchor).isOpen) {
+            throw new Error("BOOKING_WINDOW_CLOSED");
+          }
+        }
         if (match.homeGoals !== null || match.awayGoals !== null) {
           throw new Error("MATCH_ALREADY_PLAYED");
         }
@@ -186,6 +194,13 @@ export async function POST(req: Request, ctx: Ctx) {
       );
     }
 
+    if (message === "BOOKING_WINDOW_CLOSED") {
+      return NextResponse.json(
+        { error: "Le prenotazioni dei capitani sono aperte solo da mercoledì a sabato della settimana precedente alla partita" },
+        { status: 403 }
+      );
+    }
+
     if (message === "FIELD_NOT_AVAILABLE") {
       return NextResponse.json(
         { error: "Il campo scelto non è più disponibile" },
@@ -266,11 +281,24 @@ export async function DELETE(_: Request, ctx: Ctx) {
       homeGoals: true,
       awayGoals: true,
       refereeManualOverride: true,
+      slotWeekStart: true,
+      date: true,
     },
   });
 
   if (!match) {
     return NextResponse.json({ error: "Partita non trovata" }, { status: 404 });
+  }
+
+  const session = await getServerSession();
+  if (session?.role === "CAPTAIN") {
+    const weekAnchor = match.slotWeekStart ?? match.date;
+    if (!weekAnchor || !getCaptainBookingWindowStatus(weekAnchor).isOpen) {
+      return NextResponse.json(
+        { error: "Puoi modificare la prenotazione solo da mercoledì a sabato della settimana precedente" },
+        { status: 403 }
+      );
+    }
   }
 
   if (match.homeGoals !== null || match.awayGoals !== null) {

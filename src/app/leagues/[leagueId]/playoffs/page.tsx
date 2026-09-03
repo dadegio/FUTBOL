@@ -10,7 +10,7 @@ import Badge from "src/app/_components/ui/badge";
 import PlayoffSetup from "./playoff-setup";
 import BracketView from "./bracket";
 import type { SeriesData } from "./series-card";
-import { useAuth, useIsAdmin, authFetch } from "@/lib/client-auth";
+import { useAuth, useCanAdminLeague, authFetch } from "@/lib/client-auth";
 
 type PlayoffData = {
   configured: boolean;
@@ -32,7 +32,7 @@ const ROUND_NAMES: Record<number, string> = {
 
 export default function PlayoffsPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
-  const isAdmin = useIsAdmin();
+  const isAdmin = useCanAdminLeague(leagueId);
   const { user } = useAuth();
 
   const [data, setData] = useState<PlayoffData | null>(null);

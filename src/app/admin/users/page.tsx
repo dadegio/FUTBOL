@@ -9,14 +9,16 @@ import Button from "src/app/_components/ui/button";
 import Badge from "src/app/_components/ui/badge";
 import Input from "src/app/_components/ui/input";
 import Select from "src/app/_components/ui/select";
-import { useIsAdmin, authFetch } from "@/lib/client-auth";
+import { useIsSuperAdmin, authFetch } from "@/lib/client-auth";
 
 type UserRow = {
   id: string;
   username: string;
-  role: "ADMIN" | "CAPTAIN" | "REFEREE";
+  role: "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE";
   teamId: string | null;
   refereeId: string | null;
+  leagueId: string | null;
+  adminLeague?: { name: string } | null;
   team: { name: string } | null;
   referee: {
     name: string;
@@ -29,11 +31,12 @@ type Team = { id: string; name: string };
 type Referee = { id: string; name: string };
 
 export default function AdminUsersPage() {
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsSuperAdmin();
   const router = useRouter();
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [leagues, setLeagues] = useState<Array<{ id: string; name: string }>>([]);
   const [referees, setReferees] = useState<Referee[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -49,8 +52,9 @@ export default function AdminUsersPage() {
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] =
-    useState<"ADMIN" | "CAPTAIN" | "REFEREE">("CAPTAIN");
+    useState<"ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE">("CAPTAIN");
   const [newTeamId, setNewTeamId] = useState("");
+  const [newLeagueId, setNewLeagueId] = useState("");
   const [newRefereeId, setNewRefereeId] = useState("");
   const [creating, setCreating] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
@@ -70,6 +74,7 @@ export default function AdminUsersPage() {
       if (!leaguesRes.ok) throw new Error(leaguesData?.error ?? "Errore caricamento tornei");
 
       const leagues = Array.isArray(leaguesData) ? leaguesData : [];
+      setLeagues(leagues.map((league: any) => ({ id: league.id, name: league.name })));
       const [teamGroups, refereeGroups] = await Promise.all([
         Promise.all(
           leagues.map(async (league: any) => {
@@ -173,6 +178,7 @@ export default function AdminUsersPage() {
     setFormErr(null);
     if (!newUsername.trim()) { setFormErr("Username obbligatorio"); return; }
     if (newPassword.length < 4) { setFormErr("Password minimo 4 caratteri"); return; }
+    if (newRole === "LEAGUE_ADMIN" && !newLeagueId) { setFormErr("Seleziona un torneo"); return; }
     if (newRole === "CAPTAIN" && !newTeamId) { setFormErr("Seleziona una squadra"); return; }
     if (newRole === "REFEREE" && !newRefereeId) { setFormErr("Seleziona un arbitro"); return; }
 
@@ -185,6 +191,7 @@ export default function AdminUsersPage() {
           username: newUsername.trim(),
           password: newPassword,
           role: newRole,
+          leagueId: newRole === "LEAGUE_ADMIN" ? newLeagueId : null,
           teamId: newRole === "CAPTAIN" ? newTeamId : null,
           refereeId: newRole === "REFEREE" ? newRefereeId : null,
         }),
@@ -195,6 +202,7 @@ export default function AdminUsersPage() {
       setNewPassword("");
       setNewRole("CAPTAIN");
       setNewTeamId("");
+      setNewLeagueId("");
       setNewRefereeId("");
       setShowForm(false);
       await load();
@@ -214,7 +222,7 @@ export default function AdminUsersPage() {
           <CardHeader
             tag="Admin"
             title="Gestione utenti"
-            description="Visualizza, crea ed elimina account admin, capitani e arbitri."
+            description="Gestisci Super Admin, Admin torneo, capitani e arbitri."
           />
         </Card>
 
@@ -251,14 +259,23 @@ export default function AdminUsersPage() {
                   value={newRole}
                   onChange={(e) =>
                     setNewRole(
-                      e.target.value as "ADMIN" | "CAPTAIN" | "REFEREE"
+                      e.target.value as "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE"
                     )
                   }
                 >
                   <option value="CAPTAIN" className="text-black">Capitano</option>
                   <option value="REFEREE" className="text-black">Arbitro</option>
-                  <option value="ADMIN" className="text-black">Admin</option>
+                  <option value="ADMIN" className="text-black">Super Admin</option>
+                  <option value="LEAGUE_ADMIN" className="text-black">Admin torneo</option>
                 </Select>
+                {newRole === "LEAGUE_ADMIN" && (
+                  <Select value={newLeagueId} onChange={(e) => setNewLeagueId(e.target.value)}>
+                    <option value="" className="text-black">Seleziona torneo…</option>
+                    {leagues.map((league) => (
+                      <option key={league.id} value={league.id} className="text-black">{league.name}</option>
+                    ))}
+                  </Select>
+                )}
                 {newRole === "CAPTAIN" && (
                   <Select value={newTeamId} onChange={(e) => setNewTeamId(e.target.value)}>
                     <option value="" className="text-black">Seleziona squadra</option>
@@ -317,24 +334,32 @@ export default function AdminUsersPage() {
                               "rounded-full px-2.5 py-0.5 text-xs font-semibold",
                               u.role === "ADMIN"
                                 ? "bg-[var(--accent)]/20 text-[var(--accent)]"
-                                : u.role === "REFEREE"
+                                : u.role === "LEAGUE_ADMIN"
+                                  ? "bg-blue-500/15 text-blue-600"
+                                  : u.role === "REFEREE"
                                   ? "bg-emerald-500/15 text-emerald-600"
                                   : "bg-white/10 text-[var(--foreground)]/70",
                             ].join(" ")}
                           >
                             {u.role === "ADMIN"
-                              ? "Admin"
-                              : u.role === "REFEREE"
-                                ? "Arbitro"
-                                : "Capitano"}
+                              ? "Super Admin"
+                              : u.role === "LEAGUE_ADMIN"
+                                ? "Admin torneo"
+                                : u.role === "REFEREE"
+                                  ? "Arbitro"
+                                  : "Capitano"}
                           </span>
                         </div>
                         <div className="mt-1 text-sm text-[var(--foreground)]/50">
-                          {u.team
-                            ? `Squadra: ${u.team.name}`
-                            : u.referee
-                              ? `Arbitro: ${u.referee.name} (${u.referee.league.name})`
-                              : "Nessuna associazione"}
+                          {u.role === "LEAGUE_ADMIN" && u.adminLeague
+                            ? `Torneo amministrato: ${u.adminLeague.name}`
+                            : u.team
+                              ? `Squadra: ${u.team.name}`
+                              : u.referee
+                                ? `Arbitro: ${u.referee.name} (${u.referee.league.name})`
+                                : u.role === "ADMIN"
+                                  ? "Accesso globale"
+                                  : "Nessuna associazione"}
                         </div>
                       </div>
 

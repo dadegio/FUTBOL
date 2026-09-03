@@ -7,11 +7,16 @@ import DashboardShell from "src/app/_components/dashboard-shell";
 import Card from "src/app/_components/ui/card";
 import YouTubeVideoCard from "src/app/_components/youtube-video-card";
 import SponsorBanner from "src/app/_components/sponsor-banner";
+import LeagueAdSlot from "src/app/_components/league-ad-slot";
 import { authFetch } from "@/lib/client-auth";
 
 type League = {
   id: string;
   name: string;
+  adsEnabled?: boolean | null;
+  adProvider?: string | null;
+  adClientId?: string | null;
+  adLeagueSlot?: string | null;
 };
 
 type Team = {
@@ -370,6 +375,8 @@ export default function LeagueHomePage() {
         )}
 
         <SponsorBanner compact />
+
+        <LeagueAdSlot league={league} placement="league" />
 
         <Card className="space-y-4">
           <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">

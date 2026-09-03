@@ -14,7 +14,7 @@ function getSecret(): string {
 }
 
 // ── types ──────────────────────────────────────────────────────────────────
-export type Role = "ADMIN" | "CAPTAIN" | "REFEREE";
+export type Role = "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE";
 
 export type SessionUser = {
   userId: string;
@@ -22,6 +22,7 @@ export type SessionUser = {
   role: Role;
   teamId: string | null;
   refereeId: string | null;
+  leagueId: string | null;
 };
 
 // ── password hashing ───────────────────────────────────────────────────────
@@ -78,6 +79,7 @@ export function parseToken(token: string): SessionUser | null {
       role: data.role,
       teamId: data.teamId ?? null,
       refereeId: data.refereeId ?? null,
+      leagueId: data.leagueId ?? null,
     };
   } catch {
     return null;

@@ -22,6 +22,8 @@ export async function GET() {
       role: true,
       teamId: true,
       refereeId: true,
+      leagueId: true,
+      adminLeague: { select: { name: true } },
       team: { select: { name: true } },
       referee: {
         select: {
@@ -43,12 +45,13 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
 
   const body = await req.json().catch(() => ({}));
-  const { username, password, role, teamId, refereeId } = body as {
+  const { username, password, role, teamId, refereeId, leagueId } = body as {
     username?: string;
     password?: string;
     role?: string;
     teamId?: string | null;
     refereeId?: string | null;
+    leagueId?: string | null;
   };
 
   if (!username?.trim()) {
@@ -59,13 +62,17 @@ export async function POST(req: NextRequest) {
   }
   if (
     role !== "ADMIN" &&
+    role !== "LEAGUE_ADMIN" &&
     role !== "CAPTAIN" &&
     role !== "REFEREE"
   ) {
     return NextResponse.json(
-      { error: "Ruolo non valido (ADMIN, CAPTAIN o REFEREE)" },
+      { error: "Ruolo non valido" },
       { status: 400 }
     );
+  }
+  if (role === "LEAGUE_ADMIN" && !leagueId) {
+    return NextResponse.json({ error: "Seleziona il torneo da amministrare" }, { status: 400 });
   }
   if (role === "CAPTAIN" && !teamId) {
     return NextResponse.json({ error: "Specifica teamId per un capitano" }, { status: 400 });
@@ -87,7 +94,8 @@ export async function POST(req: NextRequest) {
       data: {
         username: username.trim(),
         passwordHash: hashPassword(password),
-        role: role as "ADMIN" | "CAPTAIN" | "REFEREE",
+        role: role as "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE",
+        leagueId: role === "LEAGUE_ADMIN" ? leagueId : null,
         teamId: role === "CAPTAIN" ? teamId : null,
         refereeId: role === "REFEREE" ? refereeId : null,
       },
@@ -97,6 +105,7 @@ export async function POST(req: NextRequest) {
         role: true,
         teamId: true,
         refereeId: true,
+        leagueId: true,
         createdAt: true,
       },
     });

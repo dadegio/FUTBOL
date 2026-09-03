@@ -7,6 +7,14 @@ export type LeagueBranding = {
   brandPrimaryColor?: string | null;
   brandSecondaryColor?: string | null;
   brandBackgroundColor?: string | null;
+  cookieBannerEnabled?: boolean | null;
+  privacyPolicyUrl?: string | null;
+  cookiePolicyUrl?: string | null;
+  adsEnabled?: boolean | null;
+  adProvider?: string | null;
+  adClientId?: string | null;
+  adHomeSlot?: string | null;
+  adLeagueSlot?: string | null;
 };
 
 export const GENERIC_BRAND = {

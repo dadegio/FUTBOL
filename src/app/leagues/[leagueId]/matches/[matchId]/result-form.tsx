@@ -148,7 +148,7 @@ function playerEligibilityLabel(player: Player, admin = false) {
 
 export default function MatchResultForm({ match }: { match: Match }) {
   const { user, loading: authLoading } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN" || (user?.role === "LEAGUE_ADMIN" && user.leagueId === match.leagueId);
   const isCaptainOfMatch =
     user?.role === "CAPTAIN" &&
     (user.teamId === match.homeTeam?.id || user.teamId === match.awayTeam?.id);

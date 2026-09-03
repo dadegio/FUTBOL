@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import {
   BarChart3,
   CalendarDays,
+  Handshake,
   Home,
   LogOut,
   Search,
@@ -18,7 +19,7 @@ import {
   X,
   Youtube,
 } from "lucide-react";
-import { clearAuthToken, useAuth, useIsAdmin } from "@/lib/client-auth";
+import { clearAuthToken, useAuth, useCanAdminLeague, useIsSuperAdmin } from "@/lib/client-auth";
 import { resolveLeagueBranding, type LeagueBranding } from "@/lib/league-branding";
 
 type MobileMenuProps = {
@@ -63,7 +64,8 @@ export default function MobileMenu({ leagueId, open, onClose, branding }: Mobile
   const pathname = usePathname();
   const router = useRouter();
   const { user, refresh } = useAuth();
-  const isAdmin = useIsAdmin();
+  const isAdmin = useCanAdminLeague(leagueId);
+  const isSuperAdmin = useIsSuperAdmin();
   const [search, setSearch] = useState("");
   const [hasPlayoffs, setHasPlayoffs] = useState(false);
   const resolvedBrand = resolveLeagueBranding(branding);
@@ -111,6 +113,7 @@ export default function MobileMenu({ leagueId, open, onClose, branding }: Mobile
         { href: `/leagues/${leagueId}/teams`, label: "Squadre", icon: <Trophy size={18} /> },
         { href: `/leagues/${leagueId}/players`, label: "Giocatori", icon: <Users size={18} /> },
         { href: `/leagues/${leagueId}/stats`, label: "Statistiche", icon: <BarChart3 size={18} /> },
+        { href: `/leagues/${leagueId}/sponsors`, label: "Sponsor", icon: <Handshake size={18} /> },
         { href: `/leagues/${leagueId}/videos`, label: "Video", icon: <Youtube size={18} /> },
       ]
     : [];
@@ -220,13 +223,15 @@ export default function MobileMenu({ leagueId, open, onClose, branding }: Mobile
                     onClick={onClose}
                   />
                 )}
-                <MenuLink
-                  href="/admin/users"
-                  label="Gestione utenti"
-                  icon={<ShieldCheck size={18} />}
-                  active={pathname === "/admin/users"}
-                  onClick={onClose}
-                />
+                {isSuperAdmin && (
+                  <MenuLink
+                    href="/admin/users"
+                    label="Gestione utenti"
+                    icon={<ShieldCheck size={18} />}
+                    active={pathname === "/admin/users"}
+                    onClick={onClose}
+                  />
+                )}
               </div>
             </section>
           )}

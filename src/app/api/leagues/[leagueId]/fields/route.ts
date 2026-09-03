@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession, requireAdmin } from "@/lib/server-auth";
+import { getServerSession, isLeagueAdminSession, requireLeagueAdmin } from "@/lib/server-auth";
 
 type Ctx = { params: Promise<{ leagueId: string }> };
 
@@ -74,7 +74,7 @@ const fieldSelect = {
 export async function GET(_: Request, ctx: Ctx) {
   const { leagueId } = await ctx.params;
   const session = await getServerSession();
-  const isAdmin = session?.role === "ADMIN";
+  const isAdmin = isLeagueAdminSession(session, leagueId);
 
   const fields = await prisma.field.findMany({
     where: {
@@ -89,10 +89,9 @@ export async function GET(_: Request, ctx: Ctx) {
 }
 
 export async function POST(req: Request, ctx: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-
   const { leagueId } = await ctx.params;
+  const denied = await requireLeagueAdmin(leagueId);
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const name = String(body?.name ?? "").trim().replace(/\s+/g, " ");
   const address = String(body?.address ?? "").trim().replace(/\s+/g, " ");
@@ -137,10 +136,9 @@ export async function POST(req: Request, ctx: Ctx) {
 }
 
 export async function PATCH(req: Request, ctx: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-
   const { leagueId } = await ctx.params;
+  const denied = await requireLeagueAdmin(leagueId);
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const id = String(body?.id ?? "").trim();
 
@@ -225,10 +223,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
 }
 
 export async function DELETE(req: Request, ctx: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
-
   const { leagueId } = await ctx.params;
+  const denied = await requireLeagueAdmin(leagueId);
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const id = String(body?.id ?? "").trim();
 

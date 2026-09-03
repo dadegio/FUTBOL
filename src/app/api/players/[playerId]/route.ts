@@ -86,7 +86,7 @@ export async function GET(
     );
   }
 
-  return NextResponse.json(sanitizePlayerForRole(player, session));
+  return NextResponse.json(sanitizePlayerForRole(player, session, player.team.leagueId));
 }
 
 export async function PATCH(
@@ -100,6 +100,7 @@ export async function PATCH(
     select: {
       id: true,
       teamId: true,
+      team: { select: { leagueId: true } },
     },
   });
 
@@ -114,7 +115,7 @@ export async function PATCH(
   if (authErr) return authErr;
 
   const session = await getServerSession();
-  const canEditAdminFields = canEditAdminPlayerDetails(session);
+  const canEditAdminFields = canEditAdminPlayerDetails(session, existing.team.leagueId);
 
   const body = await req.json().catch(() => ({}));
 
@@ -301,7 +302,7 @@ export async function PATCH(
     });
   });
 
-  return NextResponse.json(sanitizePlayerForRole(updated, session));
+  return NextResponse.json(sanitizePlayerForRole(updated, session, existing.team.leagueId));
 }
 
 export async function DELETE(

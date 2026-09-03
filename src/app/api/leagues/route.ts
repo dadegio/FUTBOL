@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/server-auth";
+import { getServerSession, requireAdmin } from "@/lib/server-auth";
 
 const PLAYOFF_FORMATS = new Set(["SINGLE_ELIM", "TWO_LEG"]);
 const PLAYOFF_COUNTS = new Set([2, 4, 8, 16]);
 const THEME_MODES = new Set(["IMPERIAL", "GENERIC", "CUSTOM"]);
 
 export async function GET() {
+  const session = await getServerSession();
   const leagues = await prisma.league.findMany({
+    where: session?.role === "LEAGUE_ADMIN" && session.leagueId
+      ? { id: session.leagueId }
+      : undefined,
     orderBy: { createdAt: "desc" },
     include: {
       teams: {

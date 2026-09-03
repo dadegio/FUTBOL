@@ -2,15 +2,13 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession, requireAdmin, requireAdminOrCaptainOfTeam } from "@/lib/server-auth";
+import { getServerSession, requireLeagueAdminForTeam, requireAdminOrCaptainOfTeam } from "@/lib/server-auth";
 import { FUTPOLI_RULES } from "@/lib/tournament-rules";
 import { canSeeAdminPlayerDetails, sanitizePlayerForRole } from "@/lib/player-visibility";
 
 export async function GET(_: Request, ctx: { params: Promise<{ teamId: string }> }) {
   const { teamId } = await ctx.params;
   const session = await getServerSession();
-  const showAdminDetails = canSeeAdminPlayerDetails(session);
-
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: {
@@ -31,6 +29,7 @@ export async function GET(_: Request, ctx: { params: Promise<{ teamId: string }>
 
   if (!team) return NextResponse.json({ error: "Squadra non trovata" }, { status: 404 });
 
+  const showAdminDetails = canSeeAdminPlayerDetails(session, team.league.id);
   const players = team.players.map(({ stats, sheetEntries, ...p }) => {
     const appearances = sheetEntries.length;
     const base = sanitizePlayerForRole(
@@ -43,7 +42,8 @@ export async function GET(_: Request, ctx: { params: Promise<{ teamId: string }>
           ? { feeCents: appearances * FUTPOLI_RULES.playerFeeCentsPerAppearance }
           : {}),
       },
-      session
+      session,
+      team.league.id
     );
 
     return base;
@@ -126,10 +126,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ teamId: strin
 }
 
 export async function DELETE(req: Request, ctx: { params: Promise<{ teamId: string }> }) {
-  const authErr = await requireAdmin();
-  if (authErr) return authErr;
-
   const { teamId } = await ctx.params;
+  const authErr = await requireLeagueAdminForTeam(teamId);
+  if (authErr) return authErr;
   const requestedLeagueId = new URL(req.url).searchParams.get("leagueId");
 
   const team = await prisma.team.findUnique({

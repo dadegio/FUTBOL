@@ -5,7 +5,7 @@ import {
   refereeAllowsStart,
   refereeHasConflict,
 } from "@/lib/referee-availability";
-import { requireAdmin } from "@/lib/server-auth";
+import { requireLeagueAdmin } from "@/lib/server-auth";
 import { rebalanceLeagueReferees } from "@/lib/automatic-referees";
 
 type Ctx = { params: Promise<{ leagueId: string }> };
@@ -37,9 +37,9 @@ function normalizeAvailability(value: unknown): AvailabilityInput[] | null {
 const availabilitySelect = { id: true, weekday: true, hour: true, minute: true };
 
 export async function GET(req: Request, ctx: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
   const { leagueId } = await ctx.params;
+  const denied = await requireLeagueAdmin(leagueId);
+  if (denied) return denied;
   const isAdmin = true;
   const matchId = new URL(req.url).searchParams.get("matchId")?.trim() || null;
 
@@ -98,9 +98,9 @@ export async function GET(req: Request, ctx: Ctx) {
 }
 
 export async function POST(req: Request, ctx: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
   const { leagueId } = await ctx.params;
+  const denied = await requireLeagueAdmin(leagueId);
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const firstName = String(body?.firstName ?? "").trim().replace(/\s+/g, " ");
   const lastName = String(body?.lastName ?? "").trim().replace(/\s+/g, " ");
@@ -137,9 +137,9 @@ export async function POST(req: Request, ctx: Ctx) {
 }
 
 export async function PATCH(req: Request, ctx: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
   const { leagueId } = await ctx.params;
+  const denied = await requireLeagueAdmin(leagueId);
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const id = String(body?.id ?? "").trim();
   if (!id) return NextResponse.json({ error: "Arbitro mancante" }, { status: 400 });
@@ -260,9 +260,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
 }
 
 export async function DELETE(req: Request, ctx: Ctx) {
-  const denied = await requireAdmin();
-  if (denied) return denied;
   const { leagueId } = await ctx.params;
+  const denied = await requireLeagueAdmin(leagueId);
+  if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const id = String(body?.id ?? "").trim();
   if (!id) return NextResponse.json({ error: "Arbitro mancante" }, { status: 400 });

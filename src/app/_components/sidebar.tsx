@@ -13,10 +13,11 @@ import {
   Swords,
   ShieldCheck,
   Settings,
+  Handshake,
   Youtube,
 } from "lucide-react";
 import AuthButton from "./auth-button";
-import { useIsAdmin } from "@/lib/client-auth";
+import { useCanAdminLeague, useIsSuperAdmin } from "@/lib/client-auth";
 import { resolveLeagueBranding, type LeagueBranding } from "@/lib/league-branding";
 
 type SidebarProps = {
@@ -55,7 +56,8 @@ function NavItem({
 export default function Sidebar({ leagueId, branding }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const isAdmin = useIsAdmin();
+  const isAdmin = useCanAdminLeague(leagueId);
+  const isSuperAdmin = useIsSuperAdmin();
   const [search, setSearch] = useState("");
   const [leagueName, setLeagueName] = useState<string | null>(null);
   const [hasPlayoffs, setHasPlayoffs] = useState(false);
@@ -85,6 +87,7 @@ export default function Sidebar({ leagueId, branding }: SidebarProps) {
         { href: `/leagues/${leagueId}/teams`,      label: "Squadre",     icon: <Users size={17} /> },
         { href: `/leagues/${leagueId}/players`,    label: "Giocatori",   icon: <Users size={17} /> },
         { href: `/leagues/${leagueId}/stats`,      label: "Statistiche", icon: <BarChart3 size={17} /> },
+        { href: `/leagues/${leagueId}/sponsors`,   label: "Sponsor",     icon: <Handshake size={17} /> },
         { href: `/leagues/${leagueId}/videos`,     label: "Video",       icon: <Youtube size={17} /> },
       ]
     : [{ href: `/`, label: "Home", icon: <Home size={17} /> }];
@@ -189,12 +192,14 @@ export default function Sidebar({ leagueId, branding }: SidebarProps) {
               active={pathname === `/leagues/${leagueId}/admin`}
             />
           )}
-          <NavItem
-            href="/admin/users"
-            icon={<ShieldCheck size={17} />}
-            label="Utenti"
-            active={pathname === "/admin/users"}
-          />
+          {isSuperAdmin && (
+            <NavItem
+              href="/admin/users"
+              icon={<ShieldCheck size={17} />}
+              label="Utenti"
+              active={pathname === "/admin/users"}
+            />
+          )}
         </>
       )}
 

@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/server-auth";
+import { requireLeagueAdminForMatch } from "@/lib/server-auth";
 import { NextResponse } from "next/server";
 import { getSlotWeekWindow } from "@/lib/field-slots";
 import { effectiveMatchEnd, matchOverlapsWindow, refereeAllowsStart, refereeHasConflict } from "@/lib/referee-availability";
@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ matchId: string }> };
 
 export async function PATCH(req: Request, ctx: Ctx) {
   const { matchId } = await ctx.params;
-  const authErr = await requireAdmin(); if (authErr) return authErr;
+  const authErr = await requireLeagueAdminForMatch(matchId); if (authErr) return authErr;
   const body = await req.json().catch(() => ({}));
   const rawDate = body?.date;
   let date: Date | null;

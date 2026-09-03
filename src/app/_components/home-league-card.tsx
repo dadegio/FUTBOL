@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Trash2 } from "lucide-react";
-import { useIsAdmin } from "@/lib/client-auth";
+import { useIsSuperAdmin } from "@/lib/client-auth";
 
 type LeagueCardProps = {
   id: string;
@@ -11,7 +11,7 @@ type LeagueCardProps = {
 };
 
 export default function HomeLeagueCard({ id, name, onDelete }: LeagueCardProps) {
-  const isAdmin = useIsAdmin();
+  const isAdmin = useIsSuperAdmin();
 
   return (
     <div className="group flex flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card-2)] p-5 transition-colors hover:border-[var(--accent)]/25">
