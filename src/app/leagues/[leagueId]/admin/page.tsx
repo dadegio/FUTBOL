@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import DashboardShell from "src/app/_components/dashboard-shell";
@@ -8,11 +9,39 @@ import Card from "src/app/_components/ui/card";
 import Badge from "src/app/_components/ui/badge";
 import Button from "src/app/_components/ui/button";
 import { authFetch } from "@/lib/client-auth";
-import RefereeManager from "@/modules/referees/presentation/RefereeManager";
-import FieldManager from "@/modules/fields/presentation/FieldManager";
-import BrandingManager from "@/modules/branding/presentation/BrandingManager";
-import SponsorManager from "@/modules/sponsors/presentation/SponsorManager";
-import CreatorManager from "@/modules/media/presentation/CreatorManager";
+
+
+function AdminModuleFallback({ title = "Modulo admin" }: { title?: string }) {
+  return (
+    <Card variant="inner">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent)]">{title}</p>
+      <div className="mt-4 h-8 w-2/3 animate-pulse rounded-full bg-white/10" />
+      <div className="mt-3 h-4 w-full animate-pulse rounded-full bg-white/10" />
+      <div className="mt-2 h-4 w-5/6 animate-pulse rounded-full bg-white/10" />
+    </Card>
+  );
+}
+
+const BrandingManager = dynamic(() => import("@/modules/branding/presentation/BrandingManager"), {
+  ssr: false,
+  loading: () => <AdminModuleFallback title="Branding" />,
+});
+const FieldManager = dynamic(() => import("@/modules/fields/presentation/FieldManager"), {
+  ssr: false,
+  loading: () => <AdminModuleFallback title="Campi" />,
+});
+const RefereeManager = dynamic(() => import("@/modules/referees/presentation/RefereeManager"), {
+  ssr: false,
+  loading: () => <AdminModuleFallback title="Arbitri" />,
+});
+const SponsorManager = dynamic(() => import("@/modules/sponsors/presentation/SponsorManager"), {
+  ssr: false,
+  loading: () => <AdminModuleFallback title="Sponsor" />,
+});
+const CreatorManager = dynamic(() => import("@/modules/media/presentation/CreatorManager"), {
+  ssr: false,
+  loading: () => <AdminModuleFallback title="Creator" />,
+});
 
 type LeagueSettings = {
   id: string;

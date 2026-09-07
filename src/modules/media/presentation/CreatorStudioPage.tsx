@@ -241,7 +241,7 @@ export default function CreatorStudioPage() {
           <Card>
             <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
               <div className="rounded-[28px] border border-[var(--border)] bg-[var(--card-2)] p-4 text-center" style={{ borderColor: profile.primaryColor || undefined }}>
-                {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" className="mx-auto h-32 w-32 rounded-[32px] object-cover" /> : <div className="mx-auto grid h-32 w-32 place-items-center rounded-[32px] bg-[var(--accent-soft)] text-[var(--accent)]"><UserRound size={44} /></div>}
+                {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" loading="lazy" decoding="async" className="mx-auto h-32 w-32 rounded-[32px] object-cover" /> : <div className="mx-auto grid h-32 w-32 place-items-center rounded-[32px] bg-[var(--accent-soft)] text-[var(--accent)]"><UserRound size={44} /></div>}
                 <label className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-xs font-black text-[var(--foreground)]">
                   {uploadingAvatar ? "Caricamento…" : "Cambia avatar"}
                   <input type="file" accept="image/*" onChange={uploadAvatar} className="sr-only" />

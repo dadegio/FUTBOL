@@ -64,23 +64,13 @@ export default function Sidebar({ leagueId, branding }: SidebarProps) {
   const isSuperAdmin = useIsSuperAdmin();
   const [search, setSearch] = useState("");
   const [leagueName, setLeagueName] = useState<string | null>(null);
-  const [hasPlayoffs, setHasPlayoffs] = useState(false);
+  const hasPlayoffs = Boolean(branding?.playoffFormat);
   const resolvedBrand = resolveLeagueBranding(branding);
 
   useEffect(() => {
     if (branding?.name) setLeagueName(branding.name);
   }, [branding?.name]);
 
-  useEffect(() => {
-    if (!leagueId) return;
-    fetch(`/api/leagues/${leagueId}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.name) setLeagueName(d.name);
-        setHasPlayoffs(Boolean(d?.playoffFormat));
-      })
-      .catch(() => {});
-  }, [leagueId]);
 
   const links = leagueId
     ? [
@@ -116,6 +106,8 @@ export default function Sidebar({ leagueId, branding }: SidebarProps) {
             <img
               src={resolvedBrand.logoUrl}
               alt=""
+              loading="eager"
+              decoding="async"
               className="h-12 w-12 shrink-0 rounded-xl object-contain"
             />
           ) : (

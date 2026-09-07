@@ -132,3 +132,26 @@ Regola pratica da V22 in poi:
 - `src/app` espone solo la route pubblica;
 - i vecchi file wrapper possono restare finché non viene completato il refactor dell'intera area;
 - le future ottimizzazioni performance vanno applicate nei moduli, non direttamente nelle route.
+
+## V23 — Performance Layer
+
+La V23 introduce una regola pratica: le ottimizzazioni devono migliorare la velocità percepita senza mischiare nuovamente routing, logica di dominio e componenti UI.
+
+### Principi
+
+- Le pagine in `src/app` possono avere `loading.tsx` dedicati, ma la UI riutilizzabile del caricamento resta in `src/modules/core/presentation`.
+- Le fetch client molto ripetute e poco sensibili, come le impostazioni pubbliche del torneo, passano da `cachedJson()` in `src/modules/core/client-cache.ts`.
+- I dati operativi che cambiano spesso, come risultati, media, sponsor e impostazioni admin, restano caricati con `no-store` o tramite `authFetch`.
+- I blocchi admin più pesanti sono caricati in modo lazy con `next/dynamic`, così la pagina admin mostra prima il contenuto principale e poi i moduli secondari.
+- Le immagini caricate direttamente con `<img>` devono avere almeno `loading="lazy"` e `decoding="async"`, salvo contenuti above-the-fold esplicitamente eager.
+
+### Cache client
+
+`cachedJson()` deduplica le richieste GET concorrenti e conserva il risultato per pochi secondi. È pensata per dati di cornice come nome, branding e configurazione leggera del torneo. Non va usata per scritture, risultati live, salvataggi o dati che devono essere sempre freschi.
+
+### Prossimi interventi performance
+
+- Spostare progressivamente le pagine più lette a server components con dati iniziali già pronti.
+- Ridurre le query Prisma delle dashboard con select più piccoli.
+- Aggiungere paginazione reale a media, giocatori e calendario quando i dati aumentano.
+- Valutare storage dedicato per media pesanti, con thumbnail generate a monte.

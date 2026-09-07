@@ -9,6 +9,7 @@ import Card, { CardHeader } from "src/app/_components/ui/card";
 import Badge from "src/app/_components/ui/badge";
 import Button from "src/app/_components/ui/button";
 import { authFetch, useCanAdminLeague } from "@/lib/client-auth";
+import { cachedJson } from "@/modules/core/client-cache";
 
 type Sponsor = {
   id: string;
@@ -60,13 +61,11 @@ export default function SponsorsPage() {
       setLoading(true);
       setErr(null);
       try {
-        const [leagueRes, sponsorsRes] = await Promise.all([
-          fetch(`/api/leagues/${leagueId}`, { cache: "no-store" }),
+        const [leagueData, sponsorsRes] = await Promise.all([
+          cachedJson<League>(`/api/leagues/${leagueId}`, { ttlMs: 30_000, fallbackMessage: "Errore caricamento torneo" }),
           authFetch(`/api/leagues/${leagueId}/sponsors`, { cache: "no-store" }),
         ]);
-        const leagueData = await leagueRes.json().catch(() => ({}));
         const sponsorData = await sponsorsRes.json().catch(() => ({}));
-        if (!leagueRes.ok) throw new Error(getApiText(leagueData, "Errore caricamento torneo"));
         if (!sponsorsRes.ok) throw new Error(getApiText(sponsorData, "Errore caricamento sponsor"));
         setLeague(leagueData);
         setSponsors(Array.isArray(sponsorData) ? sponsorData : []);
@@ -155,7 +154,7 @@ function SponsorCard({ sponsor }: { sponsor: Sponsor }) {
           </span>
         )}
         {sponsor.logoUrl ? (
-          <img src={sponsor.logoUrl} alt={`Logo ${sponsor.name}`} className="max-h-20 max-w-[76%] object-contain" />
+          <img src={sponsor.logoUrl} alt={`Logo ${sponsor.name}`} loading="lazy" decoding="async" className="max-h-20 max-w-[76%] object-contain" />
         ) : (
           <div className="grid h-20 w-20 place-items-center rounded-3xl border border-[var(--border)] bg-[var(--card)] text-2xl font-black text-[var(--accent)]">
             {sponsor.name.slice(0, 1).toUpperCase()}

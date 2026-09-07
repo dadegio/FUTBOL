@@ -136,7 +136,7 @@ export default function CreatorManager({ leagueId }: { leagueId: string }) {
             <div className="space-y-2">
               {creators.map((creator) => (
                 <div key={creator.id} className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3">
-                  {creator.avatarUrl ? <img src={creator.avatarUrl} alt="" className="h-12 w-12 rounded-2xl object-cover" /> : <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]"><UserRound size={20} /></div>}
+                  {creator.avatarUrl ? <img src={creator.avatarUrl} alt="" loading="lazy" decoding="async" className="h-12 w-12 rounded-2xl object-cover" /> : <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]"><UserRound size={20} /></div>}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-black text-[var(--foreground)]">{creator.displayName}</p>
                     <p className="truncate text-xs text-[var(--muted)]">{creator.roleLabel || "Creator"} · {creator._count?.mediaItems ?? 0} contenuti</p>
@@ -160,7 +160,7 @@ export default function CreatorManager({ leagueId }: { leagueId: string }) {
                     {isVideo(item) ? (
                       <div className="grid h-full place-items-center text-[var(--accent)]"><Video size={26} /></div>
                     ) : (
-                      <img src={item.thumbnailUrl || item.fileUrl} alt="" className="h-full w-full object-cover" />
+                      <img src={item.thumbnailUrl || item.fileUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                     )}
                     {item.featured && <span className="absolute right-2 top-2 rounded-full bg-yellow-300 px-2 py-1 text-[10px] font-black text-black">TOP</span>}
                   </div>

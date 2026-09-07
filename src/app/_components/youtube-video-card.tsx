@@ -37,6 +37,8 @@ export default function YouTubeVideoCard({
               <img
                 src={thumbnail}
                 alt={config.title}
+                loading="lazy"
+                decoding="async"
                 className="aspect-video h-full w-full object-cover opacity-90 transition duration-300 group-hover:scale-[1.03] group-hover:opacity-100"
               />
             ) : (
@@ -121,6 +123,8 @@ export default function YouTubeVideoCard({
             <img
               src={thumbnail}
               alt={config.title}
+              loading="lazy"
+              decoding="async"
               className="aspect-video w-full object-cover opacity-90 transition duration-300 group-hover:scale-[1.03] group-hover:opacity-100"
             />
           ) : (

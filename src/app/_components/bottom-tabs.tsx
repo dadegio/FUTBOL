@@ -2,24 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Home, Table2, CalendarDays, Users, Trophy, BarChart3, Camera } from "lucide-react";
+import type { LeagueBranding } from "@/lib/league-branding";
 
 type BottomTabsProps = {
   leagueId: string;
+  branding?: LeagueBranding | null;
 };
 
-export default function BottomTabs({ leagueId }: BottomTabsProps) {
+export default function BottomTabs({ leagueId, branding }: BottomTabsProps) {
   const pathname = usePathname();
-  const [hasPlayoffs, setHasPlayoffs] = useState(false);
-
-  useEffect(() => {
-    if (!leagueId) return;
-    fetch(`/api/leagues/${leagueId}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setHasPlayoffs(Boolean(d?.playoffFormat)))
-      .catch(() => setHasPlayoffs(false));
-  }, [leagueId]);
+  const hasPlayoffs = Boolean(branding?.playoffFormat);
 
   const tabs = useMemo(
     () => [

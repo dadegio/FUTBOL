@@ -9,6 +9,7 @@ import Card, { CardHeader } from "src/app/_components/ui/card";
 import Badge from "src/app/_components/ui/badge";
 import Button from "src/app/_components/ui/button";
 import { useCanCreateMedia } from "@/lib/client-auth";
+import { cachedJson } from "@/modules/core/client-cache";
 
 type MediaItem = {
   id: string;
@@ -107,15 +108,13 @@ export default function LeagueMediaPage() {
       setLoading(true);
       setErr(null);
       try {
-        const [leagueRes, mediaRes, creatorsRes] = await Promise.all([
-          fetch(`/api/leagues/${leagueId}`, { cache: "no-store" }),
+        const [leagueData, mediaRes, creatorsRes] = await Promise.all([
+          cachedJson<League>(`/api/leagues/${leagueId}`, { ttlMs: 30_000, fallbackMessage: "Errore caricamento torneo" }),
           fetch(`/api/leagues/${leagueId}/media`, { cache: "no-store" }),
           fetch(`/api/leagues/${leagueId}/creators`, { cache: "no-store" }),
         ]);
-        const leagueData = await leagueRes.json().catch(() => ({}));
         const mediaData = await mediaRes.json().catch(() => ({}));
         const creatorsData = await creatorsRes.json().catch(() => ({}));
-        if (!leagueRes.ok) throw new Error(leagueData?.error ?? "Errore caricamento torneo");
         if (!mediaRes.ok) throw new Error(mediaData?.error ?? "Errore caricamento media");
         if (!creatorsRes.ok) throw new Error(creatorsData?.error ?? "Errore caricamento creator");
         setLeague(leagueData);
@@ -196,7 +195,7 @@ export default function LeagueMediaPage() {
           <div className="flex gap-3 overflow-x-auto pb-1">
             {creators.map((creator) => (
               <Link key={creator.id} href={`/leagues/${leagueId}/creators/${creator.id}`} className="flex min-w-[210px] items-center gap-3 rounded-3xl border border-[var(--border)] bg-[var(--card)] p-3 transition hover:border-[var(--accent)]">
-                {creator.avatarUrl ? <img src={creator.avatarUrl} alt="" className="h-12 w-12 rounded-2xl object-cover" /> : <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]"><UserRound size={20} /></div>}
+                {creator.avatarUrl ? <img src={creator.avatarUrl} alt="" loading="lazy" decoding="async" className="h-12 w-12 rounded-2xl object-cover" /> : <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]"><UserRound size={20} /></div>}
                 <div className="min-w-0">
                   <p className="truncate text-sm font-black text-[var(--foreground)]">{creator.displayName}</p>
                   <p className="truncate text-xs text-[var(--muted)]">{creator.roleLabel || "Creator"}</p>
@@ -241,9 +240,9 @@ function MediaCard({ item, leagueId, onOpen, featured = false }: { item: MediaIt
     <article className="overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--card)] shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
       <button type="button" onClick={onOpen} className="group relative block aspect-[4/5] w-full overflow-hidden bg-black text-left">
         {video ? (
-          item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover opacity-80 transition group-hover:scale-[1.02]" /> : <div className="grid h-full place-items-center bg-[var(--card-2)] text-[var(--accent)]"><Video size={44} /></div>
+          item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover opacity-80 transition group-hover:scale-[1.02]" /> : <div className="grid h-full place-items-center bg-[var(--card-2)] text-[var(--accent)]"><Video size={44} /></div>
         ) : (
-          <img src={item.thumbnailUrl || item.fileUrl} alt={item.title || item.caption || "Contenuto media"} loading="lazy" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
+          <img src={item.thumbnailUrl || item.fileUrl} alt={item.title || item.caption || "Contenuto media"} loading="lazy" decoding="async" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
         )}
         {video && <span className="absolute inset-0 grid place-items-center"><span className="grid h-16 w-16 place-items-center rounded-full bg-black/55 text-white backdrop-blur"><Play size={28} fill="currentColor" /></span></span>}
         <span className="absolute left-3 top-3 rounded-full bg-black/65 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white">{typeLabels[item.type]}</span>
@@ -254,7 +253,7 @@ function MediaCard({ item, leagueId, onOpen, featured = false }: { item: MediaIt
         {item.caption && item.title && <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-[var(--muted)]">{item.caption}</p>}
         <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
           <div className="flex min-w-0 items-center gap-2">
-            {item.creator?.avatarUrl ? <img src={item.creator.avatarUrl} alt="" className="h-9 w-9 rounded-xl object-cover" /> : <div className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]"><UserRound size={16} /></div>}
+            {item.creator?.avatarUrl ? <img src={item.creator.avatarUrl} alt="" loading="lazy" decoding="async" className="h-9 w-9 rounded-xl object-cover" /> : <div className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]"><UserRound size={16} /></div>}
             <div className="min-w-0">
               <p className="truncate text-xs font-black text-[var(--foreground)]">{getCredit(item)}</p>
               <p className="truncate text-[11px] text-[var(--muted)]">{item.round ? `Giornata ${item.round}` : item.creator?.roleLabel || "Creator"}</p>
@@ -276,7 +275,7 @@ function MediaModal({ item, onClose }: { item: MediaItem; onClose: () => void })
         <button type="button" onClick={onClose} className="absolute right-3 top-3 z-10 grid h-11 w-11 place-items-center rounded-full bg-black/65 text-xl font-black text-white">×</button>
         <div className="grid max-h-[90vh] lg:grid-cols-[minmax(0,1.4fr)_360px]">
           <div className="grid min-h-[320px] place-items-center bg-black">
-            {video && canPlayVideo(item) ? <video src={item.fileUrl} controls playsInline className="max-h-[86vh] w-full" /> : video ? <a href={item.fileUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-black text-black"><ExternalLink size={16} /> Apri video</a> : <img src={item.fileUrl} alt="" className="max-h-[86vh] w-full object-contain" />}
+            {video && canPlayVideo(item) ? <video src={item.fileUrl} controls playsInline className="max-h-[86vh] w-full" /> : video ? <a href={item.fileUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-black text-black"><ExternalLink size={16} /> Apri video</a> : <img src={item.fileUrl} alt="" loading="eager" decoding="async" className="max-h-[86vh] w-full object-contain" />}
           </div>
           <div className="overflow-y-auto p-5">
             <Badge variant="default">{typeLabels[item.type]}</Badge>

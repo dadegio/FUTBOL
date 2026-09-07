@@ -70,7 +70,7 @@ export default function MobileMenu({ leagueId, open, onClose, branding }: Mobile
   const canCreateMedia = useCanCreateMedia(leagueId);
   const isSuperAdmin = useIsSuperAdmin();
   const [search, setSearch] = useState("");
-  const [hasPlayoffs, setHasPlayoffs] = useState(false);
+  const hasPlayoffs = Boolean(branding?.playoffFormat);
   const resolvedBrand = resolveLeagueBranding(branding);
 
   useEffect(() => {
@@ -87,16 +87,6 @@ export default function MobileMenu({ leagueId, open, onClose, branding }: Mobile
     };
   }, [open, onClose]);
 
-  useEffect(() => {
-    if (!leagueId) {
-      setHasPlayoffs(false);
-      return;
-    }
-    fetch(`/api/leagues/${leagueId}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setHasPlayoffs(Boolean(d?.playoffFormat)))
-      .catch(() => setHasPlayoffs(false));
-  }, [leagueId]);
 
   useEffect(() => {
     onClose();
@@ -153,7 +143,7 @@ export default function MobileMenu({ leagueId, open, onClose, branding }: Mobile
       <div className="absolute inset-y-0 right-0 flex w-[min(92vw,390px)] flex-col border-l border-[var(--border)] bg-[var(--card)] shadow-2xl">
         <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            {branding && resolvedBrand.logoUrl && <img src={resolvedBrand.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg object-contain" />}
+            {branding && resolvedBrand.logoUrl && <img src={resolvedBrand.logoUrl} alt="" loading="eager" decoding="async" className="h-9 w-9 shrink-0 rounded-lg object-contain" />}
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--accent)]">Navigazione</p>
               <p className="mt-1 truncate text-sm font-semibold text-[var(--foreground)]">

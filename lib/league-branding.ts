@@ -15,6 +15,9 @@ export type LeagueBranding = {
   adClientId?: string | null;
   adHomeSlot?: string | null;
   adLeagueSlot?: string | null;
+  playoffFormat?: string | null;
+  playoffTeamCount?: number | null;
+  playoffSeeded?: boolean | null;
 };
 
 export const GENERIC_BRAND = {

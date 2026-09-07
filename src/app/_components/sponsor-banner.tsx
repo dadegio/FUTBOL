@@ -34,6 +34,8 @@ export default function SponsorBanner({
       <img
         src={sponsorLogo}
         alt={sponsorName}
+        loading="lazy"
+        decoding="async"
         className={[
           "w-full min-w-0 object-contain",
           compact

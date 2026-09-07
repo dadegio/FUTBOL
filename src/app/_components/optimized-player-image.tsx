@@ -22,6 +22,7 @@ export default function OptimizedPlayerImage({
   className,
   style,
   eager = false,
+  quality = eager ? 80 : 70,
 }: {
   src: string;
   alt: string;
@@ -29,6 +30,7 @@ export default function OptimizedPlayerImage({
   className?: string;
   style?: CSSProperties;
   eager?: boolean;
+  quality?: number;
 }) {
   if (!canUseNextImage(src)) {
     return (
@@ -53,6 +55,7 @@ export default function OptimizedPlayerImage({
       className={className}
       style={style}
       priority={eager}
+      quality={quality}
     />
   );
 }

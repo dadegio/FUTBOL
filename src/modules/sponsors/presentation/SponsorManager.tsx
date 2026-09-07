@@ -243,7 +243,7 @@ export default function SponsorManager({ leagueId }: { leagueId: string }) {
                   <div className="flex gap-4">
                     <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-[var(--border)] bg-black/10">
                       {sponsor.logoUrl ? (
-                        <img src={sponsor.logoUrl} alt="" className="h-full w-full object-contain p-1.5" />
+                        <img src={sponsor.logoUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain p-1.5" />
                       ) : (
                         <Store size={24} className="text-[var(--muted)]" />
                       )}
@@ -312,7 +312,7 @@ export default function SponsorManager({ leagueId }: { leagueId: string }) {
             <div className="rounded-2xl border border-[var(--border)] bg-black/10 p-3">
               <div className="mb-3 flex items-center gap-3">
                 <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)]">
-                  {form.logoUrl ? <img src={form.logoUrl} alt="" className="h-full w-full object-contain p-1" /> : <ImagePlus size={20} className="text-[var(--muted)]" />}
+                  {form.logoUrl ? <img src={form.logoUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-contain p-1" /> : <ImagePlus size={20} className="text-[var(--muted)]" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-black">Logo</p>

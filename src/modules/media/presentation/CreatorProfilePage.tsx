@@ -95,7 +95,7 @@ export default function CreatorProfilePage() {
           <Card className="overflow-hidden !p-0">
             <div className="relative p-6 md:p-8" style={{ background: `radial-gradient(circle at 12% 0%, ${creator.primaryColor || "var(--accent-soft)"}, transparent 24rem), var(--card)` }}>
               <div className="grid gap-5 md:grid-cols-[150px_1fr] md:items-center">
-                {creator.avatarUrl ? <img src={creator.avatarUrl} alt="" className="h-32 w-32 rounded-[34px] object-cover md:h-36 md:w-36" /> : <div className="grid h-32 w-32 place-items-center rounded-[34px] bg-[var(--card-2)] text-[var(--accent)] md:h-36 md:w-36"><UserRound size={48} /></div>}
+                {creator.avatarUrl ? <img src={creator.avatarUrl} alt="" loading="lazy" decoding="async" className="h-32 w-32 rounded-[34px] object-cover md:h-36 md:w-36" /> : <div className="grid h-32 w-32 place-items-center rounded-[34px] bg-[var(--card-2)] text-[var(--accent)] md:h-36 md:w-36"><UserRound size={48} /></div>}
                 <div>
                   <CardHeader tag={creator.roleLabel || "Creator"} title={creator.displayName} description={creator.bio || "Foto, video e contenuti dal campo."} level={1} />
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -118,8 +118,8 @@ export default function CreatorProfilePage() {
                 <a key={item.id} href={item.fileUrl} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--card)]">
                   <div className="relative aspect-[4/5] bg-black">
                     {isVideo(item) ? (
-                      item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover opacity-80" /> : <div className="grid h-full place-items-center text-[var(--accent)]"><Video size={44} /></div>
-                    ) : <img src={item.thumbnailUrl || item.fileUrl} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />}
+                      item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover opacity-80" /> : <div className="grid h-full place-items-center text-[var(--accent)]"><Video size={44} /></div>
+                    ) : <img src={item.thumbnailUrl || item.fileUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />}
                     {isVideo(item) && <span className="absolute inset-0 grid place-items-center"><span className="grid h-14 w-14 place-items-center rounded-full bg-black/60 text-white"><Play size={24} fill="currentColor" /></span></span>}
                   </div>
                   <div className="p-4"><p className="line-clamp-2 text-base font-black text-[var(--foreground)]">{item.title || item.caption || "Contenuto"}</p></div>

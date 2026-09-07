@@ -10,6 +10,7 @@ import Breadcrumbs from "./breadcrumbs";
 import { useAuth } from "@/lib/client-auth";
 import LeagueThemeController from "./league-theme-controller";
 import { resolveLeagueBranding, type LeagueBranding } from "@/lib/league-branding";
+import { cachedJson } from "@/modules/core/client-cache";
 
 export default function DashboardShell({
   children,
@@ -31,8 +32,10 @@ export default function DashboardShell({
 
     let cancelled = false;
     const loadBranding = () => {
-      fetch(`/api/leagues/${leagueId}`, { cache: "no-store" })
-        .then((res) => res.json())
+      cachedJson<LeagueBranding>(`/api/leagues/${leagueId}`, {
+        ttlMs: 30_000,
+        fallbackMessage: "Errore caricamento torneo",
+      })
         .then((data) => {
           if (!cancelled && data?.id) {
             setLeagueBrand(data);
@@ -79,7 +82,7 @@ return (
         <div className="no-print mb-4 flex min-w-0 items-center justify-between gap-3 rounded-[18px] bg-[var(--card)] px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.04)] lg:hidden">
           <Link href="/" className="flex min-w-0 items-center gap-2.5 text-base font-extrabold tracking-tight sm:text-lg">
             {leagueBrand && resolvedBrand.logoUrl && (
-              <img src={resolvedBrand.logoUrl} alt="" className="h-8 w-8 shrink-0 object-contain" />
+              <img src={resolvedBrand.logoUrl} alt="" loading="eager" decoding="async" className="h-8 w-8 shrink-0 object-contain" />
             )}
             <span className="block truncate font-black text-[var(--accent)]">{resolvedBrand.mode === "IMPERIAL" ? "CAMMINO IMPERIALE" : (leagueBrand?.name || "TORNEI")}</span>
           </Link>
@@ -123,7 +126,7 @@ return (
       </div>
 
       {/* Mobile bottom tab bar */}
-      {leagueId && <BottomTabs leagueId={leagueId} />}
+      {leagueId && <BottomTabs leagueId={leagueId} branding={leagueBrand} />}
 
       <MobileMenu
         leagueId={leagueId}

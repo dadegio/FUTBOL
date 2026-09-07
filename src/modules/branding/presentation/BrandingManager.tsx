@@ -14,6 +14,7 @@ import Card from "src/app/_components/ui/card";
 import Button from "src/app/_components/ui/button";
 import { authFetch } from "@/lib/client-auth";
 import { GENERIC_BRAND, resolveLeagueBranding } from "@/lib/league-branding";
+import { clearJsonCache } from "@/modules/core/client-cache";
 
 export type BrandingSettings = {
   id: string;
@@ -141,6 +142,7 @@ export default function BrandingManager({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Errore salvataggio grafica");
       onChange({ ...value, ...data });
+      clearJsonCache(`/api/leagues/${leagueId}`);
       setMessage("Impostazioni torneo aggiornate");
       window.dispatchEvent(new CustomEvent("league-branding-updated", { detail: data }));
     } catch (e) {
@@ -382,7 +384,7 @@ export default function BrandingManager({
           <div className="flex h-full min-h-[280px] flex-col justify-between">
             <div className="flex items-start justify-between gap-4">
               {previewLogo ? (
-                <img src={previewLogo} alt="" className="h-16 w-16 rounded-2xl object-contain" />
+                <img src={previewLogo} alt="" loading="lazy" decoding="async" className="h-16 w-16 rounded-2xl object-contain" />
               ) : (
                 <div className="grid h-16 w-16 place-items-center rounded-2xl border border-white/15 bg-black/20">
                   <ImagePlus size={24} />
