@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import SeriesCard, { type SeriesData } from "./series-card";
+import SeriesCard, { type SeriesData } from "./SeriesCard";
 
 type Props = {
   series: SeriesData[];

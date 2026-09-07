@@ -155,3 +155,18 @@ La V23 introduce una regola pratica: le ottimizzazioni devono migliorare la velo
 - Ridurre le query Prisma delle dashboard con select più piccoli.
 - Aggiungere paginazione reale a media, giocatori e calendario quando i dati aumentano.
 - Valutare storage dedicato per media pesanti, con thumbnail generate a monte.
+
+## V24 - League, Playoffs and Content presentation split
+
+The remaining high-traffic page implementations have been moved out of `src/app` and into feature modules:
+
+- `src/modules/leagues/presentation/LeagueHubPage.tsx`
+- `src/modules/leagues/presentation/LeagueHomePage.tsx`
+- `src/modules/playoffs/presentation/PlayoffsPage.tsx`
+- `src/modules/playoffs/presentation/BracketView.tsx`
+- `src/modules/playoffs/presentation/SeriesCard.tsx`
+- `src/modules/playoffs/presentation/PlayoffSetup.tsx`
+- `src/modules/stats/presentation/LeagueTablePage.tsx`
+- `src/modules/videos/presentation/VideosPage.tsx`
+
+`src/app` should now remain a thin Next.js routing layer. New feature UI should be placed in the owning module first, then exposed through a route wrapper.
