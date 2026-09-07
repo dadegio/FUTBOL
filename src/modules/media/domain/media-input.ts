@@ -32,6 +32,29 @@ export type MediaItemStatusValue =
   | "HIDDEN"
   | "REJECTED";
 
+export type MediaInputError = { error: string };
+
+export type MediaCreateData = {
+  type: MediaItemTypeValue;
+  status: MediaItemStatusValue;
+  title: string | null;
+  caption: string | null;
+  fileUrl: string;
+  thumbnailUrl: string | null;
+  socialUrl: string | null;
+  matchId: string | null;
+  teamId: string | null;
+  playerId: string | null;
+  round: number | null;
+  creditName: string | null;
+  creditInstagram: string | null;
+  creditEmail: string | null;
+  showCreditEmail: boolean;
+  featured: boolean;
+};
+
+export type MediaPatchData = Record<string, unknown>;
+
 export function text(value: unknown, max = 300) {
   const v = String(value ?? "").trim();
   return v ? v.slice(0, max) : null;
@@ -59,7 +82,10 @@ export function instagram(value: unknown) {
   return undefined;
 }
 
-export function parseMediaCreateInput(body: Record<string, unknown>, canAdmin: boolean) {
+export function parseMediaCreateInput(
+  body: Record<string, unknown>,
+  canAdmin: boolean
+): { data: MediaCreateData } | MediaInputError {
   const fileUrl = url(body.fileUrl);
   if (!fileUrl) return { error: "Carica un file o inserisci un link valido" } as const;
   if (fileUrl === undefined) return { error: "Link file non valido" } as const;
@@ -112,8 +138,8 @@ export function parseMediaPatchInput(
   body: Record<string, unknown>,
   canAdmin: boolean,
   currentStatus: string
-) {
-  const data: Record<string, unknown> = {};
+): { data: MediaPatchData } | MediaInputError {
+  const data: MediaPatchData = {};
 
   if (body.title !== undefined) data.title = text(body.title, 140);
   if (body.caption !== undefined) data.caption = text(body.caption, 900);
