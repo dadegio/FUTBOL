@@ -216,5 +216,5 @@ export async function saveMatchResult({
     }
   });
 
-  return { winnerId };
+  return { leagueId: match.leagueId, winnerId };
 }

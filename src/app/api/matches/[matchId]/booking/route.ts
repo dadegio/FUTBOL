@@ -8,6 +8,7 @@ import {
   bookMatchSlot,
   clearMatchBooking,
 } from "@/modules/matches/application/match-scheduling";
+import { writeAuditLog } from "@/modules/audit/application/audit-service";
 
 type Ctx = { params: Promise<{ matchId: string }> };
 
@@ -26,6 +27,15 @@ export async function POST(req: Request, ctx: Ctx) {
     const venueKey = String(body?.venueKey ?? "").trim();
     const startsAt = new Date(String(body?.startsAt ?? ""));
     const booking = await bookMatchSlot({ matchId, venueKey, startsAt, session });
+    await writeAuditLog({
+      leagueId: booking.leagueId,
+      actor: session,
+      action: "match.booked",
+      entityType: "match",
+      entityId: matchId,
+      summary: `Prenotato slot${booking.venueName ? ` presso ${booking.venueName}` : ""}`,
+      metadata: { venueKey, startsAt: startsAt.toISOString() },
+    });
 
     return NextResponse.json({ ok: true, booking });
   } catch (error) {
@@ -45,6 +55,14 @@ export async function DELETE(_: Request, ctx: Ctx) {
 
   try {
     const result = await clearMatchBooking({ matchId, session });
+    await writeAuditLog({
+      leagueId: result.leagueId,
+      actor: session,
+      action: "match.booking_cleared",
+      entityType: "match",
+      entityId: matchId,
+      summary: "Liberato slot partita",
+    });
     return NextResponse.json(result);
   } catch (error) {
     return apiErrorResponse(error, "Non è stato possibile liberare lo slot");

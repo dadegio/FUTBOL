@@ -1,13 +1,14 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { requireLeagueAdmin } from "@/lib/server-auth";
+import { getServerSession, requireLeagueAdmin } from "@/lib/server-auth";
 import { apiErrorResponse, readJsonBody } from "@/modules/core/api";
 import {
   createPlayoffs,
   deletePlayoffs,
   getPlayoffs,
 } from "@/modules/playoffs/application/playoff-service";
+import { writeAuditLog } from "@/modules/audit/application/audit-service";
 
 type Ctx = { params: Promise<{ leagueId: string }> };
 
@@ -27,8 +28,19 @@ export async function POST(req: Request, ctx: Ctx) {
   if (authErr) return authErr;
 
   try {
-    const body = await readJsonBody(req);
-    return NextResponse.json(await createPlayoffs(leagueId, body));
+    const session = await getServerSession();
+    const body = await readJsonBody<Record<string, unknown>>(req);
+    const result = await createPlayoffs(leagueId, body);
+    await writeAuditLog({
+      leagueId,
+      actor: session,
+      action: "playoffs.created",
+      entityType: "playoffs",
+      entityId: leagueId,
+      summary: `Creati playoff ${result.format} top ${result.teamCount}`,
+      metadata: { format: result.format, teamCount: result.teamCount },
+    });
+    return NextResponse.json(result);
   } catch (error) {
     return apiErrorResponse(error, "Errore creazione playoff");
   }
@@ -40,7 +52,17 @@ export async function DELETE(_: Request, ctx: Ctx) {
   if (authErr) return authErr;
 
   try {
-    return NextResponse.json(await deletePlayoffs(leagueId));
+    const session = await getServerSession();
+    const result = await deletePlayoffs(leagueId);
+    await writeAuditLog({
+      leagueId,
+      actor: session,
+      action: "playoffs.deleted",
+      entityType: "playoffs",
+      entityId: leagueId,
+      summary: "Eliminati playoff",
+    });
+    return NextResponse.json(result);
   } catch (error) {
     return apiErrorResponse(error, "Errore eliminazione playoff");
   }

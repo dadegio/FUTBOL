@@ -172,5 +172,5 @@ export async function deleteMediaItem({ mediaId }: { mediaId: string }) {
   }
 
   await prisma.mediaItem.delete({ where: { id: mediaId } });
-  return { ok: true };
+  return { ok: true, leagueId: access.media.leagueId, status: access.media.status };
 }

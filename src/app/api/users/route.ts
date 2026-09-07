@@ -7,8 +7,9 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/server-auth";
+import { getServerSession, requireAdmin } from "@/lib/server-auth";
 import { hashPassword } from "@/lib/session";
+import { writeAuditLog } from "@/modules/audit/application/audit-service";
 
 // ── GET /api/users ────────────────────────────────────────────────────────────
 export async function GET() {
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const session = await getServerSession();
     const user = await prisma.user.create({
       data: {
         username: username.trim(),
@@ -125,6 +127,16 @@ export async function POST(req: NextRequest) {
         leagueId: true,
         createdAt: true,
       },
+    });
+
+    await writeAuditLog({
+      leagueId: user.leagueId ?? null,
+      actor: session,
+      action: "user.created",
+      entityType: "user",
+      entityId: user.id,
+      summary: `Creato utente ${user.username} (${user.role})`,
+      metadata: { role: user.role, teamId: user.teamId, refereeId: user.refereeId, leagueId: user.leagueId },
     });
 
     return NextResponse.json(user, { status: 201 });
@@ -166,9 +178,19 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Utente non trovato" }, { status: 404 });
   }
 
+  const session = await getServerSession();
   await prisma.user.update({
     where: { id },
     data: { passwordHash: hashPassword(password) },
+  });
+
+  await writeAuditLog({
+    leagueId: user.leagueId ?? null,
+    actor: session,
+    action: "user.password_updated",
+    entityType: "user",
+    entityId: id,
+    summary: `Aggiornata password utente ${user.username}`,
   });
 
   return NextResponse.json({ ok: true });
@@ -200,6 +222,16 @@ export async function DELETE(req: NextRequest) {
     }
   }
 
+  const session = await getServerSession();
   await prisma.user.delete({ where: { id } });
+  await writeAuditLog({
+    leagueId: user.leagueId ?? null,
+    actor: session,
+    action: "user.deleted",
+    entityType: "user",
+    entityId: id,
+    summary: `Eliminato utente ${user.username}`,
+    metadata: { role: user.role },
+  });
   return NextResponse.json({ ok: true });
 }

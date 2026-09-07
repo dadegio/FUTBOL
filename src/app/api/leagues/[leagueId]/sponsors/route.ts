@@ -5,6 +5,7 @@ import {
   createSponsor,
   listSponsors,
 } from "@/modules/sponsors/application/sponsor-service";
+import { writeAuditLog } from "@/modules/audit/application/audit-service";
 
 export async function GET(_: Request, ctx: { params: Promise<{ leagueId: string }> }) {
   const { leagueId } = await ctx.params;
@@ -21,8 +22,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
   if (authErr) return authErr;
 
   try {
+    const session = await getServerSession();
     const input = await readJsonBody<Record<string, unknown>>(req);
     const sponsor = await createSponsor({ leagueId, input });
+    await writeAuditLog({
+      leagueId,
+      actor: session,
+      action: "sponsor.created",
+      entityType: "sponsor",
+      entityId: sponsor.id,
+      summary: `Creato sponsor ${sponsor.name}`,
+      metadata: { name: sponsor.name, active: sponsor.active },
+    });
     return NextResponse.json(sponsor, { status: 201 });
   } catch (error) {
     return apiErrorResponse(error, "Non è stato possibile creare lo sponsor");

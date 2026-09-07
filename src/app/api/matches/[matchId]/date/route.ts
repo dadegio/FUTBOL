@@ -2,8 +2,9 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { apiErrorResponse, readJsonBody } from "@/modules/core/api";
-import { requireLeagueAdminForMatch } from "@/lib/server-auth";
+import { getServerSession, requireLeagueAdminForMatch } from "@/lib/server-auth";
 import { updateMatchDate } from "@/modules/matches/application/match-scheduling";
+import { writeAuditLog } from "@/modules/audit/application/audit-service";
 
 type Ctx = { params: Promise<{ matchId: string }> };
 
@@ -28,7 +29,17 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
 
   try {
+    const session = await getServerSession();
     const result = await updateMatchDate({ matchId, date });
+    await writeAuditLog({
+      leagueId: result.leagueId,
+      actor: session,
+      action: "match.date_updated",
+      entityType: "match",
+      entityId: matchId,
+      summary: date ? "Aggiornata data partita" : "Rimossa data partita",
+      metadata: { date: date ? date.toISOString() : null },
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     return apiErrorResponse(error, "Non è stato possibile aggiornare la data della partita");

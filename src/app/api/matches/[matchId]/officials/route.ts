@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { apiErrorResponse, readJsonBody } from "@/modules/core/api";
-import { requireLeagueAdminForMatch } from "@/lib/server-auth";
+import { getServerSession, requireLeagueAdminForMatch } from "@/lib/server-auth";
 import {
   getAdminRefereeState,
   updateMatchOfficials,
 } from "@/modules/matches/application/match-officials";
+import { writeAuditLog } from "@/modules/audit/application/audit-service";
 
 type Ctx = { params: Promise<{ matchId: string }> };
 
@@ -27,8 +28,18 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (authErr) return authErr;
 
   try {
+    const session = await getServerSession();
     const input = await readJsonBody<Record<string, unknown>>(req);
     const state = await updateMatchOfficials({ matchId, input });
+    await writeAuditLog({
+      leagueId: state.leagueId,
+      actor: session,
+      action: "match.officials_updated",
+      entityType: "match",
+      entityId: matchId,
+      summary: state.mode === "manual" ? "Arbitro impostato manualmente" : "Arbitro riportato in automatico",
+      metadata: { mode: state.mode, refereeId: state.refereeId },
+    });
     return NextResponse.json({ ok: true, ...state });
   } catch (error) {
     return apiErrorResponse(error, "Non è stato possibile aggiornare l'arbitro della partita");

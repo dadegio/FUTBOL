@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiErrorResponse, readJsonBody } from "@/modules/core/api";
-import { requireMatchEditor } from "@/lib/server-auth";
+import { getServerSession, requireMatchEditor } from "@/lib/server-auth";
 import { saveMatchResult } from "@/modules/matches/application/save-match-result";
+import { writeAuditLog } from "@/modules/audit/application/audit-service";
 
 type Body = {
   homeGoals?: number;
@@ -20,8 +21,23 @@ export async function POST(
   if (authErr) return authErr;
 
   try {
+    const session = await getServerSession();
     const input = await readJsonBody<Body>(req);
     const result = await saveMatchResult({ matchId, input });
+    await writeAuditLog({
+      leagueId: result.leagueId,
+      actor: session,
+      action: "match.result_saved",
+      entityType: "match",
+      entityId: matchId,
+      summary: `Salvato risultato ${input.homeGoals ?? "?"}-${input.awayGoals ?? "?"}`,
+      metadata: {
+        homeGoals: input.homeGoals,
+        awayGoals: input.awayGoals,
+        playerStats: input.playerStats?.length ?? 0,
+        sheetPlayers: input.sheetPlayerIds?.length ?? 0,
+      },
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     return apiErrorResponse(error, "Non è stato possibile salvare il risultato");

@@ -99,6 +99,7 @@ export async function getAdminRefereeState(matchId: string) {
   });
 
   return {
+    leagueId: match.leagueId,
     mode: match.refereeManualOverride ? "manual" : "automatic",
     referee: match.referee,
     refereeId: match.refereeId,

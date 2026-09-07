@@ -1,9 +1,10 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { requireAdminOrCaptainOfPlayoffSeries } from "@/lib/server-auth";
+import { getServerSession, requireAdminOrCaptainOfPlayoffSeries } from "@/lib/server-auth";
 import { apiErrorResponse, readJsonBody, AppError } from "@/modules/core/api";
 import { advancePlayoffSeries } from "@/modules/playoffs/application/playoff-service";
+import { writeAuditLog } from "@/modules/audit/application/audit-service";
 
 type Ctx = { params: Promise<{ leagueId: string }> };
 
@@ -20,7 +21,18 @@ export async function POST(req: Request, ctx: Ctx) {
   if (authErr) return authErr;
 
   try {
-    return NextResponse.json(await advancePlayoffSeries(leagueId, body));
+    const session = await getServerSession();
+    const result = await advancePlayoffSeries(leagueId, body);
+    await writeAuditLog({
+      leagueId,
+      actor: session,
+      action: "playoffs.advanced",
+      entityType: "playoffSeries",
+      entityId: seriesId,
+      summary: "Avanzata serie playoff",
+      metadata: { winnerId: body?.winnerId ?? null },
+    });
+    return NextResponse.json(result);
   } catch (error: any) {
     if (error instanceof AppError) return apiErrorResponse(error, "Errore avanzamento playoff");
     return NextResponse.json(

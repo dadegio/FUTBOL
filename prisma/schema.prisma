@@ -60,6 +60,7 @@ model User {
   adminLeague  League?  @relation("LeagueAdmins", fields: [leagueId], references: [id], onDelete: SetNull)
   creatorProfile CreatorProfile?
   uploadedMedia MediaItem[] @relation("MediaUploadedBy")
+  auditLogs    AuditLog[] @relation("AuditLogActor")
   createdAt    DateTime @default(now())
 
   bookedMatches Match[] @relation("MatchBookedBy")
@@ -101,6 +102,32 @@ model League {
   sponsors      Sponsor[]
   creatorProfiles CreatorProfile[]
   mediaItems    MediaItem[]
+  auditLogs     AuditLog[]
+}
+
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  leagueId      String?
+  actorUserId   String?
+  actorUsername String?
+  actorRole     String?
+
+  action     String
+  entityType String
+  entityId   String?
+  summary    String?
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+
+  league League? @relation(fields: [leagueId], references: [id], onDelete: SetNull)
+  actor  User?   @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([leagueId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action])
+  @@index([entityType, entityId])
 }
 
 

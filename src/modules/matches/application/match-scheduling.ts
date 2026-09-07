@@ -346,6 +346,7 @@ export async function bookMatchSlot({
       where: { id: matchId },
       select: {
         id: true,
+        leagueId: true,
         date: true,
         slotEnd: true,
         venueKey: true,
@@ -398,7 +399,7 @@ export async function clearMatchBooking({
     throw new AppError(400, "Non puoi liberare il campo di una partita già conclusa", "MATCH_ALREADY_PLAYED");
   }
 
-  if (!match.venueKey) return { ok: true };
+  if (!match.venueKey) return { ok: true, leagueId: match.leagueId };
 
   await prisma.match.update({
     where: { id: matchId },
@@ -415,7 +416,7 @@ export async function clearMatchBooking({
   });
   await rebalanceLeagueReferees(match.leagueId);
 
-  return { ok: true };
+  return { ok: true, leagueId: match.leagueId };
 }
 
 export async function updateMatchDate({
@@ -459,7 +460,7 @@ export async function updateMatchDate({
       },
     });
     await rebalanceLeagueReferees(existing.leagueId);
-    return { referee: null };
+    return { leagueId: existing.leagueId, referee: null };
   }
 
   const startsAt = date;
@@ -537,7 +538,7 @@ export async function updateMatchDate({
       select: { referee: { select: { id: true } } },
     });
 
-    return { referee: updated.referee, releasedRefereeAssignments: releaseIds.length };
+    return { leagueId: existing.leagueId, referee: updated.referee, releasedRefereeAssignments: releaseIds.length };
   });
 
   await rebalanceLeagueReferees(existing.leagueId);
@@ -546,5 +547,5 @@ export async function updateMatchDate({
     select: { referee: { select: { id: true } } },
   });
 
-  return { ...result, referee: refreshed?.referee ?? null };
+  return { ...result, leagueId: existing.leagueId, referee: refreshed?.referee ?? null };
 }

@@ -195,3 +195,23 @@ Le route coinvolte ora si limitano a:
 4. tradurre il risultato o l'errore in `NextResponse`.
 
 Regola da mantenere: quando una route supera poche decine di righe o contiene una transazione Prisma rilevante, va creato un caso d'uso in `src/modules/<dominio>/application` invece di aggiungere altra logica dentro `src/app/api`.
+
+## V26 — Audit Log
+
+Le modifiche operative più sensibili vengono registrate nel modulo `src/modules/audit`.
+
+- `domain/application`: scrittura e lettura log tramite `writeAuditLog` e `listAuditLogs`.
+- `presentation`: pannello admin `AuditLogPanel` dentro la pagina amministrazione torneo.
+- `api`: endpoint `GET /api/leagues/[leagueId]/audit` riservato ad Admin torneo/Super Admin.
+
+Il log è volutamente non bloccante: se la scrittura dello storico fallisce, l'operazione principale non viene annullata. I metadati vengono sanificati per evitare di salvare password, token, secret o hash.
+
+Eventi tracciati in questa fase:
+
+- tornei creati, aggiornati, eliminati;
+- prenotazioni campo create o liberate;
+- data partita, arbitro e risultato modificati;
+- sponsor creati, aggiornati, eliminati;
+- contenuti media creati, aggiornati, eliminati;
+- playoff creati, eliminati, avanzati o aggiornati;
+- utenti creati, eliminati o password aggiornata.

@@ -43,6 +43,11 @@ const CreatorManager = dynamic(() => import("@/modules/media/presentation/Creato
   loading: () => <AdminModuleFallback title="Creator" />,
 });
 
+const AuditLogPanel = dynamic(() => import("@/modules/audit/presentation/AuditLogPanel"), {
+  ssr: false,
+  loading: () => <AdminModuleFallback title="Audit log" />,
+});
+
 type LeagueSettings = {
   id: string;
   name: string;
@@ -243,6 +248,8 @@ export default function LeagueAdminPage() {
         <SponsorManager leagueId={leagueId} />
 
         <CreatorManager leagueId={leagueId} />
+
+        <AuditLogPanel leagueId={leagueId} />
 
         {summary && (
           <>
