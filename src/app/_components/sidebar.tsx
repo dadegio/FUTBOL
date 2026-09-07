@@ -15,9 +15,11 @@ import {
   Settings,
   Handshake,
   Youtube,
+  Camera,
+  UploadCloud,
 } from "lucide-react";
 import AuthButton from "./auth-button";
-import { useCanAdminLeague, useIsSuperAdmin } from "@/lib/client-auth";
+import { useAuth, useCanAdminLeague, useCanCreateMedia, useIsSuperAdmin } from "@/lib/client-auth";
 import { resolveLeagueBranding, type LeagueBranding } from "@/lib/league-branding";
 
 type SidebarProps = {
@@ -56,7 +58,9 @@ function NavItem({
 export default function Sidebar({ leagueId, branding }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuth();
   const isAdmin = useCanAdminLeague(leagueId);
+  const canCreateMedia = useCanCreateMedia(leagueId);
   const isSuperAdmin = useIsSuperAdmin();
   const [search, setSearch] = useState("");
   const [leagueName, setLeagueName] = useState<string | null>(null);
@@ -88,6 +92,7 @@ export default function Sidebar({ leagueId, branding }: SidebarProps) {
         { href: `/leagues/${leagueId}/players`,    label: "Giocatori",   icon: <Users size={17} /> },
         { href: `/leagues/${leagueId}/stats`,      label: "Statistiche", icon: <BarChart3 size={17} /> },
         { href: `/leagues/${leagueId}/sponsors`,   label: "Sponsor",     icon: <Handshake size={17} /> },
+        { href: `/leagues/${leagueId}/media`,      label: "Media",       icon: <Camera size={17} /> },
         { href: `/leagues/${leagueId}/videos`,     label: "Video",       icon: <Youtube size={17} /> },
       ]
     : [{ href: `/`, label: "Home", icon: <Home size={17} /> }];
@@ -176,6 +181,19 @@ export default function Sidebar({ leagueId, branding }: SidebarProps) {
           />
         ))}
       </nav>
+
+      {/* Creator section */}
+      {canCreateMedia && (
+        <>
+          <div className="my-3 border-t border-[var(--border)]" />
+          <NavItem
+            href={`/leagues/${leagueId}/creator`}
+            icon={<UploadCloud size={17} />}
+            label={user?.role === "CREATOR" ? "Creator Studio" : "Carica media"}
+            active={pathname === `/leagues/${leagueId}/creator`}
+          />
+        </>
+      )}
 
       {/* Admin section */}
       {isAdmin && (

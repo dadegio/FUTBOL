@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Home, Table2, CalendarDays, Users, Trophy, BarChart3, Youtube } from "lucide-react";
+import { Home, Table2, CalendarDays, Users, Trophy, BarChart3, Camera } from "lucide-react";
 
 type BottomTabsProps = {
   leagueId: string;
@@ -26,7 +26,7 @@ export default function BottomTabs({ leagueId }: BottomTabsProps) {
       { key: "home", path: "", label: "Home", icon: Home },
       { key: "table", path: "/table", label: "Tab.", icon: Table2 },
       { key: "calendar", path: "/calendar", label: "Cal.", icon: CalendarDays },
-      { key: "videos", path: "/videos", label: "Video", icon: Youtube },
+      { key: "media", path: "/media", label: "Media", icon: Camera },
       ...(hasPlayoffs ? [{ key: "playoffs", path: "/playoffs", label: "Playoff", icon: Trophy }] : []),
       { key: "stats", path: "/stats", label: "Stats", icon: BarChart3 },
       { key: "teams", path: "/teams", label: "Sqd.", icon: Users },

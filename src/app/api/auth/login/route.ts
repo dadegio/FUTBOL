@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     token = createToken({
       userId: user.id,
       username: user.username,
-      role: user.role as "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE",
+      role: user.role as "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE" | "CREATOR",
       teamId: user.teamId ?? null,
       refereeId: user.refereeId ?? null,
       leagueId: user.leagueId ?? null,

@@ -12,6 +12,7 @@ import RefereeManager from "./referee-manager";
 import FieldManager from "./field-manager";
 import BrandingManager from "./branding-manager";
 import SponsorManager from "./sponsor-manager";
+import CreatorManager from "./creator-manager";
 
 type LeagueSettings = {
   id: string;
@@ -211,6 +212,8 @@ export default function LeagueAdminPage() {
         </div>
 
         <SponsorManager leagueId={leagueId} />
+
+        <CreatorManager leagueId={leagueId} />
 
         {summary && (
           <>

@@ -18,8 +18,10 @@ import {
   Users,
   X,
   Youtube,
+  Camera,
+  UploadCloud,
 } from "lucide-react";
-import { clearAuthToken, useAuth, useCanAdminLeague, useIsSuperAdmin } from "@/lib/client-auth";
+import { clearAuthToken, useAuth, useCanAdminLeague, useCanCreateMedia, useIsSuperAdmin } from "@/lib/client-auth";
 import { resolveLeagueBranding, type LeagueBranding } from "@/lib/league-branding";
 
 type MobileMenuProps = {
@@ -65,6 +67,7 @@ export default function MobileMenu({ leagueId, open, onClose, branding }: Mobile
   const router = useRouter();
   const { user, refresh } = useAuth();
   const isAdmin = useCanAdminLeague(leagueId);
+  const canCreateMedia = useCanCreateMedia(leagueId);
   const isSuperAdmin = useIsSuperAdmin();
   const [search, setSearch] = useState("");
   const [hasPlayoffs, setHasPlayoffs] = useState(false);
@@ -114,6 +117,7 @@ export default function MobileMenu({ leagueId, open, onClose, branding }: Mobile
         { href: `/leagues/${leagueId}/players`, label: "Giocatori", icon: <Users size={18} /> },
         { href: `/leagues/${leagueId}/stats`, label: "Statistiche", icon: <BarChart3 size={18} /> },
         { href: `/leagues/${leagueId}/sponsors`, label: "Sponsor", icon: <Handshake size={18} /> },
+        { href: `/leagues/${leagueId}/media`, label: "Media", icon: <Camera size={18} /> },
         { href: `/leagues/${leagueId}/videos`, label: "Video", icon: <Youtube size={18} /> },
       ]
     : [];
@@ -204,6 +208,19 @@ export default function MobileMenu({ leagueId, open, onClose, branding }: Mobile
                   />
                 ))}
               </div>
+            </section>
+          )}
+
+          {canCreateMedia && (
+            <section className="mt-6 border-t border-[var(--border)] pt-5">
+              <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--accent)]">Creator</p>
+              <MenuLink
+                href={`/leagues/${leagueId}/creator`}
+                label={user?.role === "CREATOR" ? "Creator Studio" : "Carica media"}
+                icon={<UploadCloud size={18} />}
+                active={pathname === `/leagues/${leagueId}/creator`}
+                onClick={onClose}
+              />
             </section>
           )}
 

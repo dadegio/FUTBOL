@@ -31,6 +31,13 @@ export async function GET() {
           league: { select: { name: true } },
         },
       },
+      creatorProfile: {
+        select: {
+          displayName: true,
+          roleLabel: true,
+          league: { select: { name: true } },
+        },
+      },
       createdAt: true,
     },
     orderBy: [{ role: "asc" }, { username: "asc" }],
@@ -64,15 +71,16 @@ export async function POST(req: NextRequest) {
     role !== "ADMIN" &&
     role !== "LEAGUE_ADMIN" &&
     role !== "CAPTAIN" &&
-    role !== "REFEREE"
+    role !== "REFEREE" &&
+    role !== "CREATOR"
   ) {
     return NextResponse.json(
       { error: "Ruolo non valido" },
       { status: 400 }
     );
   }
-  if (role === "LEAGUE_ADMIN" && !leagueId) {
-    return NextResponse.json({ error: "Seleziona il torneo da amministrare" }, { status: 400 });
+  if ((role === "LEAGUE_ADMIN" || role === "CREATOR") && !leagueId) {
+    return NextResponse.json({ error: role === "CREATOR" ? "Seleziona il torneo del creator" : "Seleziona il torneo da amministrare" }, { status: 400 });
   }
   if (role === "CAPTAIN" && !teamId) {
     return NextResponse.json({ error: "Specifica teamId per un capitano" }, { status: 400 });
@@ -94,10 +102,19 @@ export async function POST(req: NextRequest) {
       data: {
         username: username.trim(),
         passwordHash: hashPassword(password),
-        role: role as "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE",
-        leagueId: role === "LEAGUE_ADMIN" ? leagueId : null,
+        role: role as "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE" | "CREATOR",
+        leagueId: role === "LEAGUE_ADMIN" || role === "CREATOR" ? leagueId : null,
         teamId: role === "CAPTAIN" ? teamId : null,
         refereeId: role === "REFEREE" ? refereeId : null,
+        creatorProfile: role === "CREATOR" && leagueId
+          ? {
+              create: {
+                leagueId,
+                displayName: username.trim(),
+                roleLabel: "Creator",
+              },
+            }
+          : undefined,
       },
       select: {
         id: true,

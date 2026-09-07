@@ -159,3 +159,26 @@ export async function requireAdminOrCaptainOfPlayoffSeries(
   if (session.role === "CAPTAIN" && (session.teamId === series.homeTeamId || session.teamId === series.awayTeamId)) return null;
   return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
 }
+
+export function isCreatorSession(
+  session: SessionUser | null,
+  leagueId: string
+): boolean {
+  return Boolean(session?.role === "CREATOR" && session.leagueId === leagueId);
+}
+
+export async function requireCreatorOrLeagueAdmin(
+  leagueId: string
+): Promise<NextResponse | null> {
+  const session = await getServerSession();
+  if (!session) {
+    return NextResponse.json({ error: "Devi effettuare il login" }, { status: 401 });
+  }
+  if (isLeagueAdminSession(session, leagueId) || isCreatorSession(session, leagueId)) {
+    return null;
+  }
+  return NextResponse.json(
+    { error: "Accesso riservato a creator o admin del torneo" },
+    { status: 403 }
+  );
+}

@@ -17,6 +17,25 @@ enum Role {
   LEAGUE_ADMIN
   CAPTAIN
   REFEREE
+  CREATOR
+}
+
+enum MediaItemType {
+  PHOTO
+  VIDEO
+  REEL
+  HIGHLIGHT
+  INTERVIEW
+  BACKSTAGE
+  OTHER
+}
+
+enum MediaItemStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  HIDDEN
+  REJECTED
 }
 
 enum PlayerStatus {
@@ -39,6 +58,8 @@ model User {
   team         Team?    @relation("TeamCaptain", fields: [teamId], references: [id], onDelete: SetNull)
   referee      Referee? @relation("RefereeAccount", fields: [refereeId], references: [id], onDelete: SetNull)
   adminLeague  League?  @relation("LeagueAdmins", fields: [leagueId], references: [id], onDelete: SetNull)
+  creatorProfile CreatorProfile?
+  uploadedMedia MediaItem[] @relation("MediaUploadedBy")
   createdAt    DateTime @default(now())
 
   bookedMatches Match[] @relation("MatchBookedBy")
@@ -78,6 +99,8 @@ model League {
   fields        Field[]
   admins        User[]          @relation("LeagueAdmins")
   sponsors      Sponsor[]
+  creatorProfiles CreatorProfile[]
+  mediaItems    MediaItem[]
 }
 
 
@@ -103,6 +126,84 @@ model Sponsor {
 
   @@index([leagueId, active])
   @@index([leagueId, sortOrder])
+}
+
+
+model CreatorProfile {
+  id        String   @id @default(cuid())
+  leagueId  String
+  userId    String   @unique
+
+  displayName  String
+  roleLabel    String?
+  avatarUrl    String?
+  bio          String?
+  instagramUrl String?
+  tiktokUrl    String?
+  youtubeUrl   String?
+  email        String?
+  phone        String?
+  websiteUrl   String?
+  primaryColor String?
+
+  showEmail     Boolean @default(false)
+  showInstagram Boolean @default(true)
+  showTikTok    Boolean @default(true)
+  showYoutube   Boolean @default(true)
+  showPhone     Boolean @default(false)
+  active        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaItems MediaItem[]
+
+  @@index([leagueId, active])
+  @@index([displayName])
+}
+
+model MediaItem {
+  id        String          @id @default(cuid())
+  leagueId  String
+  creatorId String?
+  uploadedByUserId String?
+
+  type      MediaItemType   @default(PHOTO)
+  status    MediaItemStatus @default(PENDING_REVIEW)
+  featured  Boolean         @default(false)
+
+  title       String?
+  caption     String?
+  fileUrl     String
+  thumbnailUrl String?
+  socialUrl   String?
+
+  matchId String?
+  teamId  String?
+  playerId String?
+  round   Int?
+
+  creditName      String?
+  creditInstagram String?
+  creditEmail     String?
+  showCreditEmail Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  league League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  creator CreatorProfile? @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  uploadedBy User? @relation("MediaUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([leagueId, status])
+  @@index([leagueId, featured])
+  @@index([creatorId])
+  @@index([matchId])
+  @@index([teamId])
+  @@index([playerId])
+  @@index([round])
 }
 
 model Team {

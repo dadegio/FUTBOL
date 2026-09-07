@@ -50,7 +50,9 @@ export default function AuthButton() {
               ? user.role === "ADMIN" ? "Super Admin" : "Admin torneo"
               : user.role === "REFEREE"
                 ? "Arbitro"
-                : "Capitano"}
+                : user.role === "CREATOR"
+                  ? "Creator"
+                  : "Capitano"}
           </div>
         </div>
       </div>

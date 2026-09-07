@@ -9,7 +9,7 @@ const THEME_MODES = new Set(["IMPERIAL", "GENERIC", "CUSTOM"]);
 export async function GET() {
   const session = await getServerSession();
   const leagues = await prisma.league.findMany({
-    where: session?.role === "LEAGUE_ADMIN" && session.leagueId
+    where: (session?.role === "LEAGUE_ADMIN" || session?.role === "CREATOR") && session.leagueId
       ? { id: session.leagueId }
       : undefined,
     orderBy: { createdAt: "desc" },

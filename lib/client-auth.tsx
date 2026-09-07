@@ -127,3 +127,11 @@ export function useCanEditTeam(teamId: string | undefined, leagueId?: string): b
   if (user.role === "LEAGUE_ADMIN" && leagueId && user.leagueId === leagueId) return true;
   return user.role === "CAPTAIN" && user.teamId === teamId;
 }
+
+export function useCanCreateMedia(leagueId: string | undefined): boolean {
+  const { user } = useAuth();
+  if (!user || !leagueId) return false;
+  return user.role === "ADMIN" ||
+    (user.role === "LEAGUE_ADMIN" && user.leagueId === leagueId) ||
+    (user.role === "CREATOR" && user.leagueId === leagueId);
+}

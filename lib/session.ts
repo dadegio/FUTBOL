@@ -14,7 +14,7 @@ function getSecret(): string {
 }
 
 // ── types ──────────────────────────────────────────────────────────────────
-export type Role = "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE";
+export type Role = "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE" | "CREATOR";
 
 export type SessionUser = {
   userId: string;
