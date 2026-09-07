@@ -93,8 +93,10 @@ export async function createPlayoffs(leagueId: string, input: any) {
   if (autoSeed) {
     seedTeamIds = await getStandingsTeamIds(leagueId, teamCount);
   } else {
-    const manualTeamIds = Array.isArray(input?.manualTeamIds)
-      ? input.manualTeamIds.map((id: unknown) => String(id).trim()).filter(Boolean)
+    const manualTeamIds: string[] = Array.isArray(input?.manualTeamIds)
+      ? input.manualTeamIds
+          .map((id: unknown) => String(id).trim())
+          .filter((id: string) => id.length > 0)
       : [];
 
     if (manualTeamIds.length === teamCount) {
