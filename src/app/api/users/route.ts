@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession, requireAdmin } from "@/lib/server-auth";
 import { hashPassword } from "@/lib/session";
 import { writeAuditLog } from "@/modules/audit/application/audit-service";
+import { isValidUsername, normalizeUsername, passwordPolicyError } from "@/modules/core/security/user-input";
 
 // ── GET /api/users ────────────────────────────────────────────────────────────
 export async function GET() {
@@ -62,11 +63,16 @@ export async function POST(req: NextRequest) {
     leagueId?: string | null;
   };
 
-  if (!username?.trim()) {
+  const normalizedUsername = normalizeUsername(username);
+  if (!normalizedUsername) {
     return NextResponse.json({ error: "Username obbligatorio" }, { status: 400 });
   }
-  if (!password || password.length < 4) {
-    return NextResponse.json({ error: "Password minimo 4 caratteri" }, { status: 400 });
+  if (!isValidUsername(normalizedUsername)) {
+    return NextResponse.json({ error: "Username: 3-40 caratteri, solo lettere minuscole, numeri, punto, trattino e underscore" }, { status: 400 });
+  }
+  const passwordError = passwordPolicyError(password ?? "", 8);
+  if (passwordError) {
+    return NextResponse.json({ error: passwordError }, { status: 400 });
   }
   if (
     role !== "ADMIN" &&
@@ -93,7 +99,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const existing = await prisma.user.findUnique({ where: { username } });
+  const existing = await prisma.user.findUnique({ where: { username: normalizedUsername } });
   if (existing) {
     return NextResponse.json({ error: "Username già in uso" }, { status: 409 });
   }
@@ -102,8 +108,8 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession();
     const user = await prisma.user.create({
       data: {
-        username: username.trim(),
-        passwordHash: hashPassword(password),
+        username: normalizedUsername,
+        passwordHash: hashPassword(password ?? ""),
         role: role as "ADMIN" | "LEAGUE_ADMIN" | "CAPTAIN" | "REFEREE" | "CREATOR",
         leagueId: role === "LEAGUE_ADMIN" || role === "CREATOR" ? leagueId : null,
         teamId: role === "CAPTAIN" ? teamId : null,
@@ -112,7 +118,7 @@ export async function POST(req: NextRequest) {
           ? {
               create: {
                 leagueId,
-                displayName: username.trim(),
+                displayName: normalizedUsername,
                 roleLabel: "Creator",
               },
             }
@@ -169,8 +175,9 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { password } = body as { password?: string };
 
-  if (!password || password.length < 8) {
-    return NextResponse.json({ error: "Password minimo 8 caratteri" }, { status: 400 });
+  const passwordError = passwordPolicyError(password ?? "", 8);
+  if (passwordError) {
+    return NextResponse.json({ error: passwordError }, { status: 400 });
   }
 
   const user = await prisma.user.findUnique({ where: { id } });

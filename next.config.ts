@@ -15,8 +15,25 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
   async headers() {
-    return [
+    const securityHeaders = [
+      { key: "X-DNS-Prefetch-Control", value: "on" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "Permissions-Policy", value: "geolocation=(), microphone=(), payment=(), usb=()" },
+    ];
 
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+      {
+        source: "/api/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, max-age=0" },
+        ],
+      },
       {
         source: "/media/:path*",
         headers: [

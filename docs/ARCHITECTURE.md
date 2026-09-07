@@ -215,3 +215,34 @@ Eventi tracciati in questa fase:
 - contenuti media creati, aggiornati, eliminati;
 - playoff creati, eliminati, avanzati o aggiornati;
 - utenti creati, eliminati o password aggiornata.
+
+## V27 hardening layer
+
+La V27 aggiunge un primo livello trasversale di hardening, mantenendo invariati database e UI.
+
+### Security headers
+
+Le intestazioni di sicurezza vengono gestite in `next.config.ts` e applicate globalmente alle pagine. Le API rispondono con `Cache-Control: no-store` per evitare cache accidentale di risposte operative o dati autenticati.
+
+### Rate limiting leggero
+
+`src/modules/core/security/rate-limit.ts` contiene un rate limiter in memoria pensato per ridurre abuso e richieste ripetute su endpoint sensibili. È deliberatamente semplice: funziona bene come guardia base su singola istanza serverless, ma non sostituisce un rate limiter distribuito Redis/Upstash se l'app viene usata ad alto traffico.
+
+Endpoint protetti in V27:
+
+- login;
+- upload immagini generico;
+- upload media creator/admin.
+
+### Upload validation
+
+`src/modules/core/security/upload-validation.ts` centralizza:
+
+- MIME type ammessi;
+- dimensioni massime;
+- normalizzazione nome file;
+- blocco dei formati non previsti, compresi SVG caricati come immagini.
+
+### User input
+
+`src/modules/core/security/user-input.ts` centralizza normalizzazione username e policy password. I nuovi account usano username normalizzati in minuscolo e password minime da 8 caratteri.

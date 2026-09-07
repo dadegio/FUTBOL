@@ -4,6 +4,8 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/server-auth";
+import { rateLimit } from "@/modules/core/security/rate-limit";
+import { validateUploadFile } from "@/modules/core/security/upload-validation";
 
 export const runtime = "nodejs";
 
@@ -18,6 +20,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const limited = rateLimit({
+      key: `upload:image:${session.userId}`,
+      limit: 80,
+      windowMs: 60 * 60 * 1000,
+      message: "Troppi upload. Riprova tra qualche minuto.",
+    });
+    if (limited) return limited;
+
     const formData = await req.formData();
     const file = formData.get("file");
 
@@ -28,22 +38,20 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!file.type.startsWith("image/")) {
+    const validation = validateUploadFile(file, {
+      allowImages: true,
+      allowVideos: false,
+      imageLimitBytes: 5 * 1024 * 1024,
+    });
+
+    if (!validation.ok) {
       return NextResponse.json(
-        { error: "File non valido" },
-        { status: 400 }
+        { error: validation.error },
+        { status: validation.status }
       );
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: "La foto deve essere massimo 5 MB" },
-        { status: 400 }
-      );
-    }
-
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const fileName = `${Date.now()}-${randomUUID()}-${safeName}`;
+    const fileName = `${Date.now()}-${randomUUID()}-${validation.safeBaseName}.${validation.extension}`;
 
     if (process.env.BLOB_READ_WRITE_TOKEN) {
       const blob = await put(`uploads/${fileName}`, file, {

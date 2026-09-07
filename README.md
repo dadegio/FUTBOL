@@ -186,3 +186,15 @@ feat: surface player admin status on team roster
 feat: add tournament admin financial dashboard
 fix: type match sheet stat lookups
 ```
+
+## V27 — Hardening leggero
+
+La V27 aggiunge un primo livello di sicurezza applicativa senza migration:
+
+- security headers globali e `Cache-Control: no-store` sulle API;
+- rate limiting leggero su login, setup e upload;
+- validazione centralizzata dei file caricati;
+- blocco upload SVG come immagini;
+- normalizzazione username in minuscolo per i nuovi utenti;
+- password minima 8 caratteri per i nuovi utenti e per reset password;
+- messaggi di errore login più sicuri, senza dettagli interni.

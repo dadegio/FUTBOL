@@ -9,12 +9,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/session";
+import { ipRateLimit } from "@/modules/core/security/rate-limit";
 import {
   generateTemporaryPassword,
   slugifyUsername,
 } from "@/lib/credentials";
 
-export async function POST() {
+export async function POST(req: Request) {
+  const limited = ipRateLimit(req, "setup", {
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+    message: "Troppi tentativi di setup. Riprova più tardi.",
+  });
+  if (limited) return limited;
+
   // Guard: only run if no users exist
   const existing = await prisma.user.count();
   if (existing > 0) {

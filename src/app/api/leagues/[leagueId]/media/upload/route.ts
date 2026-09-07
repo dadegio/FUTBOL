@@ -4,22 +4,13 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
 import { getServerSession, isLeagueAdminSession, isCreatorSession } from "@/lib/server-auth";
+import { rateLimit } from "@/modules/core/security/rate-limit";
+import { validateUploadFile } from "@/modules/core/security/upload-validation";
 
 export const runtime = "nodejs";
 
 const IMAGE_LIMIT = 10 * 1024 * 1024;
 const VIDEO_LIMIT = 75 * 1024 * 1024;
-
-function extensionFor(type: string, fallback: string) {
-  if (type === "image/jpeg") return "jpg";
-  if (type === "image/png") return "png";
-  if (type === "image/webp") return "webp";
-  if (type === "image/gif") return "gif";
-  if (type === "video/mp4") return "mp4";
-  if (type === "video/webm") return "webm";
-  if (type === "video/quicktime") return "mov";
-  return fallback.replace(/^\./, "") || "bin";
-}
 
 export async function POST(req: Request, ctx: { params: Promise<{ leagueId: string }> }) {
   try {
@@ -32,35 +23,37 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
       return NextResponse.json({ error: "Accesso riservato ai creator del torneo" }, { status: 403 });
     }
 
+    const limited = rateLimit({
+      key: `upload:media:${leagueId}:${session.userId}`,
+      limit: 60,
+      windowMs: 60 * 60 * 1000,
+      message: "Troppi upload media. Riprova tra qualche minuto.",
+    });
+    if (limited) return limited;
+
     const formData = await req.formData();
     const file = formData.get("file");
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Nessun file" }, { status: 400 });
     }
 
-    const isImage = file.type.startsWith("image/");
-    const isVideo = file.type.startsWith("video/");
-    if (!isImage && !isVideo) {
-      return NextResponse.json({ error: "Sono ammessi solo foto o video" }, { status: 400 });
+    const validation = validateUploadFile(file, {
+      allowImages: true,
+      allowVideos: true,
+      imageLimitBytes: IMAGE_LIMIT,
+      videoLimitBytes: VIDEO_LIMIT,
+    });
+
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: validation.status });
     }
 
-    const limit = isVideo ? VIDEO_LIMIT : IMAGE_LIMIT;
-    if (file.size > limit) {
-      return NextResponse.json(
-        { error: isVideo ? "Il video deve essere massimo 75 MB" : "La foto deve essere massimo 10 MB" },
-        { status: 400 }
-      );
-    }
-
-    const originalName = file.name || `media.${isVideo ? "mp4" : "jpg"}`;
-    const cleanBase = originalName.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const ext = extensionFor(file.type, path.extname(cleanBase));
-    const fileName = `${Date.now()}-${randomUUID()}-${cleanBase.replace(/\.[^.]+$/, "")}.${ext}`;
-    const folder = isVideo ? "videos" : "photos";
+    const fileName = `${Date.now()}-${randomUUID()}-${validation.safeBaseName}.${validation.extension}`;
+    const folder = validation.kind === "video" ? "videos" : "photos";
 
     if (process.env.BLOB_READ_WRITE_TOKEN) {
       const blob = await put(`media/${leagueId}/${folder}/${fileName}`, file, { access: "public" });
-      return NextResponse.json({ url: blob.url, mediaKind: isVideo ? "video" : "image" });
+      return NextResponse.json({ url: blob.url, mediaKind: validation.kind });
     }
 
     const bytes = await file.arrayBuffer();
@@ -68,7 +61,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ leagueId: stri
     await mkdir(uploadDir, { recursive: true });
     await writeFile(path.join(uploadDir, fileName), Buffer.from(bytes));
 
-    return NextResponse.json({ url: `/media/${leagueId}/${folder}/${fileName}`, mediaKind: isVideo ? "video" : "image" });
+    return NextResponse.json({ url: `/media/${leagueId}/${folder}/${fileName}`, mediaKind: validation.kind });
   } catch (err) {
     console.error("Errore upload media:", err);
     return NextResponse.json({ error: "Errore upload media" }, { status: 500 });
