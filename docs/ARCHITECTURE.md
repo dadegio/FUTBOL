@@ -170,3 +170,28 @@ The remaining high-traffic page implementations have been moved out of `src/app`
 - `src/modules/videos/presentation/VideosPage.tsx`
 
 `src/app` should now remain a thin Next.js routing layer. New feature UI should be placed in the owning module first, then exposed through a route wrapper.
+
+## V25 - API and domain cleanup
+
+La V25 prosegue il lavoro sugli application service: le API route più dense non devono contenere calcoli, transazioni lunghe o regole di dominio.
+
+Nuovi service estratti:
+
+```txt
+src/modules/leagues/application/league-service.ts
+src/modules/leagues/domain/league-input.ts
+
+src/modules/stats/application/league-stats-service.ts
+src/modules/stats/application/league-table-service.ts
+
+src/modules/playoffs/application/playoff-service.ts
+```
+
+Le route coinvolte ora si limitano a:
+
+1. leggere `params` e body JSON;
+2. verificare i permessi con le guardie esistenti;
+3. chiamare il service applicativo;
+4. tradurre il risultato o l'errore in `NextResponse`.
+
+Regola da mantenere: quando una route supera poche decine di righe o contiene una transazione Prisma rilevante, va creato un caso d'uso in `src/modules/<dominio>/application` invece di aggiungere altra logica dentro `src/app/api`.
