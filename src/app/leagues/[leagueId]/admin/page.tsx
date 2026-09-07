@@ -8,11 +8,11 @@ import Card from "src/app/_components/ui/card";
 import Badge from "src/app/_components/ui/badge";
 import Button from "src/app/_components/ui/button";
 import { authFetch } from "@/lib/client-auth";
-import RefereeManager from "./referee-manager";
-import FieldManager from "./field-manager";
-import BrandingManager from "./branding-manager";
-import SponsorManager from "./sponsor-manager";
-import CreatorManager from "./creator-manager";
+import RefereeManager from "@/modules/referees/presentation/RefereeManager";
+import FieldManager from "@/modules/fields/presentation/FieldManager";
+import BrandingManager from "@/modules/branding/presentation/BrandingManager";
+import SponsorManager from "@/modules/sponsors/presentation/SponsorManager";
+import CreatorManager from "@/modules/media/presentation/CreatorManager";
 
 type LeagueSettings = {
   id: string;

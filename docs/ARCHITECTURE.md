@@ -66,3 +66,41 @@ src/modules/media/
 ```
 
 Le route interessate restano compatibili con gli endpoint esistenti, ma non contengono più la logica principale del dominio. Le prossime feature dovrebbero seguire questo schema invece di aggiungere ulteriore business logic dentro `src/app/api`.
+
+## V21 - Presentation layer split
+
+La cartella `src/app` deve restare il più possibile uno strato di routing Next.js. Le pagine e i componenti più legati al dominio vengono spostati in `src/modules/*/presentation`, mentre i file in `src/app` diventano wrapper sottili.
+
+Esempi:
+
+```txt
+src/app/leagues/[leagueId]/media/page.tsx
+  -> importa src/modules/media/presentation/MediaCenterPage.tsx
+
+src/app/leagues/[leagueId]/creator/page.tsx
+  -> importa src/modules/media/presentation/CreatorStudioPage.tsx
+
+src/app/leagues/[leagueId]/sponsors/page.tsx
+  -> importa src/modules/sponsors/presentation/SponsorsPage.tsx
+```
+
+Regola pratica per le prossime feature:
+
+- `src/app/**/page.tsx`: routing, params, composizione minima.
+- `src/app/api/**/route.ts`: request/response, parsing minimale, chiamata a un application service.
+- `src/modules/*/domain`: regole pure.
+- `src/modules/*/application`: casi d'uso e orchestrazione.
+- `src/modules/*/presentation`: componenti React e pagine di dominio.
+
+Questo mantiene il monolite semplice da deployare, ma impedisce che ogni nuova feature finisca direttamente nelle route Next.js.
+
+## Roadmap architetturale successiva
+
+La prossima estrazione dovrebbe riguardare le pagine ancora grandi:
+
+- `calendar/page.tsx` -> `src/modules/matches/presentation`;
+- `teams/[teamId]/page.tsx` -> `src/modules/teams/presentation`;
+- `matches/[matchId]/result-form.tsx` -> `src/modules/matches/presentation`;
+- statistiche interne -> componenti più piccoli dentro `src/modules/stats/presentation`.
+
+Solo dopo questo passaggio conviene iniziare il lavoro prestazionale più serio: cache lato server, loading states più granulari, lazy loading dei manager admin e ottimizzazione delle query Prisma.
