@@ -104,3 +104,31 @@ La prossima estrazione dovrebbe riguardare le pagine ancora grandi:
 - statistiche interne -> componenti più piccoli dentro `src/modules/stats/presentation`.
 
 Solo dopo questo passaggio conviene iniziare il lavoro prestazionale più serio: cache lato server, loading states più granulari, lazy loading dei manager admin e ottimizzazione delle query Prisma.
+
+## V22 - Match, team e player page split
+
+Da V22 anche le pagine operative più grandi vengono estratte dal routing Next.js e spostate nel presentation layer dei rispettivi domini.
+
+```txt
+src/modules/matches/presentation/
+  CalendarPage.tsx
+  MatchPage.tsx
+  MatchResultForm.tsx
+
+src/modules/teams/presentation/
+  TeamsPage.tsx
+  TeamDetailPage.tsx
+
+src/modules/players/presentation/
+  PlayersPage.tsx
+  PlayerDetailPage.tsx
+```
+
+I file in `src/app/leagues/[leagueId]/...` restano come wrapper minimi. Questo riduce il rischio che il routing Next.js diventi il punto in cui finiscono insieme UI, stato React, business logic e chiamate API.
+
+Regola pratica da V22 in poi:
+
+- una pagina di dominio complessa nasce in `src/modules/<dominio>/presentation`;
+- `src/app` espone solo la route pubblica;
+- i vecchi file wrapper possono restare finché non viene completato il refactor dell'intera area;
+- le future ottimizzazioni performance vanno applicate nei moduli, non direttamente nelle route.
